@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { GraduationCap, TableIcon, MenuIcon } from "lucide-react";
+import { TableIcon, MenuIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -22,9 +22,12 @@ export function Header() {
       <div className="flex h-16 w-full items-center justify-between px-6 lg:px-10">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity group-hover:opacity-85">
-            <GraduationCap className="h-4.5 w-4.5" />
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="Trailr logo"
+            className="h-10 w-auto transition-opacity group-hover:opacity-85"
+          />
           <span className="text-xl font-bold tracking-tight text-foreground">
             Trailr
           </span>

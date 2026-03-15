@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import confetti from "canvas-confetti";
 import { Trash2, ChevronDown, ExternalLink, FileText } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
+import { CollegeLogo } from "@/components/college-logo";
 import { cn } from "@/lib/utils";
 import { formatAcceptanceRate } from "@/lib/utils";
 import type { TrackedCollege, ApplicationStatus, DecisionResult, AdmissionsCategory } from "@/types";
@@ -242,28 +243,38 @@ export const CollegeRow = memo(function CollegeRow({
 
       {/* University */}
       <td className="pl-2 pr-4 py-4">
-        <button onClick={() => onViewDetails(college)} className="text-left group/name">
-          <span className="font-medium text-foreground group-hover/name:text-primary transition-colors leading-tight">
-            {college.name}
-          </span>
-          {college.location && (
-            <span className="block text-xs text-muted-foreground mt-1">
-              {college.location}
-            </span>
-          )}
-        </button>
-        {college.website_url && (
-          <a
-            href={college.website_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-1 mt-1 text-xs text-muted-foreground hover:text-primary transition-colors w-fit"
-          >
-            <ExternalLink className="h-3 w-3" />
-            <span>Website</span>
-          </a>
-        )}
+        <div className="flex items-center gap-2.5">
+          <CollegeLogo
+            name={college.name}
+            website_url={college.website_url}
+            logo_url={college.logo_url}
+            size={32}
+          />
+          <div>
+            <button onClick={() => onViewDetails(college)} className="text-left group/name">
+              <span className="font-medium text-foreground group-hover/name:text-primary transition-colors leading-tight">
+                {college.name}
+              </span>
+              {college.location && (
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  {college.location}
+                </span>
+              )}
+            </button>
+            {college.website_url && (
+              <a
+                href={college.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground hover:text-primary transition-colors w-fit"
+              >
+                <ExternalLink className="h-3 w-3" />
+                <span>Website</span>
+              </a>
+            )}
+          </div>
+        </div>
       </td>
 
       {/* Acceptance rate */}
@@ -427,12 +438,12 @@ export const CollegeRow = memo(function CollegeRow({
               className={cn(
                 "flex h-7 w-7 items-center justify-center rounded-md transition-all",
                 college.notes
-                  ? "text-primary bg-primary/10 hover:bg-primary/15"
-                  : "text-muted-foreground/40 opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-muted-foreground"
+                  ? "text-primary bg-primary/10 hover:bg-primary/20"
+                  : "text-muted-foreground/50 hover:bg-muted hover:text-foreground"
               )}
               aria-label="Notes"
             >
-              <FileText className="h-3.5 w-3.5" />
+              <FileText className="h-4 w-4" />
             </button>
           }
         >

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import {
-  GraduationCap,
   CalendarDays,
   LayoutList,
   CheckCircle2,
@@ -202,42 +201,34 @@ export default function HomePage() {
   return (
     <main>
       {/* ── Hero ── */}
-      <section className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 pt-24 pb-20 text-center">
+      <section className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 pt-28 pb-24 text-center">
         <Reveal delay={0}>
-          <h1 className="text-6xl sm:text-8xl font-bold tracking-tight text-foreground mb-5 leading-[1.05]">
+          <h1 className="text-7xl sm:text-9xl font-bold tracking-tight text-foreground mb-6 leading-[1.05]">
             Stay on top of it.
           </h1>
         </Reveal>
 
         <Reveal delay={0.14}>
-          <p className="text-base text-muted-foreground max-w-sm mx-auto mb-10 leading-relaxed">
+          <p className="text-lg text-muted-foreground max-w-md mx-auto mb-12 leading-relaxed">
             Track every college, deadline, and decision — all in one place.
           </p>
         </Reveal>
 
         <Reveal delay={0.2}>
-          <div className="flex items-center justify-center gap-3 flex-wrap">
+          <div className="flex items-center justify-center gap-4 flex-wrap">
             <Link
               href="/tracker"
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
             >
               Get Started
               <ArrowRight className="h-4 w-4" />
             </Link>
             <a
               href="#preview"
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-8 py-3.5 text-base font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
             >
               View Demo
             </a>
-          </div>
-        </Reveal>
-
-        <Reveal delay={0.28}>
-          <div className="mt-16 flex justify-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 shadow-inner">
-              <GraduationCap className="h-10 w-10 text-primary" />
-            </div>
           </div>
         </Reveal>
       </section>
@@ -448,9 +439,8 @@ export default function HomePage() {
       <footer className="border-t border-border bg-card">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <GraduationCap className="h-3.5 w-3.5" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Trailr logo" className="h-7 w-auto" />
             <span className="text-sm font-bold text-foreground">Trailr</span>
             <span className="text-xs text-muted-foreground ml-1">© {new Date().getFullYear()}</span>
           </div>
