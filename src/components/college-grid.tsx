@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { CollegeRow } from "./college-card";
 import { EmptyState } from "./empty-state";
-import type { TrackedCollege, ApplicationStatus, DecisionResult } from "@/types";
+import type { TrackedCollege, ApplicationStatus, DecisionResult, AdmissionsCategory } from "@/types";
 
 const ORDER_KEY = "college-trackr-order";
 
@@ -13,6 +13,9 @@ interface CollegeGridProps {
   onViewDetails: (college: TrackedCollege) => void;
   onStatusChange: (id: string, status: ApplicationStatus) => void;
   onDecisionChange: (id: string, decision: DecisionResult | null) => void;
+  onDeadlineChange: (id: string, deadline: string | null) => void;
+  onCategoryChange: (id: string, category: AdmissionsCategory | null) => void;
+  onNotesChange: (id: string, notes: string) => void;
 }
 
 export function CollegeGrid({
@@ -21,6 +24,9 @@ export function CollegeGrid({
   onViewDetails,
   onStatusChange,
   onDecisionChange,
+  onDeadlineChange,
+  onCategoryChange,
+  onNotesChange,
 }: CollegeGridProps) {
   const [order, setOrder] = useState<string[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -77,10 +83,10 @@ export function CollegeGrid({
 
   if (colleges.length === 0) return <EmptyState />;
 
-  const colSpan = 6; // grip + university + acceptance + application + decision + remove
+  const colSpan = 9;
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="table-enter rounded-xl border border-border bg-card overflow-hidden shadow-sm">
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="border-b border-border bg-muted/40">
@@ -91,12 +97,19 @@ export function CollegeGrid({
             <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
               Acceptance
             </th>
+            <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+              Category
+            </th>
             <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Application
             </th>
             <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Decision
             </th>
+            <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+              My Deadline
+            </th>
+            <th className="w-10" />
             <th className="w-10" />
           </tr>
         </thead>
@@ -114,6 +127,9 @@ export function CollegeGrid({
                 onViewDetails={onViewDetails}
                 onStatusChange={onStatusChange}
                 onDecisionChange={onDecisionChange}
+                onDeadlineChange={onDeadlineChange}
+                onCategoryChange={onCategoryChange}
+                onNotesChange={onNotesChange}
                 isLast={i === sorted.length - 1}
                 isDragging={draggingId === college.id}
                 onDragStart={() => handleDragStart(college.id)}

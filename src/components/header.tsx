@@ -1,16 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { GraduationCap, ChevronDown, TableIcon, CalendarIcon, MenuIcon } from "lucide-react";
+import { GraduationCap, TableIcon, MenuIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetTrigger,
@@ -19,14 +13,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-const tools = [
-  { label: "Tracker", href: "/tracker", icon: TableIcon, description: "Track your college list" },
-  { label: "Calendar", href: "/calendar", icon: CalendarIcon, description: "View key dates" },
-];
-
 export function Header() {
   const pathname = usePathname();
-  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -37,35 +25,25 @@ export function Header() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity group-hover:opacity-85">
             <GraduationCap className="h-4.5 w-4.5" />
           </div>
-          <span className="text-base font-bold tracking-tight text-foreground">
-            CollegeTrackr
+          <span className="text-xl font-bold tracking-tight text-foreground">
+            Trailr
           </span>
         </Link>
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-1 md:flex">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-base font-medium transition-colors",
-                "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              Tools
-              <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={8}>
-              {tools.map((tool) => (
-                <DropdownMenuItem
-                  key={tool.href}
-                  onClick={() => router.push(tool.href)}
-                >
-                  <tool.icon className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{tool.label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Link
+            href="/tracker"
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              pathname === "/tracker"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <TableIcon className="h-3.5 w-3.5" />
+            Tracker
+          </Link>
         </nav>
 
         {/* Mobile hamburger */}
@@ -84,20 +62,19 @@ export function Header() {
                 <SheetTitle>Navigation</SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-1 px-4 pt-4">
-                <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Tools
-                </p>
-                {tools.map((tool) => (
-                  <Link
-                    key={tool.href}
-                    href={tool.href}
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-muted hover:text-foreground"
-                  >
-                    <tool.icon className="h-4 w-4" />
-                    {tool.label}
-                  </Link>
-                ))}
+                <Link
+                  href="/tracker"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    pathname === "/tracker"
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <TableIcon className="h-4 w-4" />
+                  Tracker
+                </Link>
               </div>
             </SheetContent>
           </Sheet>

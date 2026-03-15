@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { TrackedCollege, ApplicationStatus, ApplicationRound, DecisionResult, College } from "@/types";
+import type { TrackedCollege, ApplicationStatus, ApplicationRound, DecisionResult, AdmissionsCategory, College } from "@/types";
 import {
   LOCALSTORAGE_TRACKED_KEY,
   LOCALSTORAGE_NOTES_KEY,
   LOCALSTORAGE_STATUSES_KEY,
   LOCALSTORAGE_DECISIONS_KEY,
   LOCALSTORAGE_ROUNDS_KEY,
+  LOCALSTORAGE_DEADLINES_KEY,
+  LOCALSTORAGE_CATEGORIES_KEY,
 } from "@/lib/constants";
 
 function safeGetItem<T>(key: string, fallback: T): T {
@@ -26,7 +28,6 @@ function safeSetItem(key: string, value: unknown) {
   } catch {}
 }
 
-// Migrate old localStorage status values to new schema
 function migrateStatus(raw: string): ApplicationStatus {
   const map: Record<string, ApplicationStatus> = {
     applying: "in_progress",
@@ -51,6 +52,8 @@ export function useTrackedColleges() {
   const [statuses, setStatusesState] = useState<Record<string, ApplicationStatus>>({});
   const [decisions, setDecisionsState] = useState<Record<string, DecisionResult>>({});
   const [rounds, setRoundsState] = useState<Record<string, ApplicationRound>>({});
+  const [deadlines, setDeadlinesState] = useState<Record<string, string>>({});
+  const [categories, setCategoriesState] = useState<Record<string, AdmissionsCategory>>({});
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -59,12 +62,16 @@ export function useTrackedColleges() {
     const storedStatuses = safeGetItem<Record<string, string>>(LOCALSTORAGE_STATUSES_KEY, {});
     const storedDecisions = safeGetItem<Record<string, DecisionResult>>(LOCALSTORAGE_DECISIONS_KEY, {});
     const storedRounds = safeGetItem<Record<string, ApplicationRound>>(LOCALSTORAGE_ROUNDS_KEY, {});
+    const storedDeadlines = safeGetItem<Record<string, string>>(LOCALSTORAGE_DEADLINES_KEY, {});
+    const storedCategories = safeGetItem<Record<string, AdmissionsCategory>>(LOCALSTORAGE_CATEGORIES_KEY, {});
 
     const hydrated = storedColleges.map((c) => ({
       ...c,
       application_status: migrateStatus(storedStatuses[c.id] ?? "researching"),
       application_round: storedRounds[c.id] ?? "unknown",
       decision: storedDecisions[c.id] ?? null,
+      admissions_category: storedCategories[c.id] ?? null,
+      personal_deadline: storedDeadlines[c.id] ?? null,
       notes: storedNotes[c.id] ?? "",
       added_at: (c as TrackedCollege).added_at ?? new Date().toISOString(),
     }));
@@ -76,6 +83,8 @@ export function useTrackedColleges() {
     ));
     setDecisionsState(storedDecisions);
     setRoundsState(storedRounds);
+    setDeadlinesState(storedDeadlines);
+    setCategoriesState(storedCategories);
     setHydrated(true);
   }, []);
 
@@ -87,6 +96,8 @@ export function useTrackedColleges() {
         application_status: "not_started",
         application_round: "unknown",
         decision: null,
+        admissions_category: null,
+        personal_deadline: null,
         notes: "",
         added_at: new Date().toISOString(),
       };
@@ -155,12 +166,40 @@ export function useTrackedColleges() {
     );
   }, []);
 
+  const setDeadline = useCallback((collegeId: string, deadline: string | null) => {
+    setDeadlinesState((prev) => {
+      const next = { ...prev };
+      if (deadline === null) delete next[collegeId];
+      else next[collegeId] = deadline;
+      safeSetItem(LOCALSTORAGE_DEADLINES_KEY, next);
+      return next;
+    });
+    setTrackedColleges((prev) =>
+      prev.map((c) => (c.id === collegeId ? { ...c, personal_deadline: deadline } : c))
+    );
+  }, []);
+
+  const setAdmissionsCategory = useCallback((collegeId: string, category: AdmissionsCategory | null) => {
+    setCategoriesState((prev) => {
+      const next = { ...prev };
+      if (category === null) delete next[collegeId];
+      else next[collegeId] = category;
+      safeSetItem(LOCALSTORAGE_CATEGORIES_KEY, next);
+      return next;
+    });
+    setTrackedColleges((prev) =>
+      prev.map((c) => (c.id === collegeId ? { ...c, admissions_category: category } : c))
+    );
+  }, []);
+
   return {
     trackedColleges,
     notes,
     statuses,
     decisions,
     rounds,
+    deadlines,
+    categories,
     hydrated,
     addCollege,
     removeCollege,
@@ -169,5 +208,7 @@ export function useTrackedColleges() {
     setStatus,
     setDecision,
     setRound,
+    setDeadline,
+    setAdmissionsCategory,
   };
 }

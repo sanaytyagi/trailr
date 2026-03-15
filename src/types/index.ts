@@ -14,6 +14,8 @@ export type DecisionResult =
   | "waitlisted"
   | "deferred";
 
+export type AdmissionsCategory = "reach" | "target" | "safety";
+
 export interface College {
   id: string;
   name: string;
@@ -32,6 +34,8 @@ export interface TrackedCollege extends College {
   application_status: ApplicationStatus;
   application_round: ApplicationRound;
   decision: DecisionResult | null;
+  admissions_category: AdmissionsCategory | null;
+  personal_deadline: string | null; // ISO date string YYYY-MM-DD
   notes: string;
   added_at: string;
 }

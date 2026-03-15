@@ -5,6 +5,8 @@ export const LOCALSTORAGE_NOTES_KEY = "college-trackr-notes";
 export const LOCALSTORAGE_STATUSES_KEY = "college-trackr-statuses";
 export const LOCALSTORAGE_DECISIONS_KEY = "college-trackr-decisions";
 export const LOCALSTORAGE_ROUNDS_KEY = "college-trackr-rounds";
+export const LOCALSTORAGE_DEADLINES_KEY = "college-trackr-deadlines";
+export const LOCALSTORAGE_CATEGORIES_KEY = "college-trackr-categories";
 
 export const SEARCH_DEBOUNCE_MS = 300;
 export const SEARCH_MIN_CHARS = 2;
