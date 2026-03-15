@@ -1,0 +1,43 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export interface Database {
+  public: {
+    Tables: {
+      colleges: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          location: string | null;
+          state: string | null;
+          acceptance_rate: number | null;
+          website_url: string | null;
+          logo_url: string | null;
+          college_type: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          name: string;
+          slug: string;
+          location?: string | null;
+          state?: string | null;
+          acceptance_rate?: number | null;
+          website_url?: string | null;
+          logo_url?: string | null;
+          college_type?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["colleges"]["Insert"]>;
+      };
+    };
+  };
+}
