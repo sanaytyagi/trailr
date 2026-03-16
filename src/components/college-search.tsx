@@ -20,6 +20,7 @@ export const CollegeSearch = forwardRef<CollegeSearchHandle, CollegeSearchProps>
   function CollegeSearch({ onAdd, isTracked }, ref) {
     const { query, setQuery, results, isLoading } = useColleges();
     const [isOpen, setIsOpen] = useState(false);
+    const [addingId, setAddingId] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useImperativeHandle(ref, () => ({
@@ -32,7 +33,8 @@ export const CollegeSearch = forwardRef<CollegeSearchHandle, CollegeSearchProps>
     const showDropdown = isOpen;
 
     const handleSelect = (result: SearchResult) => {
-      if (isTracked(result.id)) return;
+      if (isTracked(result.id) || addingId !== null) return;
+      setAddingId(result.id);
       fetch(`/api/colleges/${result.slug}`)
         .then((r) => r.json())
         .then((data) => {
@@ -47,7 +49,8 @@ export const CollegeSearch = forwardRef<CollegeSearchHandle, CollegeSearchProps>
           onAdd(result as College);
           setQuery("");
           setIsOpen(false);
-        });
+        })
+        .finally(() => setAddingId(null));
     };
 
     return (
@@ -104,10 +107,12 @@ export const CollegeSearch = forwardRef<CollegeSearchHandle, CollegeSearchProps>
                       <button
                         className={cn(
                           "flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors",
-                          tracked ? "cursor-default opacity-50" : "hover:bg-muted cursor-pointer"
+                          tracked ? "cursor-default opacity-50"
+                          : addingId !== null ? "cursor-wait opacity-60"
+                          : "hover:bg-muted cursor-pointer"
                         )}
                         onClick={() => handleSelect(result)}
-                        disabled={tracked}
+                        disabled={tracked || addingId !== null}
                       >
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-foreground truncate">{result.name}</p>
@@ -123,6 +128,7 @@ export const CollegeSearch = forwardRef<CollegeSearchHandle, CollegeSearchProps>
                           )}
                         </div>
                         {tracked && <Check className="h-4 w-4 shrink-0 text-primary" aria-label="Already tracked" />}
+                        {addingId === result.id && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
                       </button>
                     </li>
                   );

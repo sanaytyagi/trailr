@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
-import { Plus, X } from "lucide-react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { Plus, X, CheckCircle2, XCircle } from "lucide-react";
+import type { College } from "@/types";
 import { CollegeSearch, type CollegeSearchHandle } from "@/components/college-search";
 import { CollegeGrid } from "@/components/college-grid";
 import { CollegeDetailDialog } from "@/components/college-detail-dialog";
@@ -252,6 +253,7 @@ export default function TrackerPage() {
     setNote,
     setStatus,
     setDecision,
+    setRound,
     setDeadline,
     setAdmissionsCategory,
   } = useTrackedColleges();
@@ -260,6 +262,35 @@ export default function TrackerPage() {
   const [selectedCollege, setSelectedCollege] = useState<TrackedCollege | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeCard, setActiveCard] = useState<CardFilter | null>(null);
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "add" | "remove"; exiting: boolean } | null>(null);
+  const toastHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastExitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((message: string, type: "add" | "remove" = "add") => {
+    // Cancel any in-flight timers so rapid calls don't stack
+    if (toastHideTimer.current) clearTimeout(toastHideTimer.current);
+    if (toastExitTimer.current) clearTimeout(toastExitTimer.current);
+    setToast({ message, type, exiting: false });
+    // After 2.6s start exit animation, after 2.6 + 350ms remove from DOM
+    toastHideTimer.current = setTimeout(() => {
+      setToast(prev => prev ? { ...prev, exiting: true } : null);
+      toastExitTimer.current = setTimeout(() => setToast(null), 350);
+    }, 2600);
+  }, []);
+
+  const handleAddCollege = useCallback((college: College) => {
+    addCollege(college);
+    setLastAddedId(college.id);
+    showToast(`${college.name} added`);
+    setTimeout(() => setLastAddedId(null), 900);
+  }, [addCollege, showToast]);
+
+  const handleRemoveCollege = useCallback((collegeId: string) => {
+    const college = trackedColleges.find(c => c.id === collegeId);
+    removeCollege(collegeId);
+    if (college) showToast(`${college.name} removed`, "remove");
+  }, [removeCollege, trackedColleges, showToast]);
 
   // Filters
   const [filterStatus, setFilterStatus] = useState<ApplicationStatus | null>(null);
@@ -359,7 +390,7 @@ export default function TrackerPage() {
             </p>
             <div className="flex items-center gap-3">
               <div className="flex-1">
-                <CollegeSearch ref={searchRef} onAdd={addCollege} isTracked={isTracked} />
+                <CollegeSearch ref={searchRef} onAdd={handleAddCollege} isTracked={isTracked} />
               </div>
               <button
                 onClick={() => searchRef.current?.focus()}
@@ -499,13 +530,15 @@ export default function TrackerPage() {
           {hydrated && (filteredColleges.length > 0 || !hasFilters) && (
             <CollegeGrid
               colleges={filteredColleges}
-              onRemove={removeCollege}
+              onRemove={handleRemoveCollege}
               onViewDetails={handleViewDetails}
               onStatusChange={handleStatusChange}
+              onRoundChange={setRound}
               onDecisionChange={handleDecisionChange}
               onDeadlineChange={setDeadline}
               onCategoryChange={setAdmissionsCategory}
               onNotesChange={handleNotesChange}
+              lastAddedId={lastAddedId}
             />
           )}
 
@@ -519,6 +552,23 @@ export default function TrackerPage() {
           <DeadlineCalendar entries={deadlineEntries} />
         </div>
       </div>
+
+      {/* College action toast */}
+      {toast && (
+        <div className={cn(
+          "fixed bottom-6 left-1/2 -translate-x-1/2 z-50",
+          "flex items-center gap-2 rounded-xl border border-border bg-card shadow-lg px-4 py-2.5",
+          "text-sm font-medium text-foreground",
+          toast.exiting
+            ? "animate-out fade-out-0 slide-out-to-bottom-3 duration-300 fill-mode-forwards"
+            : "animate-in fade-in-0 slide-in-from-bottom-3 duration-200"
+        )}>
+          {toast.type === "remove"
+            ? <XCircle className="h-4 w-4 text-destructive shrink-0" />
+            : <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />}
+          {toast.message}
+        </div>
+      )}
 
       <CollegeDetailDialog
         college={selectedCollege}

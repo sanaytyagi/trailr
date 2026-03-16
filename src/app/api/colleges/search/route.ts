@@ -3,7 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { SEARCH_MAX_RESULTS } from "@/lib/constants";
 
 export async function GET(request: NextRequest) {
-  const q = (request.nextUrl.searchParams.get("q") ?? "").trim();
+  const raw = (request.nextUrl.searchParams.get("q") ?? "").trim();
+
+  // Reject queries that are unreasonably long (guards against abuse).
+  if (raw.length > 200) {
+    return NextResponse.json({ error: "Query too long" }, { status: 400 });
+  }
+
+  const q = raw;
 
   const supabase = await createClient();
 

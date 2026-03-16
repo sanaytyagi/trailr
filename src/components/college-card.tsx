@@ -8,7 +8,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { CollegeLogo } from "@/components/college-logo";
 import { cn } from "@/lib/utils";
 import { formatAcceptanceRate } from "@/lib/utils";
-import type { TrackedCollege, ApplicationStatus, DecisionResult, AdmissionsCategory } from "@/types";
+import type { TrackedCollege, ApplicationStatus, ApplicationRound, DecisionResult, AdmissionsCategory } from "@/types";
 
 // ─── Application options ──────────────────────────────────────────────────────
 
@@ -66,6 +66,26 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
 
 function getCategoryConfig(c: AdmissionsCategory | null) {
   return CATEGORY_OPTIONS.find((o) => o.value === c) ?? null;
+}
+
+// ─── Round options ────────────────────────────────────────────────────────────
+
+type RoundOption = {
+  value: ApplicationRound;
+  label: string;
+  color: string;
+  bg: string;
+  border: string;
+};
+
+const ROUND_OPTIONS: RoundOption[] = [
+  { value: "ea", label: "EA", color: "hsl(262,60%,40%)", bg: "hsl(262,60%,95%)", border: "hsl(262,60%,78%)" },
+  { value: "ed", label: "ED", color: "hsl(215,75%,45%)", bg: "hsl(215,75%,95%)", border: "hsl(215,75%,78%)" },
+  { value: "rd", label: "RD", color: "hsl(160,55%,32%)", bg: "hsl(160,55%,94%)", border: "hsl(160,55%,72%)" },
+];
+
+function getRoundConfig(r: ApplicationRound | null) {
+  return ROUND_OPTIONS.find((o) => o.value === r) ?? null;
 }
 
 // ─── Deadline helpers ─────────────────────────────────────────────────────────
@@ -188,10 +208,12 @@ interface CollegeRowProps {
   onRemove: (id: string) => void;
   onViewDetails: (college: TrackedCollege) => void;
   onStatusChange: (id: string, status: ApplicationStatus) => void;
+  onRoundChange: (id: string, round: ApplicationRound) => void;
   onDecisionChange: (id: string, decision: DecisionResult | null) => void;
   onDeadlineChange: (id: string, deadline: string | null) => void;
   onCategoryChange: (id: string, category: AdmissionsCategory | null) => void;
   onNotesChange: (id: string, notes: string) => void;
+  isNew?: boolean;
   isLast: boolean;
   isDragging: boolean;
   onDragStart: () => void;
@@ -205,10 +227,12 @@ export const CollegeRow = memo(function CollegeRow({
   onRemove,
   onViewDetails,
   onStatusChange,
+  onRoundChange,
   onDecisionChange,
   onDeadlineChange,
   onCategoryChange,
   onNotesChange,
+  isNew,
   isLast,
   isDragging,
   onDragStart,
@@ -216,6 +240,7 @@ export const CollegeRow = memo(function CollegeRow({
   onDragEnd,
 }: CollegeRowProps) {
   const appOption = APP_OPTIONS.find((o) => o.value === college.application_status) ?? APP_OPTIONS[0];
+  const roundConfig = getRoundConfig(college.application_round);
   const decisionConfig = getDecisionConfig(college.decision);
   const categoryConfig = getCategoryConfig(college.admissions_category);
   const borderColor = decisionConfig?.color ?? "hsl(270,60%,55%)";
@@ -231,6 +256,7 @@ export const CollegeRow = memo(function CollegeRow({
       onDragEnd={onDragEnd}
       className={cn(
         "group transition-colors",
+        isNew && "row-enter",
         isDragging ? "opacity-40" : "hover:bg-muted/30",
         !isLast && "border-b border-border"
       )}
@@ -344,28 +370,90 @@ export const CollegeRow = memo(function CollegeRow({
             </button>
           }
         >
-          {(close) => APP_OPTIONS.map((opt) => (
+          {(close) => (<>
+            {college.application_status !== "not_started" && (
+              <>
+                <button
+                  onClick={() => { onStatusChange(college.id, "not_started"); onDecisionChange(college.id, null); close(); }}
+                  className="w-full text-left px-3.5 py-2 text-sm text-muted-foreground hover:bg-muted/60 rounded-lg mx-0.5 transition-colors"
+                >
+                  Clear
+                </button>
+                <div className="my-1 mx-2 border-t border-border" />
+              </>
+            )}
+            {APP_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  onStatusChange(college.id, opt.value);
+                  if (opt.value === "submitted") {
+                    onDecisionChange(college.id, "pending");
+                  } else {
+                    onDecisionChange(college.id, null);
+                  }
+                  close();
+                }}
+                className="w-full text-left px-3.5 py-2 text-sm font-medium rounded-lg mx-0.5 transition-all flex items-center gap-2.5 hover:opacity-90"
+                style={{
+                  color: opt.color,
+                  backgroundColor: college.application_status === opt.value ? opt.bg : "transparent",
+                }}
+              >
+                <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />
+                {opt.label}
+              </button>
+            ))}
+          </>)}
+        </PortalDropdown>
+      </td>
+
+      {/* Round dropdown */}
+      <td className="px-4 py-4">
+        <PortalDropdown
+          trigger={
             <button
-              key={opt.value}
-              onClick={() => {
-                onStatusChange(college.id, opt.value);
-                if (opt.value === "submitted") {
-                  onDecisionChange(college.id, "pending");
-                } else {
-                  onDecisionChange(college.id, null);
-                }
-                close();
-              }}
-              className="w-full text-left px-3.5 py-2 text-sm font-medium rounded-lg mx-0.5 transition-all flex items-center gap-2.5 hover:opacity-90"
-              style={{
-                color: opt.color,
-                backgroundColor: college.application_status === opt.value ? opt.bg : "transparent",
-              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-semibold transition-colors whitespace-nowrap"
+              style={
+                roundConfig
+                  ? { color: roundConfig.color, backgroundColor: roundConfig.bg, borderColor: roundConfig.border }
+                  : { color: "var(--muted-foreground)", backgroundColor: "var(--muted)", borderColor: "var(--border)" }
+              }
             >
-              <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />
-              {opt.label}
+              {roundConfig ? roundConfig.label : "—"}
+              <ChevronDown className="h-3 w-3 opacity-50" />
             </button>
-          ))}
+          }
+        >
+          {(close) => (
+            <>
+              {roundConfig && (
+                <>
+                  <button
+                    onClick={() => { onRoundChange(college.id, "unknown"); close(); }}
+                    className="w-full text-left px-3.5 py-2 text-sm text-muted-foreground hover:bg-muted/60 rounded-lg mx-0.5 transition-colors"
+                  >
+                    Clear
+                  </button>
+                  <div className="my-1 mx-2 border-t border-border" />
+                </>
+              )}
+              {ROUND_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => { onRoundChange(college.id, opt.value); close(); }}
+                  className="w-full text-left px-3.5 py-2 text-sm font-semibold rounded-lg mx-0.5 transition-all flex items-center gap-2.5 hover:opacity-90"
+                  style={{
+                    color: opt.color,
+                    backgroundColor: college.application_round === opt.value ? opt.bg : "transparent",
+                  }}
+                >
+                  <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />
+                  {opt.label}
+                </button>
+              ))}
+            </>
+          )}
         </PortalDropdown>
       </td>
 

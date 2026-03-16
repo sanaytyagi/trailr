@@ -1,97 +1,115 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { TrackedCollege, ApplicationStatus, ApplicationRound, DecisionResult, AdmissionsCategory, College } from "@/types";
-import {
-  LOCALSTORAGE_TRACKED_KEY,
-  LOCALSTORAGE_NOTES_KEY,
-  LOCALSTORAGE_STATUSES_KEY,
-  LOCALSTORAGE_DECISIONS_KEY,
-  LOCALSTORAGE_ROUNDS_KEY,
-  LOCALSTORAGE_DEADLINES_KEY,
-  LOCALSTORAGE_CATEGORIES_KEY,
-} from "@/lib/constants";
+import { createClient } from "@/lib/supabase/client";
+import type {
+  TrackedCollege,
+  ApplicationStatus,
+  ApplicationRound,
+  DecisionResult,
+  AdmissionsCategory,
+  College,
+} from "@/types";
 
-function safeGetItem<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
+// ---------------------------------------------------------------------------
+// Shape of a row returned by the join query
+// user_colleges.* + colleges embedded as "college"
+// ---------------------------------------------------------------------------
+interface UserCollegeRow {
+  id: string;
+  user_id: string;
+  college_id: string;
+  application_status: string;
+  application_round: string;
+  decision: string | null;
+  admissions_category: string | null;
+  personal_deadline: string | null;
+  notes: string;
+  sort_order: number | null;
+  added_at: string;
+  updated_at: string;
+  college: College;
 }
 
-function safeSetItem(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
-}
-
-function migrateStatus(raw: string): ApplicationStatus {
-  const map: Record<string, ApplicationStatus> = {
-    applying: "in_progress",
-    applied: "submitted",
-    accepted: "submitted",
-    rejected: "submitted",
-    waitlisted: "submitted",
-    committed: "submitted",
-    deferred: "submitted",
-    researching: "not_started",
-    planning: "not_started",
-    not_started: "not_started",
-    in_progress: "in_progress",
-    submitted: "submitted",
+function rowToTracked(row: UserCollegeRow): TrackedCollege {
+  return {
+    ...row.college,
+    application_status: (row.application_status as ApplicationStatus) ?? "not_started",
+    application_round: (row.application_round as ApplicationRound) ?? "unknown",
+    decision: (row.decision as DecisionResult | null) ?? null,
+    admissions_category: (row.admissions_category as AdmissionsCategory | null) ?? null,
+    personal_deadline: row.personal_deadline ?? null,
+    notes: row.notes ?? "",
+    added_at: row.added_at,
   };
-  return map[raw] ?? "not_started";
 }
 
 export function useTrackedColleges() {
+  const [supabase] = useState(() => createClient());
+
   const [trackedColleges, setTrackedColleges] = useState<TrackedCollege[]>([]);
-  const [notes, setNotesState] = useState<Record<string, string>>({});
-  const [statuses, setStatusesState] = useState<Record<string, ApplicationStatus>>({});
-  const [decisions, setDecisionsState] = useState<Record<string, DecisionResult>>({});
-  const [rounds, setRoundsState] = useState<Record<string, ApplicationRound>>({});
-  const [deadlines, setDeadlinesState] = useState<Record<string, string>>({});
-  const [categories, setCategoriesState] = useState<Record<string, AdmissionsCategory>>({});
   const [hydrated, setHydrated] = useState(false);
 
+  // -------------------------------------------------------------------------
+  // Load on mount — fetch this user's rows joined with college data.
+  // RLS on user_colleges ensures we only ever receive our own rows.
+  // -------------------------------------------------------------------------
   useEffect(() => {
-    const storedColleges = safeGetItem<College[]>(LOCALSTORAGE_TRACKED_KEY, []);
-    const storedNotes = safeGetItem<Record<string, string>>(LOCALSTORAGE_NOTES_KEY, {});
-    const storedStatuses = safeGetItem<Record<string, string>>(LOCALSTORAGE_STATUSES_KEY, {});
-    const storedDecisions = safeGetItem<Record<string, DecisionResult>>(LOCALSTORAGE_DECISIONS_KEY, {});
-    const storedRounds = safeGetItem<Record<string, ApplicationRound>>(LOCALSTORAGE_ROUNDS_KEY, {});
-    const storedDeadlines = safeGetItem<Record<string, string>>(LOCALSTORAGE_DEADLINES_KEY, {});
-    const storedCategories = safeGetItem<Record<string, AdmissionsCategory>>(LOCALSTORAGE_CATEGORIES_KEY, {});
+    let cancelled = false;
 
-    const hydrated = storedColleges.map((c) => ({
-      ...c,
-      application_status: migrateStatus(storedStatuses[c.id] ?? "researching"),
-      application_round: storedRounds[c.id] ?? "unknown",
-      decision: storedDecisions[c.id] ?? null,
-      admissions_category: storedCategories[c.id] ?? null,
-      personal_deadline: storedDeadlines[c.id] ?? null,
-      notes: storedNotes[c.id] ?? "",
-      added_at: (c as TrackedCollege).added_at ?? new Date().toISOString(),
-    }));
+    async function load() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    setTrackedColleges(hydrated);
-    setNotesState(storedNotes);
-    setStatusesState(Object.fromEntries(
-      Object.entries(storedStatuses).map(([k, v]) => [k, migrateStatus(v)])
-    ));
-    setDecisionsState(storedDecisions);
-    setRoundsState(storedRounds);
-    setDeadlinesState(storedDeadlines);
-    setCategoriesState(storedCategories);
-    setHydrated(true);
-  }, []);
+      if (!user || cancelled) {
+        setHydrated(true);
+        return;
+      }
 
-  const addCollege = useCallback((college: College) => {
-    setTrackedColleges((prev) => {
-      if (prev.find((c) => c.id === college.id)) return prev;
-      const newEntry: TrackedCollege = {
+      const { data, error } = await supabase
+        .from("user_colleges")
+        .select("*, college:colleges(*)")
+        .order("added_at", { ascending: true });
+
+      if (cancelled) return;
+
+      if (!error && data) {
+        setTrackedColleges(
+          (data as unknown as UserCollegeRow[]).map(rowToTracked)
+        );
+      }
+
+      setHydrated(true);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+
+  // -------------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------------
+  const isTracked = useCallback(
+    (collegeId: string) => trackedColleges.some((c) => c.id === collegeId),
+    [trackedColleges]
+  );
+
+  // -------------------------------------------------------------------------
+  // Add college — optimistic insert
+  // -------------------------------------------------------------------------
+  const addCollege = useCallback(
+    async (college: College) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      if (trackedColleges.some((c) => c.id === college.id)) return;
+
+      const optimistic: TrackedCollege = {
         ...college,
         application_status: "not_started",
         application_round: "unknown",
@@ -101,105 +119,166 @@ export function useTrackedColleges() {
         notes: "",
         added_at: new Date().toISOString(),
       };
-      const next = [...prev, newEntry];
-      safeSetItem(LOCALSTORAGE_TRACKED_KEY, next);
-      return next;
-    });
-  }, []);
 
-  const removeCollege = useCallback((collegeId: string) => {
-    setTrackedColleges((prev) => {
-      const next = prev.filter((c) => c.id !== collegeId);
-      safeSetItem(LOCALSTORAGE_TRACKED_KEY, next);
-      return next;
-    });
-  }, []);
+      setTrackedColleges((prev) => [...prev, optimistic]);
 
-  const isTracked = useCallback(
-    (collegeId: string) => trackedColleges.some((c) => c.id === collegeId),
-    [trackedColleges]
+      const { error } = await supabase.from("user_colleges").insert({
+        user_id: user.id,
+        college_id: college.id,
+        application_status: "not_started",
+        application_round: "unknown",
+        notes: "",
+      });
+
+      if (error) {
+        // Revert on failure
+        setTrackedColleges((prev) => prev.filter((c) => c.id !== college.id));
+        console.error("addCollege:", error.message);
+      }
+    },
+    [supabase, trackedColleges]
   );
 
-  const setNote = useCallback((collegeId: string, note: string) => {
-    setNotesState((prev) => {
-      const next = { ...prev, [collegeId]: note };
-      safeSetItem(LOCALSTORAGE_NOTES_KEY, next);
-      return next;
-    });
-    setTrackedColleges((prev) =>
-      prev.map((c) => (c.id === collegeId ? { ...c, notes: note } : c))
-    );
-  }, []);
+  // -------------------------------------------------------------------------
+  // Remove college
+  // -------------------------------------------------------------------------
+  const removeCollege = useCallback(
+    async (collegeId: string) => {
+      setTrackedColleges((prev) => prev.filter((c) => c.id !== collegeId));
 
-  const setStatus = useCallback((collegeId: string, status: ApplicationStatus) => {
-    setStatusesState((prev) => {
-      const next = { ...prev, [collegeId]: status };
-      safeSetItem(LOCALSTORAGE_STATUSES_KEY, next);
-      return next;
-    });
-    setTrackedColleges((prev) =>
-      prev.map((c) => (c.id === collegeId ? { ...c, application_status: status } : c))
-    );
-  }, []);
+      const { error } = await supabase
+        .from("user_colleges")
+        .delete()
+        .eq("college_id", collegeId);
+      // RLS automatically scopes this to the signed-in user.
 
-  const setDecision = useCallback((collegeId: string, decision: DecisionResult | null) => {
-    setDecisionsState((prev) => {
-      const next = { ...prev };
-      if (decision === null) delete next[collegeId];
-      else next[collegeId] = decision;
-      safeSetItem(LOCALSTORAGE_DECISIONS_KEY, next);
-      return next;
-    });
-    setTrackedColleges((prev) =>
-      prev.map((c) => (c.id === collegeId ? { ...c, decision } : c))
-    );
-  }, []);
+      if (error) {
+        console.error("removeCollege:", error.message);
+        // Resync state
+        const { data } = await supabase
+          .from("user_colleges")
+          .select("*, college:colleges(*)")
+          .order("added_at", { ascending: true });
+        if (data) {
+          setTrackedColleges(
+            (data as unknown as UserCollegeRow[]).map(rowToTracked)
+          );
+        }
+      }
+    },
+    [supabase]
+  );
 
-  const setRound = useCallback((collegeId: string, round: ApplicationRound) => {
-    setRoundsState((prev) => {
-      const next = { ...prev, [collegeId]: round };
-      safeSetItem(LOCALSTORAGE_ROUNDS_KEY, next);
-      return next;
-    });
-    setTrackedColleges((prev) =>
-      prev.map((c) => (c.id === collegeId ? { ...c, application_round: round } : c))
-    );
-  }, []);
+  // -------------------------------------------------------------------------
+  // Field setters — optimistic update + background Supabase sync.
+  // RLS on user_colleges enforces that .update() only touches the caller's rows.
+  // -------------------------------------------------------------------------
+  const setNote = useCallback(
+    (collegeId: string, note: string) => {
+      setTrackedColleges((prev) =>
+        prev.map((c) => (c.id === collegeId ? { ...c, notes: note } : c))
+      );
+      supabase
+        .from("user_colleges")
+        .update({ notes: note, updated_at: new Date().toISOString() })
+        .eq("college_id", collegeId)
+        .then(({ error }) => {
+          if (error) console.error("setNote:", error.message);
+        });
+    },
+    [supabase]
+  );
 
-  const setDeadline = useCallback((collegeId: string, deadline: string | null) => {
-    setDeadlinesState((prev) => {
-      const next = { ...prev };
-      if (deadline === null) delete next[collegeId];
-      else next[collegeId] = deadline;
-      safeSetItem(LOCALSTORAGE_DEADLINES_KEY, next);
-      return next;
-    });
-    setTrackedColleges((prev) =>
-      prev.map((c) => (c.id === collegeId ? { ...c, personal_deadline: deadline } : c))
-    );
-  }, []);
+  const setStatus = useCallback(
+    (collegeId: string, status: ApplicationStatus) => {
+      setTrackedColleges((prev) =>
+        prev.map((c) =>
+          c.id === collegeId ? { ...c, application_status: status } : c
+        )
+      );
+      supabase
+        .from("user_colleges")
+        .update({ application_status: status, updated_at: new Date().toISOString() })
+        .eq("college_id", collegeId)
+        .then(({ error }) => {
+          if (error) console.error("setStatus:", error.message);
+        });
+    },
+    [supabase]
+  );
 
-  const setAdmissionsCategory = useCallback((collegeId: string, category: AdmissionsCategory | null) => {
-    setCategoriesState((prev) => {
-      const next = { ...prev };
-      if (category === null) delete next[collegeId];
-      else next[collegeId] = category;
-      safeSetItem(LOCALSTORAGE_CATEGORIES_KEY, next);
-      return next;
-    });
-    setTrackedColleges((prev) =>
-      prev.map((c) => (c.id === collegeId ? { ...c, admissions_category: category } : c))
-    );
-  }, []);
+  const setDecision = useCallback(
+    (collegeId: string, decision: DecisionResult | null) => {
+      setTrackedColleges((prev) =>
+        prev.map((c) => (c.id === collegeId ? { ...c, decision } : c))
+      );
+      supabase
+        .from("user_colleges")
+        .update({ decision, updated_at: new Date().toISOString() })
+        .eq("college_id", collegeId)
+        .then(({ error }) => {
+          if (error) console.error("setDecision:", error.message);
+        });
+    },
+    [supabase]
+  );
+
+  const setRound = useCallback(
+    (collegeId: string, round: ApplicationRound) => {
+      setTrackedColleges((prev) =>
+        prev.map((c) =>
+          c.id === collegeId ? { ...c, application_round: round } : c
+        )
+      );
+      supabase
+        .from("user_colleges")
+        .update({ application_round: round, updated_at: new Date().toISOString() })
+        .eq("college_id", collegeId)
+        .then(({ error }) => {
+          if (error) console.error("setRound:", error.message);
+        });
+    },
+    [supabase]
+  );
+
+  const setDeadline = useCallback(
+    (collegeId: string, deadline: string | null) => {
+      setTrackedColleges((prev) =>
+        prev.map((c) =>
+          c.id === collegeId ? { ...c, personal_deadline: deadline } : c
+        )
+      );
+      supabase
+        .from("user_colleges")
+        .update({ personal_deadline: deadline, updated_at: new Date().toISOString() })
+        .eq("college_id", collegeId)
+        .then(({ error }) => {
+          if (error) console.error("setDeadline:", error.message);
+        });
+    },
+    [supabase]
+  );
+
+  const setAdmissionsCategory = useCallback(
+    (collegeId: string, category: AdmissionsCategory | null) => {
+      setTrackedColleges((prev) =>
+        prev.map((c) =>
+          c.id === collegeId ? { ...c, admissions_category: category } : c
+        )
+      );
+      supabase
+        .from("user_colleges")
+        .update({ admissions_category: category, updated_at: new Date().toISOString() })
+        .eq("college_id", collegeId)
+        .then(({ error }) => {
+          if (error) console.error("setAdmissionsCategory:", error.message);
+        });
+    },
+    [supabase]
+  );
 
   return {
     trackedColleges,
-    notes,
-    statuses,
-    decisions,
-    rounds,
-    deadlines,
-    categories,
     hydrated,
     addCollege,
     removeCollege,
