@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { TableIcon, MenuIcon, LogOut, Settings } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -20,21 +20,27 @@ export function Header() {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [supabase] = useState(() => createClient());
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-
-    // Keep in sync with auth state changes (sign in / sign out)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
-
     return () => subscription.unsubscribe();
   }, [supabase]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -42,9 +48,12 @@ export function Header() {
     router.refresh();
   }
 
+  const userInitial = ((user?.user_metadata?.name || user?.email || "U") as string)[0].toUpperCase();
+  const userDisplayName = user?.user_metadata?.name || user?.email || "";
+
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-card">
-      <div className="flex h-16 w-full items-center justify-between px-6 lg:px-10">
+    <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm">
+      <div className="flex h-16 w-full items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -58,8 +67,8 @@ export function Header() {
           </span>
         </Link>
 
-        {/* Desktop nav + auth — right side */}
-        <div className="hidden md:flex items-center gap-2">
+        {/* Desktop nav — right side */}
+        <div className="hidden md:flex items-center gap-2 pr-4">
           <Link
             href="/tracker"
             className={cn(
@@ -74,34 +83,48 @@ export function Header() {
           </Link>
 
           {user ? (
-            <>
-              <span className="max-w-[180px] truncate text-sm font-bold text-primary">
-                {user.user_metadata?.name || user.email}
-              </span>
-              <Link
-                href="/settings"
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium",
-                  "text-muted-foreground hover:bg-muted hover:text-foreground transition-colors",
-                  pathname === "/settings" && "bg-muted text-foreground"
-                )}
-              >
-                <Settings className="h-3.5 w-3.5" />
-                Settings
-              </Link>
+            /* ── Authenticated: compact avatar dropdown ── */
+            <div ref={userMenuRef} className="relative ml-1">
               <button
-                onClick={handleSignOut}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium",
-                  "text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                )}
-                aria-label="Sign out"
+                onClick={() => setUserMenuOpen(v => !v)}
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               >
-                <LogOut className="h-3.5 w-3.5" />
-                Sign Out
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold select-none">
+                  {userInitial}
+                </div>
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", userMenuOpen && "rotate-180")} />
               </button>
-            </>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-52 rounded-xl border border-border bg-card shadow-md overflow-hidden z-50">
+                  <div className="px-3 py-2.5 border-b border-border">
+                    <p className="text-xs text-muted-foreground truncate">{userDisplayName}</p>
+                  </div>
+                  <Link
+                    href="/settings"
+                    onClick={() => setUserMenuOpen(false)}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 text-sm transition-colors",
+                      pathname === "/settings"
+                        ? "bg-muted text-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                    Settings
+                  </Link>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); handleSignOut(); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
+            /* ── Unauthenticated: Sign In + Get Started ── */
             <>
               <Link
                 href="/auth?mode=login"
@@ -115,18 +138,18 @@ export function Header() {
               <Link
                 href="/auth?mode=signup"
                 className={cn(
-                  "inline-flex items-center rounded-md px-3 py-2 text-sm font-medium",
+                  "inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold",
                   "bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
                 )}
               >
-                Register
+                Get Started
               </Link>
             </>
           )}
         </div>
 
         {/* Mobile hamburger */}
-        <div className="md:hidden">
+        <div className="md:hidden pr-4">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <button
@@ -157,6 +180,7 @@ export function Header() {
 
                 {user ? (
                   <>
+                    <div className="px-3 py-2 text-sm font-medium text-foreground truncate">{userDisplayName}</div>
                     <Link
                       href="/settings"
                       onClick={() => setMobileOpen(false)}
@@ -171,10 +195,7 @@ export function Header() {
                       Settings
                     </Link>
                     <button
-                      onClick={() => {
-                        setMobileOpen(false);
-                        handleSignOut();
-                      }}
+                      onClick={() => { setMobileOpen(false); handleSignOut(); }}
                       className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-left"
                     >
                       <LogOut className="h-4 w-4" />
@@ -193,9 +214,9 @@ export function Header() {
                     <Link
                       href="/auth?mode=signup"
                       onClick={() => setMobileOpen(false)}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
                     >
-                      Register
+                      Get Started
                     </Link>
                   </>
                 )}

@@ -65,7 +65,7 @@ function calculatePasswordStrength(password: string): PasswordStrength {
   return { score, feedback };
 }
 
-function PasswordStrengthIndicator({ password }: { password: string }) {
+export function PasswordStrengthIndicator({ password }: { password: string }) {
   const { score, feedback } = calculatePasswordStrength(password);
   if (!password) return null;
 

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import {
   CalendarDays,
@@ -193,22 +195,22 @@ const RED = "text-[hsl(215,75%,45%)] bg-[hsl(215,75%,95%)] border-[hsl(215,75%,7
 const RRD = "text-[hsl(160,55%,32%)] bg-[hsl(160,55%,94%)] border-[hsl(160,55%,72%)]";
 const PEN = "text-[hsl(220,70%,28%)] bg-[hsl(220,70%,95%)] border-[hsl(220,70%,72%)]";
 const ACC = "text-[hsl(142,60%,30%)] bg-[hsl(142,60%,95%)] border-[hsl(142,60%,78%)]";
+
 const WAI = "text-[hsl(38,85%,35%)] bg-[hsl(38,85%,95%)] border-[hsl(38,85%,75%)]";
 
 const MOCK_ROWS = [
   { name: "Harvard",    rate: "3.2%",  category: "Reach",  catColor: RC,  status: "Submitted",   statusColor: SUB, round: "EA", roundColor: REA, decision: "Accepted",   decisionColor: ACC, deadline: "Nov 1"  },
   { name: "MIT",        rate: "3.9%",  category: "Reach",  catColor: RC,  status: "Submitted",   statusColor: SUB, round: "ED", roundColor: RED, decision: "Pending",    decisionColor: PEN, deadline: "Jan 1"  },
-  { name: "Stanford",   rate: "3.7%",  category: "Reach",  catColor: RC,  status: "In Progress", statusColor: INP, round: "—",  roundColor: MUT, decision: "—",          decisionColor: MUT, deadline: "Jan 2"  },
+  { name: "Stanford",   rate: "3.7%",  category: "Reach",  catColor: RC,  status: "In Progress", statusColor: INP, round: "RD", roundColor: RRD, decision: "—",          decisionColor: MUT, deadline: "Jan 2"  },
   { name: "UCLA",       rate: "8.6%",  category: "Reach",  catColor: RC,  status: "Submitted",   statusColor: SUB, round: "RD", roundColor: RRD, decision: "Waitlisted", decisionColor: WAI, deadline: "Nov 30" },
-  { name: "UMich",      rate: "17.7%", category: "Target", catColor: TC,  status: "Submitted",   statusColor: SUB, round: "RD", roundColor: RRD, decision: "Accepted",   decisionColor: ACC, deadline: "Feb 1"  },
+  { name: "UMich",      rate: "17.7%", category: "Target", catColor: TC,  status: "Submitted",   statusColor: SUB, round: "RD", roundColor: RRD, decision: "Rejected",   decisionColor: RC,  deadline: "Feb 1"  },
   { name: "UT Austin",  rate: "31%",   category: "Target", catColor: TC,  status: "Submitted",   statusColor: SUB, round: "RD", roundColor: RRD, decision: "Accepted",   decisionColor: ACC, deadline: "Dec 1"  },
-  { name: "Ohio State", rate: "49%",   category: "Safety", catColor: SC,  status: "In Progress", statusColor: INP, round: "—",  roundColor: MUT, decision: "—",          decisionColor: MUT, deadline: "Feb 15" },
+  { name: "Ohio State", rate: "49%",   category: "Safety", catColor: SC,  status: "In Progress", statusColor: INP, round: "EA", roundColor: REA, decision: "—",          decisionColor: MUT, deadline: "Feb 15" },
   { name: "Penn State", rate: "54%",   category: "Safety", catColor: SC,  status: "Not Started", statusColor: MUT, round: "—",  roundColor: MUT, decision: "—",          decisionColor: MUT, deadline: "Mar 1"  },
 ];
 
 // ── Animated dashboard preview ────────────────────────────────────────────────
 
-// Inline styles for Duke row dropdown buttons (matches real PortalDropdown trigger)
 const MUTED_BTN = { color: "hsl(215,15%,50%)", backgroundColor: "hsl(210,20%,92%)", borderColor: "hsl(214,25%,90%)" };
 const REACH_BTN = { color: "hsl(0,65%,42%)",   backgroundColor: "hsl(0,65%,96%)",   borderColor: "hsl(0,65%,80%)"   };
 const INP_BTN   = { color: "hsl(38,85%,35%)",  backgroundColor: "hsl(38,85%,95%)",  borderColor: "hsl(38,85%,75%)"  };
@@ -279,22 +281,19 @@ function DashboardPreview() {
 
       t(() => setShowDropdown(true), d);
 
-      // Cursor appears at the search input, then glides down to the dropdown result
       t(() => {
         const pos = getElPos(searchInputRef);
         if (pos) { setCursorPos({ x: pos.x, y: pos.y }); setCursorVisible(true); }
       }, d + 150);
       t(() => moveTo(dropdownResultRef), d + 220);
-      d += 850; // dropdown visible + cursor travel time
+      d += 850;
 
-      // Click the Duke University result → row appears
       t(() => click(() => {
         setShowDropdown(false); setSearchText("");
         setShowNewRow(true); setHighlightNew(true); setCollegeCount(9);
       }), d);
       d += 900;
 
-      // Cursor glides from dropdown area to Category cell
       t(() => {
         const pos = getElPos(catCellRef);
         if (pos) { setCursorPos({ x: pos.x - 55, y: pos.y - 28 }); }
@@ -302,31 +301,24 @@ function DashboardPreview() {
       t(() => moveTo(catCellRef), d + 60);
       d += 600;
 
-      // Click → Category = Reach
       t(() => click(() => { setDukeCat("Reach"); setHighlightNew(false); }), d);
       d += 650;
 
-      // Move → Application cell
       t(() => moveTo(statusCellRef), d);
       d += 520;
 
-      // Click → Application = In Progress
       t(() => click(() => setDukeStatus("In Progress")), d);
       d += 650;
 
-      // Move → Round cell
       t(() => moveTo(roundCellRef), d);
       d += 520;
 
-      // Click → Round = RD
       t(() => click(() => setDukeRound("RD")), d);
       d += 1100;
 
-      // Fade cursor out
       t(() => setCursorVisible(false), d);
       d += 500;
 
-      // Reset and loop
       t(() => { setShowNewRow(false); setCollegeCount(8); t(cycle, 700); }, d);
     }
 
@@ -419,9 +411,9 @@ function DashboardPreview() {
         <div className="grid grid-cols-5 gap-3 mb-5">
           <MockStatCard label="Colleges"   value={String(collegeCount)} />
           <MockStatCard label="Submitted"  value={String(submitted)} accent="text-[hsl(205,85%,45%)]" />
-          <MockStatCard label="Accepted"   value="3" accent="text-[hsl(142,60%,35%)]" />
+          <MockStatCard label="Accepted"   value="2" accent="text-[hsl(142,60%,35%)]" />
           <MockStatCard label="Waitlisted" value="1" accent="text-[hsl(38,85%,35%)]" />
-          <MockStatCard label="Rejected"   value="0" accent="text-[hsl(0,65%,45%)]" />
+          <MockStatCard label="Rejected"   value="1" accent="text-[hsl(0,65%,45%)]" />
         </div>
 
         {/* Progress bar */}
@@ -438,7 +430,7 @@ function DashboardPreview() {
         </div>
 
         {/* Table */}
-        <div className="rounded-xl border border-border overflow-hidden shadow-sm" >
+        <div className="rounded-xl border border-border overflow-hidden shadow-sm">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b border-border bg-muted/40">
@@ -496,18 +488,16 @@ function DashboardPreview() {
 
 // ── Mock calendar (homepage preview) ─────────────────────────────────────────
 
-// January 2026: Jan 1 = Thursday (firstDay=4), 31 days → 35 cells
 const JAN_FIRST_DAY = 4;
 const JAN_DAYS = 31;
 const JAN_TOTAL_CELLS = 35;
-// dot color per day: red ≤7 days out, amber = upcoming, green = far out
 const JAN_DOT_COLORS: Record<number, string> = {
-  1:  "bg-destructive",           // red — within 7 days
-  3:  "bg-destructive",           // red — within 7 days
-  5:  "bg-destructive",           // red — within 7 days
-  8:  "bg-destructive",           // red — within 7 days
-  21: "bg-[hsl(38,85%,50%)]",     // amber
-  25: "bg-[hsl(38,85%,50%)]",     // amber
+  1:  "bg-destructive",
+  3:  "bg-destructive",
+  5:  "bg-destructive",
+  8:  "bg-destructive",
+  21: "bg-[hsl(38,85%,50%)]",
+  25: "bg-[hsl(38,85%,50%)]",
 };
 const JAN_DEADLINE_DAYS = new Set(Object.keys(JAN_DOT_COLORS).map(Number));
 
@@ -515,7 +505,7 @@ const CAL_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function MockCalendar() {
   return (
-    <div className="flex flex-col gap-4 w-72">
+    <div className="flex flex-col gap-4 w-96">
       {/* Calendar card */}
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
         {/* Month nav */}
@@ -541,12 +531,12 @@ function MockCalendar() {
           {Array.from({ length: JAN_TOTAL_CELLS }, (_, i) => {
             const day = i - JAN_FIRST_DAY + 1;
             const inMonth = day >= 1 && day <= JAN_DAYS;
-            const selected = day === 1; // Jan 1 selected
+            const selected = day === 1;
             const hasDot = inMonth && JAN_DEADLINE_DAYS.has(day);
             return (
               <div
                 key={i}
-                className={`relative flex flex-col items-center justify-center h-9 w-full rounded-md text-xs select-none
+                className={`relative flex flex-col items-center justify-center h-11 w-full rounded-md text-sm select-none
                   ${!inMonth ? "invisible" : ""}
                   ${selected ? "bg-primary text-primary-foreground font-semibold" : "text-foreground"}
                 `}
@@ -562,7 +552,7 @@ function MockCalendar() {
           })}
         </div>
 
-        {/* Selected day tooltip — Jan 1: Harvard + Princeton */}
+        {/* Selected day tooltip */}
         <div className="mt-3 border-t border-border pt-3 space-y-1">
           {["Harvard", "Princeton"].map((name) => (
             <div key={name} className="flex items-center gap-2">
@@ -605,39 +595,52 @@ function MockCalendar() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
+  const router = useRouter();
+  const [supabase] = useState(() => createClient());
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) router.replace("/tracker");
+    });
+  }, [supabase, router]);
+
   return (
     <main>
       {/* ── Hero ── */}
-      <section className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 pt-16 pb-24 text-center">
-        <Reveal delay={0}>
-          <h1 className="text-6xl sm:text-8xl font-bold tracking-tight text-foreground mb-6 leading-[1.05] whitespace-nowrap">
-            Ditch the Spreadsheet.
-          </h1>
-        </Reveal>
+      <section
+        className="relative overflow-hidden"
+        style={{ background: "radial-gradient(ellipse 110% 55% at 50% -5%, hsl(215,85%,95%) 0%, transparent 72%)" }}
+      >
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 pt-16 pb-16 text-center">
+          <Reveal delay={0}>
+            <h1 className="text-6xl sm:text-8xl font-bold tracking-tight text-foreground mb-6 leading-[1.05] whitespace-nowrap">
+              Ditch the Spreadsheet.
+            </h1>
+          </Reveal>
 
-        <Reveal delay={0.14}>
-          <p className="text-xl sm:text-2xl text-muted-foreground max-w-xl mx-auto mb-12 leading-relaxed">
-            Track every college application, deadline, and decision in one organized dashboard.
-          </p>
-        </Reveal>
+          <Reveal delay={0.14}>
+            <p
+              className="text-xl sm:text-2xl max-w-xl mx-auto mb-10 leading-relaxed"
+              style={{ color: "#4a5568" }}
+            >
+              Track every college application, deadline, and decision in one organized dashboard.
+            </p>
+          </Reveal>
 
-        <Reveal delay={0.2}>
-          <div className="flex items-center justify-center gap-4 flex-wrap">
-            <Link
-              href="/tracker"
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
-            >
-              Get Started
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <a
-              href="#preview"
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-8 py-3.5 text-base font-semibold text-foreground hover:bg-muted transition-colors shadow-sm"
-            >
-              View Demo
-            </a>
-          </div>
-        </Reveal>
+          <Reveal delay={0.2}>
+            <div className="flex flex-col items-center gap-2">
+              <Link
+                href="/auth?mode=signup"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                Start Tracking Free
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <p className="text-sm text-muted-foreground/70">Free · No credit card required</p>
+            </div>
+          </Reveal>
+
+        </div>
       </section>
 
       {/* ── Dashboard preview ── */}
@@ -653,11 +656,12 @@ export default function HomePage() {
       <section className="border-t border-border bg-muted/30 py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <Reveal className="text-center mb-12">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Features</p>
             <h2 className="text-4xl font-bold text-foreground">Built for the application season</h2>
           </Reveal>
 
-          <Reveal stagger className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <StaggerItem>
+          <Reveal stagger className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-stretch">
+            <StaggerItem className="h-full">
               <FeatureCard
                 icon={LayoutList}
                 title="Track all your colleges"
@@ -665,20 +669,20 @@ export default function HomePage() {
                 accent="bg-primary/10 text-primary"
               />
             </StaggerItem>
-            <StaggerItem>
+            <StaggerItem className="h-full">
               <FeatureCard
                 icon={TrendingUp}
                 title="Organize application status"
                 description="Mark each school Not Started, In Progress, or Submitted as you go."
-                accent="bg-[hsl(38,85%,92%)] text-[hsl(38,85%,35%)]"
+                accent="bg-[hsl(215,75%,92%)] text-[hsl(215,75%,40%)]"
               />
             </StaggerItem>
-            <StaggerItem>
+            <StaggerItem className="h-full">
               <FeatureCard
                 icon={CheckCircle2}
                 title="Track decisions and outcomes"
                 description="Log acceptances, rejections, waitlists, and deferrals the moment they arrive."
-                accent="bg-[hsl(142,60%,90%)] text-[hsl(142,60%,30%)]"
+                accent="bg-[hsl(200,70%,92%)] text-[hsl(200,65%,35%)]"
               />
             </StaggerItem>
           </Reveal>
@@ -688,12 +692,12 @@ export default function HomePage() {
       {/* ── Calendar preview ── */}
       <section className="border-t border-border py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row items-center gap-16">
+          <div className="flex flex-col lg:flex-row items-center gap-10">
             {/* Text */}
             <Reveal className="flex-1 min-w-0">
               <div className="max-w-lg">
                 <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
-                  Never miss an application deadline
+                  Never miss a deadline
                 </h2>
                 <p className="text-base text-muted-foreground leading-relaxed mb-8">
                   Every school gets its own deadline on a built-in calendar. Track EA, ED, and RD windows so you always know what's coming up.
@@ -725,25 +729,26 @@ export default function HomePage() {
       <section className="border-t border-border bg-muted/30 py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <Reveal className="text-center mb-12">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">How It Works</p>
             <h2 className="text-4xl font-bold text-foreground">Simple by design</h2>
           </Reveal>
 
-          <Reveal stagger className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <StaggerItem>
+          <Reveal stagger className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
+            <StaggerItem className="h-full">
               <Step
                 n={1}
                 title="Add your colleges"
                 description="Search any school and add it to your list in seconds."
               />
             </StaggerItem>
-            <StaggerItem>
+            <StaggerItem className="h-full">
               <Step
                 n={2}
-                title="Track applications and deadlines"
+                title="Track deadlines & progress"
                 description="Set deadlines, update your status, and know exactly where each application stands."
               />
             </StaggerItem>
-            <StaggerItem>
+            <StaggerItem className="h-full">
               <Step
                 n={3}
                 title="Monitor decisions"
@@ -755,7 +760,7 @@ export default function HomePage() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="py-24">
+      <section className="border-t border-border bg-[hsl(215,60%,97%)] py-24">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 text-center">
           <Reveal>
             <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
@@ -765,7 +770,7 @@ export default function HomePage() {
               Start tracking your college applications today. Deadlines, decisions, and progress all in one place, for free.
             </p>
             <Link
-              href="/tracker"
+              href="/auth?mode=signup"
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
             >
               Start Tracking Your Colleges
@@ -787,9 +792,9 @@ export default function HomePage() {
             </div>
           </div>
           <nav className="flex items-center gap-6">
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">About</a>
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contact</a>
-            <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
+            <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
+            <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms of Service</Link>
+            <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</Link>
           </nav>
         </div>
       </footer>

@@ -40,7 +40,7 @@ function getDotColor(iso: string, today: Date, isSelected: boolean, isPast: bool
   const date = new Date(y, m - 1, d);
   const diffDays = Math.round((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays <= 7)  return "bg-destructive";
-  if (diffDays <= 15) return "bg-[hsl(38,85%,50%)]";
+  if (diffDays <= 30) return "bg-[hsl(38,85%,50%)]";
   return "bg-[hsl(142,60%,45%)]";
 }
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { PasswordStrengthIndicator } from "@/components/ui/premium-auth";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -30,10 +31,22 @@ export default function SettingsPage() {
     });
   }, [supabase, router]);
 
+  function validatePassword(pw: string): string | null {
+    if (pw.length < 8)              return "Password must be at least 8 characters.";
+    if (!/[A-Z]/.test(pw))         return "Password must contain at least one uppercase letter.";
+    if (!/[a-z]/.test(pw))         return "Password must contain at least one lowercase letter.";
+    if (!/\d/.test(pw))            return "Password must contain at least one number.";
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pw))
+                                   return "Password must contain at least one special character.";
+    return null;
+  }
+
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
     setPwError(null);
     setPwSuccess(false);
+    const strengthError = validatePassword(newPassword);
+    if (strengthError) { setPwError(strengthError); return; }
     if (newPassword !== confirmPassword) {
       setPwError("Passwords do not match.");
       return;
@@ -105,6 +118,7 @@ export default function SettingsPage() {
                   placeholder="New password"
                   className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring transition-shadow"
                 />
+                <PasswordStrengthIndicator password={newPassword} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">
