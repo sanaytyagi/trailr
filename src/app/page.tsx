@@ -656,21 +656,13 @@ export default function HomePage() {
             <h2 className="text-4xl font-bold text-foreground">Built for the application season</h2>
           </Reveal>
 
-          <Reveal stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Reveal stagger className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <StaggerItem>
               <FeatureCard
                 icon={LayoutList}
                 title="Track all your colleges"
                 description="Add any school and keep your full list organized in one place."
                 accent="bg-primary/10 text-primary"
-              />
-            </StaggerItem>
-            <StaggerItem>
-              <FeatureCard
-                icon={CalendarDays}
-                title="Never miss a deadline"
-                description="Set a deadline per school and see exactly how much time you have left."
-                accent="bg-[hsl(142,60%,90%)] text-[hsl(142,60%,30%)]"
               />
             </StaggerItem>
             <StaggerItem>
@@ -686,7 +678,7 @@ export default function HomePage() {
                 icon={CheckCircle2}
                 title="Track decisions and outcomes"
                 description="Log acceptances, rejections, waitlists, and deferrals the moment they arrive."
-                accent="bg-[hsl(205,85%,93%)] text-[hsl(205,85%,40%)]"
+                accent="bg-[hsl(142,60%,90%)] text-[hsl(142,60%,30%)]"
               />
             </StaggerItem>
           </Reveal>
@@ -704,7 +696,7 @@ export default function HomePage() {
                   Never miss an application deadline
                 </h2>
                 <p className="text-base text-muted-foreground leading-relaxed mb-8">
-                  Every school gets its own deadline on a built-in calendar. EA, ED, RD — see what's coming up and stay ahead of every window.
+                  Every school gets its own deadline on a built-in calendar. Track EA, ED, and RD windows so you always know what's coming up.
                 </p>
                 <ul className="space-y-3">
                   {[
@@ -770,7 +762,7 @@ export default function HomePage() {
               Stay organized through application season.
             </h2>
             <p className="text-sm text-muted-foreground mb-10 max-w-md mx-auto leading-relaxed">
-              Start tracking your college applications today — deadlines, decisions, and progress all in one place, for free.
+              Start tracking your college applications today. Deadlines, decisions, and progress all in one place, for free.
             </p>
             <Link
               href="/tracker"

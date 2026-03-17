@@ -34,8 +34,8 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Protect /tracker — unauthenticated users go to /auth.
-  if (!user && pathname.startsWith("/tracker")) {
+  // Protect /tracker and /settings — unauthenticated users go to /auth.
+  if (!user && (pathname.startsWith("/tracker") || pathname.startsWith("/settings"))) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth";
     return NextResponse.redirect(url);
@@ -52,5 +52,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/tracker/:path*", "/auth"],
+  matcher: ["/tracker/:path*", "/settings/:path*", "/auth"],
 };

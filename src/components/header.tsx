@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { TableIcon, MenuIcon, LogOut } from "lucide-react";
+import { TableIcon, MenuIcon, LogOut, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -78,6 +78,17 @@ export function Header() {
               <span className="max-w-[180px] truncate text-sm font-bold text-primary">
                 {user.user_metadata?.name || user.email}
               </span>
+              <Link
+                href="/settings"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium",
+                  "text-muted-foreground hover:bg-muted hover:text-foreground transition-colors",
+                  pathname === "/settings" && "bg-muted text-foreground"
+                )}
+              >
+                <Settings className="h-3.5 w-3.5" />
+                Settings
+              </Link>
               <button
                 onClick={handleSignOut}
                 className={cn(
@@ -145,16 +156,31 @@ export function Header() {
                 </Link>
 
                 {user ? (
-                  <button
-                    onClick={() => {
-                      setMobileOpen(false);
-                      handleSignOut();
-                    }}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-left"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                  </button>
+                  <>
+                    <Link
+                      href="/settings"
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname === "/settings"
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setMobileOpen(false);
+                        handleSignOut();
+                      }}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-left"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
+                  </>
                 ) : (
                   <>
                     <Link
