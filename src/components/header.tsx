@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown } from "lucide-react";
+import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -80,6 +80,19 @@ export function Header() {
           >
             <TableIcon className="h-3.5 w-3.5" />
             Tracker
+          </Link>
+
+          <Link
+            href="/counselor"
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              pathname === "/counselor"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <GraduationCap className="h-3.5 w-3.5" />
+            Counselor
           </Link>
 
           {user ? (
@@ -176,6 +189,20 @@ export function Header() {
                 >
                   <TableIcon className="h-4 w-4" />
                   Tracker
+                </Link>
+
+                <Link
+                  href="/counselor"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    pathname === "/counselor"
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <GraduationCap className="h-4 w-4" />
+                  Counselor
                 </Link>
 
                 {user ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { CollegeRow } from "./college-card";
 import { EmptyState } from "./empty-state";
@@ -86,6 +86,7 @@ export function CollegeGrid({
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [sortCol, setSortCol] = useState<SortCol | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const sortedRef = useRef<typeof colleges>([]);
 
   useEffect(() => {
     try {
@@ -98,6 +99,13 @@ export function CollegeGrid({
     if (order.length === 0) return;
     try { localStorage.setItem(ORDER_KEY, JSON.stringify(order)); } catch {}
   }, [order]);
+
+  // When the user sorts by a column, persist that order so it survives a refresh.
+  useEffect(() => {
+    if (sortCol && sortedRef.current.length > 0) {
+      setOrder(sortedRef.current.map(c => c.id));
+    }
+  }, [sortCol, sortDir]);
 
   function handleSort(col: SortCol) {
     if (sortCol === col) {
@@ -159,7 +167,7 @@ export function CollegeGrid({
       });
     }
 
-    // ── No sort: drag-drop order or alphabetical ──────────────────────────
+    // ── No sort: drag-drop order, then deadline urgency ───────────────────
     if (order.length > 0) {
       const orderMap = new Map(order.map((id, i) => [id, i]));
       return base.sort((a, b) => {
@@ -168,8 +176,17 @@ export function CollegeGrid({
         return ai - bi;
       });
     }
-    return base.sort((a, b) => a.name.localeCompare(b.name));
+    return base.sort((a, b) => {
+      const aHas = a.personal_deadline !== null;
+      const bHas = b.personal_deadline !== null;
+      if (aHas && bHas) return a.personal_deadline!.localeCompare(b.personal_deadline!);
+      if (aHas) return -1;
+      if (bHas) return 1;
+      return a.name.localeCompare(b.name);
+    });
   }, [colleges, order, sortCol, sortDir]);
+
+  sortedRef.current = sorted;
 
   function handleDragStart(id: string) { setDraggingId(id); }
 
