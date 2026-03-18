@@ -98,7 +98,7 @@ export function Header() {
               {userMenuOpen && (
                 <div className="absolute right-0 top-full mt-1.5 w-52 rounded-xl border border-border bg-card shadow-md overflow-hidden z-50">
                   <div className="px-3 py-2.5 border-b border-border">
-                    <p className="text-xs text-muted-foreground truncate">{userDisplayName}</p>
+                    <p className="text-sm text-primary truncate">{userDisplayName}</p>
                   </div>
                   <Link
                     href="/settings"
@@ -115,7 +115,7 @@ export function Header() {
                   </Link>
                   <button
                     onClick={() => { setUserMenuOpen(false); handleSignOut(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
                   >
                     <LogOut className="h-3.5 w-3.5" />
                     Sign Out

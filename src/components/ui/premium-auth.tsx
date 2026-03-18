@@ -25,7 +25,8 @@ interface AuthFormProps {
 }
 
 interface FormData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -114,7 +115,8 @@ export function AuthForm({ onSuccess, className, initialMode = 'login' }: AuthFo
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState<FormData>({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -126,9 +128,13 @@ export function AuthForm({ onSuccess, className, initialMode = 'login' }: AuthFo
 
   const validate = useCallback((field: keyof FormData, value: string | boolean): string => {
     switch (field) {
-      case 'name':
+      case 'firstName':
         if (authMode === 'signup' && typeof value === 'string' && !value.trim())
-          return 'Name is required';
+          return 'First name is required';
+        break;
+      case 'lastName':
+        if (authMode === 'signup' && typeof value === 'string' && !value.trim())
+          return 'Last name is required';
         break;
       case 'email':
         if (!value) return 'Email is required';
@@ -170,7 +176,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login' }: AuthFo
   function validateAll(): boolean {
     const fields: (keyof FormData)[] =
       authMode === 'signup'
-        ? ['name', 'email', 'password', 'confirmPassword', 'agreeToTerms']
+        ? ['firstName', 'lastName', 'email', 'password', 'confirmPassword', 'agreeToTerms']
         : ['email', 'password'];
     const newErrors: FormErrors = {};
     fields.forEach(f => {
@@ -187,7 +193,8 @@ export function AuthForm({ onSuccess, className, initialMode = 'login' }: AuthFo
     setSuccessMessage('');
     setTouched({});
     setFormData({
-      name: '',
+      firstName: '',
+      lastName: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -218,7 +225,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login' }: AuthFo
         const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
-          options: { data: { name: formData.name } },
+          options: { data: { name: `${formData.firstName} ${formData.lastName}`.trim() } },
         });
         if (error) {
           setErrors({ general: error.message });
@@ -339,27 +346,51 @@ export function AuthForm({ onSuccess, className, initialMode = 'login' }: AuthFo
       <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in-50 slide-in-from-right-5">
         {/* Name — signup only */}
         {authMode === 'signup' && (
-          <div>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={formData.name}
-                onChange={e => handleChange('name', e.target.value)}
-                onBlur={() => handleBlur('name')}
-                className={cn(
-                  "w-full pl-10 pr-4 py-3 bg-muted/50 border rounded-xl text-sm placeholder:text-muted-foreground",
-                  "focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all",
-                  errors.name ? "border-destructive" : "border-input"
-                )}
-              />
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="First Name"
+                  value={formData.firstName}
+                  onChange={e => handleChange('firstName', e.target.value)}
+                  onBlur={() => handleBlur('firstName')}
+                  className={cn(
+                    "w-full pl-10 pr-4 py-3 bg-muted/50 border rounded-xl text-sm placeholder:text-muted-foreground",
+                    "focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all",
+                    errors.firstName ? "border-destructive" : "border-input"
+                  )}
+                />
+              </div>
+              {errors.firstName && (
+                <p className="text-destructive text-xs mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />{errors.firstName}
+                </p>
+              )}
             </div>
-            {errors.name && (
-              <p className="text-destructive text-xs mt-1 flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" />{errors.name}
-              </p>
-            )}
+            <div className="flex-1">
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Last Name"
+                  value={formData.lastName}
+                  onChange={e => handleChange('lastName', e.target.value)}
+                  onBlur={() => handleBlur('lastName')}
+                  className={cn(
+                    "w-full pl-10 pr-4 py-3 bg-muted/50 border rounded-xl text-sm placeholder:text-muted-foreground",
+                    "focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all",
+                    errors.lastName ? "border-destructive" : "border-input"
+                  )}
+                />
+              </div>
+              {errors.lastName && (
+                <p className="text-destructive text-xs mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />{errors.lastName}
+                </p>
+              )}
+            </div>
           </div>
         )}
 

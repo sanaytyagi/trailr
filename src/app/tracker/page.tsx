@@ -49,12 +49,12 @@ function StatCard({
     <button
       onClick={onClick}
       className={cn(
-        "rounded-xl border bg-card px-5 py-4 flex flex-col gap-1 text-left w-full",
+        "group rounded-xl border bg-card px-5 py-4 flex flex-col gap-1 text-left w-full cursor-pointer",
         "transition-all duration-150",
-        "hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30",
+        "hover:-translate-y-0.5 hover:shadow-md hover:border-primary/40 hover:bg-primary/[0.04]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
         active
-          ? "border-primary/40 shadow-md ring-1 ring-primary/20 -translate-y-0.5 bg-primary/[0.02]"
+          ? "border-primary/40 shadow-md ring-1 ring-primary/20 -translate-y-0.5 bg-primary/[0.06]"
           : "border-border shadow-sm"
       )}
     >
@@ -335,7 +335,7 @@ export default function TrackerPage() {
 
   const deadlineEntries = useMemo(() =>
     trackedColleges
-      .filter((c) => c.personal_deadline !== null)
+      .filter((c) => c.personal_deadline !== null && c.application_status !== "submitted")
       .map((c) => ({ collegeId: c.id, collegeName: c.name, deadline: c.personal_deadline! })),
     [trackedColleges]
   );

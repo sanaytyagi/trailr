@@ -15,9 +15,19 @@
  *   - Has a reported acceptance rate
  */
 
-import { writeFileSync } from "fs";
+import { writeFileSync, readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+
+// Load .env.local
+try {
+  const envPath = join(dirname(fileURLToPath(import.meta.url)), "../.env.local");
+  const lines = readFileSync(envPath, "utf8").split("\n");
+  for (const line of lines) {
+    const match = line.match(/^([^#=]+)=(.*)$/);
+    if (match) process.env[match[1].trim()] = match[2].trim();
+  }
+} catch { /* .env.local not found, fall through */ }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
