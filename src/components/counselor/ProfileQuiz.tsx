@@ -1,14 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { TagInput } from "./TagInput";
+import { CollegeTagSearch } from "./CollegeTagSearch";
 import { ActivityCardList, type ActivityCard } from "./ActivityCardList";
 import { cn } from "@/lib/utils";
 import { ArrowRight, ArrowLeft, Loader2, GraduationCap } from "lucide-react";
+import type { StudentProfile } from "@/types/counselor";
 
 interface ProfileQuizProps {
   onComplete: () => void;
+  initialProfile?: StudentProfile;
+  onCancel?: () => void;
 }
 
 interface QuizState {
@@ -27,23 +32,52 @@ interface QuizState {
 
 const TOTAL_STEPS = 10;
 
-export function ProfileQuiz({ onComplete }: ProfileQuizProps) {
-  const [step, setStep] = useState(0);
+function parseActivityCards(strings: string[] | undefined): ActivityCard[] {
+  if (!strings || strings.length === 0) return [{ title: "", description: "" }];
+  return strings.map((s) => {
+    const idx = s.indexOf(": ");
+    return idx !== -1
+      ? { title: s.slice(0, idx), description: s.slice(idx + 2) }
+      : { title: s, description: "" };
+  });
+}
+
+export function ProfileQuiz({ onComplete, initialProfile, onCancel }: ProfileQuizProps) {
+  const router = useRouter();
+  const [step, setStep] = useState(initialProfile ? 1 : 0);
   const [visible, setVisible] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [state, setState] = useState<QuizState>({
-    grade: null,
-    gpa_unweighted: "",
-    gpa_weighted: "",
-    testTypes: new Set<"sat" | "act">(),
-    sat: "",
-    act: "",
-    ap_courses: [],
-    intended_major: "",
-    activities: [{ title: "", description: "" }],
-    awards: [{ title: "", description: "" }],
-    target_colleges: [],
+  const [state, setState] = useState<QuizState>(() => {
+    if (!initialProfile) return {
+      grade: null,
+      gpa_unweighted: "",
+      gpa_weighted: "",
+      testTypes: new Set<"sat" | "act">(),
+      sat: "",
+      act: "",
+      ap_courses: [],
+      intended_major: "",
+      activities: [{ title: "", description: "" }],
+      awards: [{ title: "", description: "" }],
+      target_colleges: [],
+    };
+    const testTypes = new Set<"sat" | "act">();
+    if (initialProfile.sat) testTypes.add("sat");
+    if (initialProfile.act) testTypes.add("act");
+    return {
+      grade: initialProfile.grade ? Number(initialProfile.grade) : null,
+      gpa_unweighted: initialProfile.gpa_unweighted != null ? String(initialProfile.gpa_unweighted) : "",
+      gpa_weighted: initialProfile.gpa_weighted != null ? String(initialProfile.gpa_weighted) : "",
+      testTypes,
+      sat: initialProfile.sat != null ? String(initialProfile.sat) : "",
+      act: initialProfile.act != null ? String(initialProfile.act) : "",
+      ap_courses: initialProfile.ap_courses ?? [],
+      intended_major: initialProfile.intended_major ?? "",
+      activities: parseActivityCards(initialProfile.activities),
+      awards: parseActivityCards(initialProfile.awards),
+      target_colleges: initialProfile.target_colleges ?? [],
+    };
   });
 
   function transition(nextStep: number) {
@@ -153,10 +187,9 @@ export function ProfileQuiz({ onComplete }: ProfileQuizProps) {
     }
   }
 
-  // Progress only counts question steps 1–9 (not intro or confirmation)
-  const progress = step <= 0 ? 0 : step >= TOTAL_STEPS ? 100 : ((step - 1) / (TOTAL_STEPS - 2)) * 100;
-  const showBack = step >= 1 && step <= TOTAL_STEPS;
-  const showProgress = step >= 1;
+  // Progress only counts question steps 1–9 (not confirmation)
+  const progress = step >= TOTAL_STEPS ? 100 : ((step - 1) / (TOTAL_STEPS - 2)) * 100;
+  const showProgress = true;
 
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col">
@@ -170,9 +203,25 @@ export function ProfileQuiz({ onComplete }: ProfileQuizProps) {
 
       {/* Top bar: back button + step counter */}
       <div className="flex items-center justify-between px-6 pt-5 min-h-[40px]">
-        {showBack ? (
+        {step > 1 && step <= TOTAL_STEPS ? (
           <button
             onClick={back}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
+        ) : step === 1 ? (
+          <button
+            onClick={onCancel ?? (() => transition(0))}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {onCancel ? "Cancel" : "Back"}
+          </button>
+        ) : step === 0 ? (
+          <button
+            onClick={() => router.back()}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -442,11 +491,10 @@ export function ProfileQuiz({ onComplete }: ProfileQuizProps) {
               question="Which colleges are you aiming for?"
               subtext="Add every school on your list — reaches, matches, and safeties. We'll evaluate each one honestly."
             >
-              <div className="mt-8">
-                <TagInput
-                  tags={state.target_colleges}
-                  onChange={(tags) => setState((s) => ({ ...s, target_colleges: tags }))}
-                  placeholder="e.g. MIT, University of Michigan"
+              <div className="mt-6">
+                <CollegeTagSearch
+                  colleges={state.target_colleges}
+                  onChange={(colleges) => setState((s) => ({ ...s, target_colleges: colleges }))}
                   max={15}
                 />
               </div>

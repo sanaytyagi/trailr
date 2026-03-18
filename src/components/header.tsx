@@ -82,8 +82,8 @@ export function Header() {
             Tracker
           </Link>
 
-          <Link
-            href="/counselor"
+          <button
+            onClick={() => router.push(user ? "/counselor" : "/auth?mode=signin")}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
               pathname === "/counselor"
@@ -93,7 +93,7 @@ export function Header() {
           >
             <GraduationCap className="h-3.5 w-3.5" />
             Counselor
-          </Link>
+          </button>
 
           {user ? (
             /* ── Authenticated: compact avatar dropdown ── */
@@ -191,11 +191,10 @@ export function Header() {
                   Tracker
                 </Link>
 
-                <Link
-                  href="/counselor"
-                  onClick={() => setMobileOpen(false)}
+                <button
+                  onClick={() => { setMobileOpen(false); router.push(user ? "/counselor" : "/auth?mode=signin"); }}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors w-full text-left",
                     pathname === "/counselor"
                       ? "bg-muted text-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -203,7 +202,7 @@ export function Header() {
                 >
                   <GraduationCap className="h-4 w-4" />
                   Counselor
-                </Link>
+                </button>
 
                 {user ? (
                   <>

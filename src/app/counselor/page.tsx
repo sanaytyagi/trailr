@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
-import { Send, GraduationCap, Loader2 } from "lucide-react";
+import { Send, GraduationCap, Loader2, UserPen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChat } from "@/hooks/useChat";
 import { ProfileQuiz } from "@/components/counselor/ProfileQuiz";
@@ -12,6 +12,7 @@ import type { StudentProfile } from "@/types/counselor";
 type ProfileState =
   | { status: "loading" }
   | { status: "missing" }
+  | { status: "editing"; profile: StudentProfile }
   | { status: "loaded"; profile: StudentProfile };
 
 const INITIAL_PROMPT =
@@ -20,6 +21,7 @@ const INITIAL_PROMPT =
 export default function CounselorPage() {
   const [profileState, setProfileState] = useState<ProfileState>({ status: "loading" });
   const isNewProfileRef = useRef(false);
+  const [chatKey, setChatKey] = useState(0);
 
   const fetchProfile = useCallback(async () => {
     const supabase = createClient();
@@ -41,8 +43,13 @@ export default function CounselorPage() {
 
   const handleQuizComplete = useCallback(async () => {
     isNewProfileRef.current = true;
+    setChatKey((k) => k + 1);
     await fetchProfile();
   }, [fetchProfile]);
+
+  const handleEditProfile = useCallback((profile: StudentProfile) => {
+    setProfileState({ status: "editing", profile });
+  }, []);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
@@ -58,7 +65,25 @@ export default function CounselorPage() {
     return <ProfileQuiz onComplete={handleQuizComplete} />;
   }
 
-  return <ChatView profile={profileState.profile} isNew={isNewProfileRef.current} />;
+  if (profileState.status === "editing") {
+    const editingProfile = profileState.profile;
+    return (
+      <ProfileQuiz
+        onComplete={handleQuizComplete}
+        initialProfile={editingProfile}
+        onCancel={() => setProfileState({ status: "loaded", profile: editingProfile })}
+      />
+    );
+  }
+
+  return (
+    <ChatView
+      key={chatKey}
+      profile={profileState.profile}
+      isNew={isNewProfileRef.current}
+      onEditProfile={handleEditProfile}
+    />
+  );
 }
 
 // Custom ReactMarkdown components for readable assistant responses
@@ -108,23 +133,27 @@ const mdComponents: React.ComponentProps<typeof ReactMarkdown>["components"] = {
   ),
 };
 
-function ChatView({ profile, isNew }: { profile: StudentProfile; isNew: boolean }) {
-  const { messages, isLoading, sendMessage } = useChat(profile);
+function ChatView({ profile, isNew, onEditProfile }: { profile: StudentProfile; isNew: boolean; onEditProfile: (profile: StudentProfile) => void }) {
+  const { messages, isLoading, isLoadingHistory, conversationSummary, sendMessage } = useChat(profile);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasSentInitialRef = useRef(false);
 
-  // Auto-fire initial assessment for new profiles — once only
+  // Auto-fire initial assessment for new profiles — once only, after history loads
   useEffect(() => {
-    if (isNew && !hasSentInitialRef.current) {
+    if (isNew && !isLoadingHistory && !hasSentInitialRef.current) {
       hasSentInitialRef.current = true;
       sendMessage(INITIAL_PROMPT);
     }
-  }, [isNew, sendMessage]);
+  }, [isNew, isLoadingHistory, sendMessage]);
 
+  const prevMessageCountRef = useRef(0);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > prevMessageCountRef.current) {
+      prevMessageCountRef.current = messages.length;
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -158,17 +187,41 @@ function ChatView({ profile, isNew }: { profile: StudentProfile; isNew: boolean 
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
             <GraduationCap className="h-5 w-5 text-primary" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-base font-semibold text-foreground leading-tight">Counselor</h1>
             <p className="text-xs text-muted-foreground">Your personal college admissions advisor</p>
           </div>
+          <button
+            onClick={() => onEditProfile(profile)}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <UserPen className="h-3.5 w-3.5" />
+            Edit Profile
+          </button>
         </div>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-4xl px-6 py-8 flex flex-col gap-6">
-          {messages.length === 0 && !isLoading && (
+          {isLoadingHistory && (
+            <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Loading your conversation...</span>
+            </div>
+          )}
+
+          {!isLoadingHistory && conversationSummary && (
+            <div className="flex items-center gap-3 py-1">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                Earlier conversation summarized · {new Date(conversationSummary.lastSummarizedAt).toLocaleDateString()}
+              </span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+          )}
+
+          {!isLoadingHistory && messages.length === 0 && !isLoading && (
             <div className="flex flex-1 flex-col items-center justify-center py-24 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 mb-4">
                 <GraduationCap className="h-7 w-7 text-primary" />
