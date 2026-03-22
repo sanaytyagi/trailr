@@ -8,6 +8,9 @@
  * Requires in .env.local:
  *   NEXT_PUBLIC_SUPABASE_URL=...
  *   SUPABASE_SERVICE_ROLE_KEY=...
+ *
+ * NOTE: Re-run fetch-colleges.mjs first, then re-run this script to
+ * populate the new sat_25, sat_75, act_25, act_75, and test_requirements columns.
  */
 
 import { readFileSync } from "fs";
@@ -16,6 +19,16 @@ import { dirname, join } from "path";
 import { createClient } from "@supabase/supabase-js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Load .env.local
+try {
+  const envPath = join(__dirname, "../.env.local");
+  const lines = readFileSync(envPath, "utf8").split("\n");
+  for (const line of lines) {
+    const match = line.match(/^([^#=]+)=(.*)$/);
+    if (match) process.env[match[1].trim()] = match[2].trim();
+  }
+} catch { /* .env.local not found, fall through */ }
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -66,6 +79,11 @@ async function main() {
       website_url: c.website_url,
       logo_url: c.logo_url,
       college_type: c.college_type,
+      sat_25: c.sat_25 ?? null,
+      sat_75: c.sat_75 ?? null,
+      act_25: c.act_25 ?? null,
+      act_75: c.act_75 ?? null,
+      test_requirements: c.test_requirements ?? null,
     }));
 
     const { error } = await supabase

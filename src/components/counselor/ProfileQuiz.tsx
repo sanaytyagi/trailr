@@ -27,10 +27,12 @@ interface QuizState {
   intended_major: string;
   activities: ActivityCard[];
   awards: ActivityCard[];
+  state_of_residence: string;
+  city: string;
   target_colleges: string[];
 }
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 12;
 
 function parseActivityCards(strings: string[] | undefined): ActivityCard[] {
   if (!strings || strings.length === 0) return [{ title: "", description: "" }];
@@ -60,6 +62,8 @@ export function ProfileQuiz({ onComplete, initialProfile, onCancel }: ProfileQui
       intended_major: "",
       activities: [{ title: "", description: "" }],
       awards: [{ title: "", description: "" }],
+      state_of_residence: "",
+      city: "",
       target_colleges: [],
     };
     const testTypes = new Set<"sat" | "act">();
@@ -76,6 +80,8 @@ export function ProfileQuiz({ onComplete, initialProfile, onCancel }: ProfileQui
       intended_major: initialProfile.intended_major ?? "",
       activities: parseActivityCards(initialProfile.activities),
       awards: parseActivityCards(initialProfile.awards),
+      state_of_residence: initialProfile.state_of_residence ?? "",
+      city: initialProfile.city ?? "",
       target_colleges: initialProfile.target_colleges ?? [],
     };
   });
@@ -137,7 +143,7 @@ export function ProfileQuiz({ onComplete, initialProfile, onCancel }: ProfileQui
       }
     }
 
-    if (step === 9) {
+    if (step === 11) {
       if (state.target_colleges.length === 0) {
         setError("Please add at least one target college.");
         return;
@@ -171,6 +177,8 @@ export function ProfileQuiz({ onComplete, initialProfile, onCancel }: ProfileQui
         awards: state.awards
           .filter((a) => a.title.trim())
           .map((a) => a.description.trim() ? `${a.title.trim()}: ${a.description.trim()}` : a.title.trim()),
+        state_of_residence: state.state_of_residence.trim() || null,
+        city: state.city.trim() || null,
         target_colleges: state.target_colleges,
       };
 
@@ -485,8 +493,46 @@ export function ProfileQuiz({ onComplete, initialProfile, onCancel }: ProfileQui
             </StepShell>
           )}
 
-          {/* Step 9 — Target Colleges */}
+          {/* Step 9 — State of Residence */}
           {step === 9 && (
+            <StepShell
+              question="What state are you from?"
+              subtext="This helps your counselor factor in in-state tuition, public university chances, and regional context."
+            >
+              <input
+                type="text"
+                placeholder="e.g. Texas, California, New York"
+                value={state.state_of_residence}
+                onChange={(e) => setState((s) => ({ ...s, state_of_residence: e.target.value }))}
+                onKeyDown={(e) => e.key === "Enter" && advance()}
+                className="w-full mt-8 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+              <NextButton onClick={advance} />
+              <SkipButton onClick={skip} />
+            </StepShell>
+          )}
+
+          {/* Step 10 — City */}
+          {step === 10 && (
+            <StepShell
+              question="What city are you in or near?"
+              subtext="Helps us find local programs, competitions, and resources near you"
+            >
+              <input
+                type="text"
+                placeholder="e.g. Austin, Dallas, Houston"
+                value={state.city}
+                onChange={(e) => setState((s) => ({ ...s, city: e.target.value }))}
+                onKeyDown={(e) => e.key === "Enter" && advance()}
+                className="w-full mt-8 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+              <NextButton onClick={advance} />
+              <SkipButton onClick={skip} />
+            </StepShell>
+          )}
+
+          {/* Step 11 — Target Colleges */}
+          {step === 11 && (
             <StepShell
               question="Which colleges are you aiming for?"
               subtext="Add every school on your list — reaches, matches, and safeties. We'll evaluate each one honestly."
@@ -503,8 +549,8 @@ export function ProfileQuiz({ onComplete, initialProfile, onCancel }: ProfileQui
             </StepShell>
           )}
 
-          {/* Step 10 — Confirmation */}
-          {step === 10 && (
+          {/* Step 12 — Confirmation */}
+          {step === 12 && (
             <div className="text-center">
               <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 mb-6">
                 <span className="text-3xl">🎓</span>

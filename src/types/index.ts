@@ -26,6 +26,11 @@ export interface College {
   website_url: string | null;
   logo_url: string | null;
   college_type: CollegeType | null;
+  sat_25: number | null;
+  sat_75: number | null;
+  act_25: number | null;
+  act_75: number | null;
+  test_requirements: number | null;
   created_at: string;
   updated_at: string;
 }

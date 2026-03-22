@@ -20,7 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Trailr - College Tracker",
+  title: "Trailr",
   description:
     "Track college deadlines, acceptance rates, and decision dates in one clean dashboard.",
 };

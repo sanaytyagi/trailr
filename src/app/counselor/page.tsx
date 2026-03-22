@@ -2,18 +2,20 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
-import { Send, GraduationCap, Loader2, UserPen } from "lucide-react";
+import { Send, GraduationCap, Loader2, UserPen, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChat } from "@/hooks/useChat";
 import { ProfileQuiz } from "@/components/counselor/ProfileQuiz";
+import { ChecklistPanel } from "@/components/counselor/ChecklistPanel";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { createClient } from "@/lib/supabase/client";
-import type { StudentProfile } from "@/types/counselor";
+import type { StudentProfile, ChecklistItem } from "@/types/counselor";
 
 type ProfileState =
   | { status: "loading" }
   | { status: "missing" }
-  | { status: "editing"; profile: StudentProfile }
-  | { status: "loaded"; profile: StudentProfile };
+  | { status: "editing"; profile: StudentProfile; userId: string }
+  | { status: "loaded"; profile: StudentProfile; userId: string };
 
 const INITIAL_PROMPT =
   "Based on my profile, give me your honest initial assessment — what are my realistic chances at each of my target schools, what are my biggest strengths, what are my biggest weaknesses, and what are the most important things I should focus on right now?";
@@ -35,7 +37,7 @@ export default function CounselorPage() {
       .single();
 
     if (data) {
-      setProfileState({ status: "loaded", profile: data as StudentProfile });
+      setProfileState({ status: "loaded", profile: data as StudentProfile, userId: user.id });
     } else {
       setProfileState({ status: "missing" });
     }
@@ -47,8 +49,8 @@ export default function CounselorPage() {
     await fetchProfile();
   }, [fetchProfile]);
 
-  const handleEditProfile = useCallback((profile: StudentProfile) => {
-    setProfileState({ status: "editing", profile });
+  const handleEditProfile = useCallback((profile: StudentProfile, userId: string) => {
+    setProfileState({ status: "editing", profile, userId });
   }, []);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
@@ -67,11 +69,12 @@ export default function CounselorPage() {
 
   if (profileState.status === "editing") {
     const editingProfile = profileState.profile;
+    const editingUserId = profileState.userId;
     return (
       <ProfileQuiz
         onComplete={handleQuizComplete}
         initialProfile={editingProfile}
-        onCancel={() => setProfileState({ status: "loaded", profile: editingProfile })}
+        onCancel={() => setProfileState({ status: "loaded", profile: editingProfile, userId: editingUserId })}
       />
     );
   }
@@ -80,6 +83,7 @@ export default function CounselorPage() {
     <ChatView
       key={chatKey}
       profile={profileState.profile}
+      userId={profileState.userId}
       isNew={isNewProfileRef.current}
       onEditProfile={handleEditProfile}
     />
@@ -133,20 +137,35 @@ const mdComponents: React.ComponentProps<typeof ReactMarkdown>["components"] = {
   ),
 };
 
-function ChatView({ profile, isNew, onEditProfile }: { profile: StudentProfile; isNew: boolean; onEditProfile: (profile: StudentProfile) => void }) {
-  const { messages, isLoading, isLoadingHistory, conversationSummary, sendMessage } = useChat(profile);
+function ChatView({ profile, userId, isNew, onEditProfile }: {
+  profile: StudentProfile;
+  userId: string;
+  isNew: boolean;
+  onEditProfile: (profile: StudentProfile, userId: string) => void;
+}) {
+  const { messages, isLoading, isReady, conversationSummary, pendingChecklist, sendMessage } = useChat(profile);
+  const [latestChecklist, setLatestChecklist] = useState<ChecklistItem[] | null>(null);
+
+  useEffect(() => {
+    if (pendingChecklist && pendingChecklist.length > 0) {
+      setLatestChecklist(pendingChecklist);
+    }
+  }, [pendingChecklist]);
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasSentInitialRef = useRef(false);
 
-  // Auto-fire initial assessment for new profiles — once only, after history loads
+  // Keep a stable ref to sendMessage so the auto-fire effect doesn't re-run when it changes
+  const sendMessageRef = useRef(sendMessage);
+  useEffect(() => { sendMessageRef.current = sendMessage; }, [sendMessage]);
+
+  // Auto-fire initial assessment — only once, only after the hook is fully ready
   useEffect(() => {
-    if (isNew && !isLoadingHistory && !hasSentInitialRef.current) {
-      hasSentInitialRef.current = true;
-      sendMessage(INITIAL_PROMPT);
-    }
-  }, [isNew, isLoadingHistory, sendMessage]);
+    if (!isNew || !isReady || hasSentInitialRef.current) return;
+    hasSentInitialRef.current = true;
+    sendMessageRef.current(INITIAL_PROMPT, { saveUserMessage: false });
+  }, [isNew, isReady]);
 
   const prevMessageCountRef = useRef(0);
   useEffect(() => {
@@ -180,7 +199,9 @@ function ChatView({ profile, isNew, onEditProfile }: { profile: StudentProfile; 
   const showTypingIndicator = isLoading && messages[messages.length - 1]?.content === "";
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+    <div className="flex h-[calc(100vh-3.5rem)]">
+      {/* Chat column */}
+      <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
       <div className="shrink-0 border-b border-border bg-card px-6 py-4">
         <div className="mx-auto max-w-4xl flex items-center gap-3">
@@ -192,7 +213,7 @@ function ChatView({ profile, isNew, onEditProfile }: { profile: StudentProfile; 
             <p className="text-xs text-muted-foreground">Your personal college admissions advisor</p>
           </div>
           <button
-            onClick={() => onEditProfile(profile)}
+            onClick={() => onEditProfile(profile, userId)}
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <UserPen className="h-3.5 w-3.5" />
@@ -204,14 +225,14 @@ function ChatView({ profile, isNew, onEditProfile }: { profile: StudentProfile; 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-4xl px-6 py-8 flex flex-col gap-6">
-          {isLoadingHistory && (
+          {!isReady && (
             <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm">Loading your conversation...</span>
             </div>
           )}
 
-          {!isLoadingHistory && conversationSummary && (
+          {isReady && conversationSummary && (
             <div className="flex items-center gap-3 py-1">
               <div className="flex-1 h-px bg-border" />
               <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -221,7 +242,7 @@ function ChatView({ profile, isNew, onEditProfile }: { profile: StudentProfile; 
             </div>
           )}
 
-          {!isLoadingHistory && messages.length === 0 && !isLoading && (
+          {isReady && messages.length === 0 && !isLoading && (
             <div className="flex flex-1 flex-col items-center justify-center py-24 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 mb-4">
                 <GraduationCap className="h-7 w-7 text-primary" />
@@ -304,6 +325,26 @@ function ChatView({ profile, isNew, onEditProfile }: { profile: StudentProfile; 
             Enter to send · Shift+Enter for new line
           </p>
         </div>
+      </div>
+      </div>{/* end chat column */}
+
+      {/* Checklist panel — visible on md+ */}
+      <div className="hidden md:block w-80 shrink-0">
+        <ChecklistPanel userId={userId} newItems={latestChecklist} />
+      </div>
+
+      {/* Mobile: floating button + Sheet */}
+      <div className="md:hidden fixed bottom-24 right-4 z-40">
+        <Sheet>
+          <SheetTrigger asChild>
+            <button className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors">
+              <ListChecks className="h-5 w-5" />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-80 p-0">
+            <ChecklistPanel userId={userId} newItems={latestChecklist} />
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

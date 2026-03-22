@@ -13,6 +13,9 @@
  *   - Public or private non-profit (ownership 1 or 2)
  *   - At least 500 undergraduate students
  *   - Has a reported acceptance rate
+ *
+ * NOTE: Re-run this script (then seed-supabase.mjs) to populate the new
+ * sat_25, sat_75, act_25, act_75, and test_requirements columns.
  */
 
 import { writeFileSync, readFileSync } from "fs";
@@ -50,6 +53,13 @@ const FIELDS = [
   "school.ownership",
   "latest.admissions.admission_rate.overall",
   "latest.student.size",
+  "latest.admissions.sat_scores.25th_percentile.math",
+  "latest.admissions.sat_scores.75th_percentile.math",
+  "latest.admissions.sat_scores.25th_percentile.critical_reading",
+  "latest.admissions.sat_scores.75th_percentile.critical_reading",
+  "latest.admissions.act_scores.25th_percentile.cumulative",
+  "latest.admissions.act_scores.75th_percentile.cumulative",
+  "latest.admissions.test_requirements",
 ].join(",");
 
 function slugify(name) {
@@ -124,6 +134,14 @@ function transform(raw) {
 
   const acceptanceRate = admRate != null ? parseFloat((admRate * 100).toFixed(2)) : null;
 
+  const satMath25 = raw["latest.admissions.sat_scores.25th_percentile.math"] ?? null;
+  const satMath75 = raw["latest.admissions.sat_scores.75th_percentile.math"] ?? null;
+  const satRead25 = raw["latest.admissions.sat_scores.25th_percentile.critical_reading"] ?? null;
+  const satRead75 = raw["latest.admissions.sat_scores.75th_percentile.critical_reading"] ?? null;
+  const act25 = raw["latest.admissions.act_scores.25th_percentile.cumulative"] ?? null;
+  const act75 = raw["latest.admissions.act_scores.75th_percentile.cumulative"] ?? null;
+  const testReq = raw["latest.admissions.test_requirements"] ?? null;
+
   return {
     id: String(raw.id),
     name,
@@ -134,12 +152,17 @@ function transform(raw) {
     website_url: website ? (website.startsWith("http") ? website : `https://${website}`) : null,
     logo_url: null,
     college_type: ownershipToType(ownership),
+    sat_25: satMath25 != null && satRead25 != null ? satMath25 + satRead25 : null,
+    sat_75: satMath75 != null && satRead75 != null ? satMath75 + satRead75 : null,
+    act_25: act25,
+    act_75: act75,
+    test_requirements: testReq,
   };
 }
 
 function generateFile(colleges) {
   const lines = colleges.map((c) => {
-    return `  { id: ${JSON.stringify(c.id)}, name: ${JSON.stringify(c.name)}, slug: ${JSON.stringify(c.slug)}, location: ${JSON.stringify(c.location)}, state: ${JSON.stringify(c.state)}, acceptance_rate: ${JSON.stringify(c.acceptance_rate)}, website_url: ${JSON.stringify(c.website_url)}, logo_url: null, college_type: ${JSON.stringify(c.college_type)}, created_at: "", updated_at: "" }`;
+    return `  { id: ${JSON.stringify(c.id)}, name: ${JSON.stringify(c.name)}, slug: ${JSON.stringify(c.slug)}, location: ${JSON.stringify(c.location)}, state: ${JSON.stringify(c.state)}, acceptance_rate: ${JSON.stringify(c.acceptance_rate)}, website_url: ${JSON.stringify(c.website_url)}, logo_url: null, college_type: ${JSON.stringify(c.college_type)}, sat_25: ${JSON.stringify(c.sat_25)}, sat_75: ${JSON.stringify(c.sat_75)}, act_25: ${JSON.stringify(c.act_25)}, act_75: ${JSON.stringify(c.act_75)}, test_requirements: ${JSON.stringify(c.test_requirements)}, created_at: "", updated_at: "" }`;
   });
 
   return `import type { College } from "@/types";
