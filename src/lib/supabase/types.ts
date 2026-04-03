@@ -94,6 +94,7 @@ export interface Database {
           id: string;
           owner_id: string;
           owner_email: string;
+          owner_name: string;
           shared_with_email: string;
           shared_with_user_id: string | null;
           created_at: string;
@@ -102,6 +103,7 @@ export interface Database {
           id?: string;
           owner_id: string;
           owner_email: string;
+          owner_name: string;
           shared_with_email: string;
           shared_with_user_id?: string | null;
           created_at?: string;

@@ -33,12 +33,21 @@ export function ShareModal({ open, onOpenChange, userId, userEmail }: ShareModal
   const [shares, setShares] = useState<Share[]>([]);
   const [loading, setLoading] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [userName, setUserName] = useState("");
 
-  // Fetch shares when modal opens
+  // Fetch user data and shares when modal opens
   useEffect(() => {
     if (!open) return;
 
-    async function fetchShares() {
+    async function fetchData() {
+      // Get current user's full name
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const name = user.user_metadata?.name || userEmail;
+        setUserName(name);
+      }
+
+      // Fetch shares
       const { data, error } = await supabase
         .from("list_shares")
         .select("id, shared_with_email")
@@ -49,8 +58,8 @@ export function ShareModal({ open, onOpenChange, userId, userEmail }: ShareModal
       }
     }
 
-    fetchShares();
-  }, [open, userId, supabase]);
+    fetchData();
+  }, [open, userId, userEmail, supabase]);
 
   const isValidEmail = (email: string) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -78,9 +87,25 @@ export function ShareModal({ open, onOpenChange, userId, userEmail }: ShareModal
 
     setLoading(true);
 
-    const { data, error } = await supabase.from("list_shares").insert({
+    // Validate that the email belongs to a registered user
+    const checkRes = await fetch("/api/validate-share-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    const { exists } = await checkRes.json();
+
+    if (!exists) {
+      setLoading(false);
+      setEmailError("No account found with that email address");
+      return;
+    }
+
+    const { error } = await supabase.from("list_shares").insert({
       owner_id: userId,
       owner_email: userEmail,
+      owner_name: userName,
       shared_with_email: email,
     });
 

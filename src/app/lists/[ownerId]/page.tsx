@@ -32,7 +32,7 @@ export default function SharedListPage({ params: paramsPromise }: PageProps) {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [colleges, setColleges] = useState<TrackedCollege[]>([]);
-  const [ownerEmail, setOwnerEmail] = useState("");
+  const [ownerName, setOwnerName] = useState("");
   const [loading, setLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
 
@@ -51,7 +51,7 @@ export default function SharedListPage({ params: paramsPromise }: PageProps) {
       // Check if user has access to this list (via list_shares)
       const { data: shares } = await supabase
         .from("list_shares")
-        .select("owner_email")
+        .select("owner_name")
         .eq("owner_id", params.ownerId)
         .eq("shared_with_email", user.email)
         .single();
@@ -62,7 +62,7 @@ export default function SharedListPage({ params: paramsPromise }: PageProps) {
         return;
       }
 
-      setOwnerEmail(shares.owner_email);
+      setOwnerName(shares.owner_name);
       setHasAccess(true);
 
       // Fetch owner's colleges
@@ -138,7 +138,7 @@ export default function SharedListPage({ params: paramsPromise }: PageProps) {
 
       {/* Title */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground mb-2">{ownerEmail}'s College List</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">{ownerName}'s College List</h1>
         <p className="text-sm text-muted-foreground">
           {colleges.length > 0
             ? `Viewing ${colleges.length} college${colleges.length !== 1 ? "s" : ""}`
@@ -148,7 +148,7 @@ export default function SharedListPage({ params: paramsPromise }: PageProps) {
 
       {colleges.length === 0 ? (
         <div className="rounded-xl border border-border bg-card shadow-sm p-12 text-center">
-          <p className="text-sm text-muted-foreground">{ownerEmail} hasn't added any colleges yet</p>
+          <p className="text-sm text-muted-foreground">{ownerName} hasn't added any colleges yet</p>
         </div>
       ) : (
         <>
@@ -221,64 +221,112 @@ export default function SharedListPage({ params: paramsPromise }: PageProps) {
             </p>
           </div>
 
-          {/* College grid */}
-          <div className="grid gap-4 md:grid-cols-2">
-            {colleges.map((college) => {
-              const status = STATUS_STYLE[college.application_status];
-              const decision = college.decision ? DECISION_STYLE[college.decision] : null;
-
-              return (
-                <div
-                  key={college.id}
-                  className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1">{college.name}</h3>
-                    {college.location && (
-                      <p className="text-xs text-muted-foreground mb-3">{college.location}</p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    <span
-                      className="text-xs font-medium rounded-md px-2 py-1"
-                      style={{ color: status.color, backgroundColor: status.bg }}
-                    >
-                      {status.label}
-                    </span>
-                    {decision && (
-                      <span
-                        className="text-xs font-medium rounded-md px-2 py-1"
-                        style={{ color: decision.color, backgroundColor: decision.bg }}
-                      >
-                        {decision.label}
+          {/* College table - read-only version of tracker */}
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-muted/50 border-b border-border">
+                  <tr>
+                    <th className="text-left px-6 py-3">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        College
                       </span>
-                    )}
-                  </div>
+                    </th>
+                    <th className="text-left px-6 py-3">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Application
+                      </span>
+                    </th>
+                    <th className="text-left px-6 py-3">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Decision
+                      </span>
+                    </th>
+                    <th className="text-left px-6 py-3">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Deadline
+                      </span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {colleges.map((college) => {
+                    const status = STATUS_STYLE[college.application_status];
+                    const decision = college.decision
+                      ? DECISION_STYLE[college.decision]
+                      : null;
 
-                  {college.personal_deadline && (
-                    <div className="text-xs text-muted-foreground mb-2">
-                      <span className="font-medium">Deadline:</span>{" "}
-                      {new Date(college.personal_deadline + "T00:00:00").toLocaleDateString(
-                        "en-US",
-                        {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        }
-                      )}
-                    </div>
-                  )}
+                    return (
+                      <tr
+                        key={college.id}
+                        className="hover:bg-muted/30 transition-colors"
+                      >
+                        {/* College name + location */}
+                        <td className="px-6 py-4">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-foreground truncate">
+                              {college.name}
+                            </div>
+                            {college.location && (
+                              <div className="text-xs text-muted-foreground mt-0.5 truncate">
+                                {college.location}
+                              </div>
+                            )}
+                          </div>
+                        </td>
 
-                  {college.notes && (
-                    <div className="text-xs text-muted-foreground border-t border-border pt-2 mt-2">
-                      <span className="font-medium">Notes:</span>
-                      <p className="mt-1">{college.notes}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                        {/* Application status */}
+                        <td className="px-6 py-4">
+                          <span
+                            className="text-xs font-medium rounded-md px-2 py-1 whitespace-nowrap inline-block"
+                            style={{
+                              color: status.color,
+                              backgroundColor: status.bg,
+                            }}
+                          >
+                            {status.label}
+                          </span>
+                        </td>
+
+                        {/* Decision */}
+                        <td className="px-6 py-4">
+                          {decision ? (
+                            <span
+                              className="text-xs font-medium rounded-md px-2 py-1 whitespace-nowrap inline-block"
+                              style={{
+                                color: decision.color,
+                                backgroundColor: decision.bg,
+                              }}
+                            >
+                              {decision.label}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+
+                        {/* Deadline */}
+                        <td className="px-6 py-4">
+                          {college.personal_deadline ? (
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {new Date(
+                                college.personal_deadline + "T00:00:00"
+                              ).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}

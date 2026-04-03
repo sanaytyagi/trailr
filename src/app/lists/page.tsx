@@ -23,6 +23,7 @@ interface Share {
   id: string;
   owner_id: string;
   owner_email: string;
+  owner_name: string;
   shared_with_email: string;
 }
 
@@ -38,6 +39,7 @@ export default function ListsPage() {
   const [myStats, setMyStats] = useState<MyListStats | null>(null);
   const [sharedLists, setSharedLists] = useState<SharedListWithStats[]>([]);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [sharedSearch, setSharedSearch] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -72,7 +74,7 @@ export default function ListsPage() {
       // Fetch shares where user is the recipient
       const { data: shares } = await supabase
         .from("list_shares")
-        .select("id, owner_id, owner_email, shared_with_email")
+        .select("id, owner_id, owner_email, owner_name, shared_with_email")
         .eq("shared_with_email", authUser.email);
 
       if (shares && shares.length > 0) {
@@ -213,7 +215,18 @@ export default function ListsPage() {
 
       {/* Shared With Me Section */}
       <section>
-        <h2 className="text-xl font-semibold text-foreground mb-4">Shared With Me</h2>
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-semibold text-foreground">Shared With Me</h2>
+          {sharedLists.length > 0 && (
+            <input
+              type="text"
+              placeholder="Search by name..."
+              value={sharedSearch}
+              onChange={(e) => setSharedSearch(e.target.value)}
+              className="rounded-lg border border-input bg-muted/50 px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          )}
+        </div>
 
         {sharedLists.length === 0 ? (
           <div className="rounded-xl border border-border bg-card shadow-sm p-8 text-center">
@@ -221,17 +234,25 @@ export default function ListsPage() {
               No lists have been shared with you yet.
             </p>
           </div>
-        ) : (
+        ) : (() => {
+          const filtered = sharedLists.filter((s) =>
+            s.owner_name.toLowerCase().includes(sharedSearch.toLowerCase())
+          );
+          return filtered.length === 0 ? (
+            <div className="rounded-xl border border-border bg-card shadow-sm p-8 text-center">
+              <p className="text-sm text-muted-foreground">No results for "{sharedSearch}"</p>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {sharedLists.map((sharedList) => (
+            {filtered.map((sharedList) => (
               <div
                 key={sharedList.id}
                 className="rounded-xl border border-border bg-card shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1"
               >
                 <div className="p-6">
-                  <h3 className="text-lg font-semibold text-foreground">{sharedList.owner_email}</h3>
+                  <h3 className="text-lg font-semibold text-foreground">{sharedList.owner_name}</h3>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Shared by {sharedList.owner_email}
+                    Shared by {sharedList.owner_name}
                   </p>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 my-4">
@@ -267,7 +288,8 @@ export default function ListsPage() {
               </div>
             ))}
           </div>
-        )}
+          );
+        })()}
       </section>
 
       {/* Share Modal */}
