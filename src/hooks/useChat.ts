@@ -171,15 +171,19 @@ export function useChat(profile: StudentProfile | null = null) {
                 if (!hasProcessedChecklistRef.current) {
                   hasProcessedChecklistRef.current = true;
                   const flat: ChecklistItem[] = (parsed.data ?? []).flatMap(
-                    (group: { college: string; items: Array<{ id: string; action: string; why: string; urgency: string }> }) =>
-                      (group.items ?? []).map((item) => ({
-                        id: item.id,
-                        college: group.college,
-                        action: item.action,
-                        why: item.why,
-                        urgency: item.urgency as ChecklistItem["urgency"],
-                        completed: false,
-                      }))
+                    (group: { college: string; items: Array<{ id: string; action: string; why: string; urgency: string }> }) => {
+                      const collegeName = group.college || "General";
+                      return (group.items ?? [])
+                        .filter((item) => item.id && item.action)
+                        .map((item) => ({
+                          id: item.id,
+                          college: collegeName,
+                          action: item.action,
+                          why: item.why ?? "",
+                          urgency: item.urgency as ChecklistItem["urgency"],
+                          completed: false,
+                        }));
+                    }
                   );
                   setPendingChecklist(flat);
                 }

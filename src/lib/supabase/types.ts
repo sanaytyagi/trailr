@@ -71,6 +71,44 @@ export interface Database {
           Omit<Database["public"]["Tables"]["user_colleges"]["Insert"], "id" | "user_id">
         >;
       };
+      user_lists: {
+        Row: {
+          id: string;
+          user_id: string;
+          colleges: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          colleges: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_lists"]["Insert"]>;
+        Relationships: [];
+      };
+      list_shares: {
+        Row: {
+          id: string;
+          owner_id: string;
+          owner_email: string;
+          shared_with_email: string;
+          shared_with_user_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          owner_email: string;
+          shared_with_email: string;
+          shared_with_user_id?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["list_shares"]["Insert"]>;
+        Relationships: [];
+      };
     };
   };
 }

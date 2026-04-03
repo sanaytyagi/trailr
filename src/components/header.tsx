@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, GraduationCap } from "lucide-react";
+import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, GraduationCap, ListTree, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -80,6 +80,32 @@ export function Header() {
           >
             <TableIcon className="h-3.5 w-3.5" />
             Tracker
+          </Link>
+
+          <Link
+            href="/list-builder"
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              pathname === "/list-builder"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <ListTree className="h-3.5 w-3.5" />
+            List Builder
+          </Link>
+
+          <Link
+            href="/lists"
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              pathname === "/lists"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <Share2 className="h-3.5 w-3.5" />
+            Lists
           </Link>
 
           <button
@@ -189,6 +215,34 @@ export function Header() {
                 >
                   <TableIcon className="h-4 w-4" />
                   Tracker
+                </Link>
+
+                <Link
+                  href="/list-builder"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    pathname === "/list-builder"
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <ListTree className="h-4 w-4" />
+                  List Builder
+                </Link>
+
+                <Link
+                  href="/lists"
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    pathname === "/lists"
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Share2 className="h-4 w-4" />
+                  Lists
                 </Link>
 
                 <button
