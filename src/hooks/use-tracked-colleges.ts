@@ -70,6 +70,7 @@ export function useTrackedColleges() {
       const { data, error } = await supabase
         .from("user_colleges")
         .select("*, college:colleges(*)")
+        .eq("user_id", user.id)
         .order("added_at", { ascending: true });
 
       if (cancelled) return;
@@ -155,9 +156,11 @@ export function useTrackedColleges() {
       if (error) {
         console.error("removeCollege:", error.message);
         // Resync state
+        const { data: currentUser } = await supabase.auth.getUser();
         const { data } = await supabase
           .from("user_colleges")
           .select("*, college:colleges(*)")
+          .eq("user_id", currentUser.user?.id)
           .order("added_at", { ascending: true });
         if (data) {
           setTrackedColleges(

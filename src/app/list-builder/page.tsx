@@ -134,7 +134,7 @@ export default function ListBuilderPage() {
   if (!savedList) {
     return (
       <div className="h-[calc(100vh-4rem)]">
-        <CollegeQuiz onComplete={handleQuizComplete} isLoading={generating} />
+        <CollegeQuiz onComplete={handleQuizComplete} isLoading={generating} onExit={() => router.push("/list-builder")} />
         {error && (
           <div className="fixed bottom-4 left-4 right-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}

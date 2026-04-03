@@ -29,6 +29,7 @@ interface QuizAnswers {
 interface CollegeQuizProps {
   onComplete: (answers: QuizAnswers) => void;
   isLoading?: boolean;
+  onExit?: () => void;
 }
 
 const STATES = [
@@ -43,7 +44,7 @@ const STATES = [
 
 const BUDGET_OPTIONS = ["Under $30k", "$30k–$50k", "$50k–$70k", "$70k+", "Unsure"];
 
-export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
+export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps) {
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(true);
   const [answers, setAnswers] = useState<QuizAnswers>({
@@ -68,8 +69,10 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
     onCampusHousing: true,
   });
 
-  const totalSteps = 17;
-  const progress = ((step + 1) / totalSteps) * 100;
+  // Step 0 is the intro slide; steps 1–17 are the quiz questions
+  const totalSteps = 18;
+  // Don't show progress on intro slide; start progress from step 1
+  const progress = step === 0 ? 0 : (step / (totalSteps - 1)) * 100;
 
   const updateAnswer = (key: keyof QuizAnswers, value: any) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
@@ -89,12 +92,29 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
   };
 
   const handleBack = () => {
-    if (step > 0) transition(step - 1);
+    if (step === 0) {
+      onExit?.();
+    } else {
+      transition(step - 1);
+    }
   };
 
   const renderQuestion = () => {
     switch (step) {
       case 0:
+        return (
+          <div>
+            <h2 className="text-3xl font-bold text-foreground mb-4">Build Your College List</h2>
+            <p className="text-base text-muted-foreground mb-4">
+              To generate a personalized college list, we need to learn a bit about you — your academic profile, preferences, and goals.
+            </p>
+            <p className="text-base text-muted-foreground mb-10">
+              This takes about 2 minutes and covers things like your GPA, intended major, budget, and campus preferences. The more honest you are, the better your matches will be.
+            </p>
+            <NextButton onClick={handleNext} label="Let's get started" />
+          </div>
+        );
+      case 1:
         return (
           <StepShell
             question="What state do you currently live in?"
@@ -115,7 +135,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             {answers.state && <NextButton onClick={handleNext} />}
           </StepShell>
         );
-      case 1:
+      case 2:
         return (
           <StepShell
             question="What is your current or expected GPA?"
@@ -137,7 +157,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 2:
+      case 3:
         return (
           <StepShell
             question="Have you taken the SAT or ACT?"
@@ -189,7 +209,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 3:
+      case 4:
         return (
           <StepShell
             question="What is your intended major?"
@@ -206,7 +226,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 4:
+      case 5:
         return (
           <StepShell
             question="How important is major-specific ranking?"
@@ -231,7 +251,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 5:
+      case 6:
         return (
           <StepShell
             question="Research or teaching-focused?"
@@ -256,7 +276,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 6:
+      case 7:
         return (
           <StepShell
             question="What's your college budget?"
@@ -276,7 +296,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 7:
+      case 8:
         return (
           <StepShell
             question="Will you apply for financial aid?"
@@ -301,7 +321,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 8:
+      case 9:
         return (
           <StepShell
             question="Open to student loans?"
@@ -326,7 +346,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 9:
+      case 10:
         return (
           <StepShell
             question="Preferred campus setting?"
@@ -351,7 +371,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 10:
+      case 11:
         return (
           <StepShell
             question="Preferred student body size?"
@@ -376,7 +396,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 11:
+      case 12:
         return (
           <StepShell
             question="Public or private school?"
@@ -401,7 +421,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 12:
+      case 13:
         return (
           <StepShell
             question="Co-op/internship support?"
@@ -426,7 +446,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 13:
+      case 14:
         return (
           <StepShell
             question="Startup/entrepreneurship culture?"
@@ -451,7 +471,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 14:
+      case 15:
         return (
           <StepShell
             question="Considering graduate school?"
@@ -476,7 +496,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 15:
+      case 16:
         return (
           <StepShell
             question="What industries interest you?"
@@ -493,7 +513,7 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
             <NextButton onClick={handleNext} />
           </StepShell>
         );
-      case 16:
+      case 17:
         return (
           <StepShell
             question="Tech alumni network importance?"
@@ -535,21 +555,19 @@ export function CollegeQuiz({ onComplete, isLoading }: CollegeQuizProps) {
 
       {/* Top bar: back button + step counter */}
       <div className="flex items-center justify-between px-6 pt-5 min-h-[40px]">
-        {step > 0 ? (
-          <button
-            onClick={handleBack}
-            disabled={isLoading}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
-        ) : (
-          <div />
+        <button
+          onClick={handleBack}
+          disabled={isLoading}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
+        {step > 0 && (
+          <span className="text-xs text-muted-foreground">
+            {step} / {totalSteps - 1}
+          </span>
         )}
-        <span className="text-xs text-muted-foreground">
-          {step + 1} / {totalSteps}
-        </span>
       </div>
 
       {/* Content */}
@@ -585,13 +603,13 @@ function StepShell({
   );
 }
 
-function NextButton({ onClick }: { onClick: () => void }) {
+function NextButton({ onClick, label = "Next" }: { onClick: () => void; label?: string }) {
   return (
     <button
       onClick={onClick}
       className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
     >
-      Next
+      {label}
       <ArrowRight className="h-4 w-4" />
     </button>
   );
