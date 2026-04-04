@@ -36,7 +36,17 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["colleges"]["Insert"]>;
+        Update: {
+          name?: string;
+          slug?: string;
+          location?: string | null;
+          state?: string | null;
+          acceptance_rate?: number | null;
+          website_url?: string | null;
+          logo_url?: string | null;
+          college_type?: string | null;
+          updated_at?: string;
+        };
       };
       user_colleges: {
         Row: {
@@ -67,9 +77,17 @@ export interface Database {
           added_at?: string;
           updated_at?: string;
         };
-        Update: Partial<
-          Omit<Database["public"]["Tables"]["user_colleges"]["Insert"], "id" | "user_id">
-        >;
+        Update: {
+          college_id?: string;
+          application_status?: string;
+          application_round?: string;
+          decision?: string | null;
+          admissions_category?: string | null;
+          personal_deadline?: string | null;
+          notes?: string;
+          sort_order?: number | null;
+          updated_at?: string;
+        };
       };
       user_lists: {
         Row: {
@@ -86,7 +104,10 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["user_lists"]["Insert"]>;
+        Update: {
+          colleges?: Json;
+          updated_at?: string;
+        };
         Relationships: [];
       };
       list_shares: {
@@ -108,7 +129,86 @@ export interface Database {
           shared_with_user_id?: string | null;
           created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["list_shares"]["Insert"]>;
+        Update: {
+          shared_with_user_id?: string | null;
+        };
+        Relationships: [];
+      };
+      profiles: {
+        Row: {
+          id: string;
+          email: string;
+          full_name: string | null;
+          role: "student" | "counselor";
+          counselor_id: string | null;
+          invite_code: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          full_name?: string | null;
+          role?: "student" | "counselor";
+          counselor_id?: string | null;
+          invite_code?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          email?: string;
+          full_name?: string | null;
+          role?: "student" | "counselor";
+          counselor_id?: string | null;
+          invite_code?: string | null;
+        };
+        Relationships: [];
+      };
+      counselor_college_notes: {
+        Row: {
+          id: string;
+          counselor_id: string;
+          student_id: string;
+          college_id: string;
+          note: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          counselor_id: string;
+          student_id: string;
+          college_id: string;
+          note: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          note?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      activity_feed: {
+        Row: {
+          id: string;
+          student_id: string;
+          counselor_id: string;
+          type: string;
+          college_name: string | null;
+          college_id: string | null;
+          metadata: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          counselor_id: string;
+          type: string;
+          college_name?: string | null;
+          college_id?: string | null;
+          metadata?: Json | null;
+          created_at?: string;
+        };
+        Update: never;
         Relationships: [];
       };
     };

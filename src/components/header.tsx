@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, GraduationCap, ListTree, Share2 } from "lucide-react";
+import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, GraduationCap, ListTree, Share2, Users, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { useProfile } from "@/hooks/use-profile";
 import {
   Sheet,
   SheetTrigger,
@@ -23,6 +24,8 @@ export function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [supabase] = useState(() => createClient());
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const { profile, loading: profileLoading } = useProfile();
+  const isCounselor = !profileLoading && !!user && profile?.role === "counselor";
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
@@ -69,57 +72,88 @@ export function Header() {
 
         {/* Desktop nav — right side */}
         <div className="hidden md:flex items-center gap-2 pr-4">
-          <Link
-            href="/tracker"
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              pathname === "/tracker"
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <TableIcon className="h-3.5 w-3.5" />
-            Tracker
-          </Link>
+          {isCounselor ? (
+            <>
+              <Link
+                href="/counselor"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  pathname === "/counselor" || pathname.startsWith("/counselor/")
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Users className="h-3.5 w-3.5" />
+                My Students
+              </Link>
+              <Link
+                href="/counselor/deadlines"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  pathname === "/counselor/deadlines"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                Deadlines
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/tracker"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  pathname === "/tracker"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <TableIcon className="h-3.5 w-3.5" />
+                Tracker
+              </Link>
 
-          <Link
-            href="/list-builder"
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              pathname === "/list-builder"
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <ListTree className="h-3.5 w-3.5" />
-            List Builder
-          </Link>
+              <Link
+                href="/list-builder"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  pathname === "/list-builder"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <ListTree className="h-3.5 w-3.5" />
+                List Builder
+              </Link>
 
-          <Link
-            href="/lists"
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              pathname === "/lists"
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <Share2 className="h-3.5 w-3.5" />
-            Lists
-          </Link>
+              <Link
+                href="/lists"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  pathname === "/lists"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                Lists
+              </Link>
 
-          <button
-            onClick={() => router.push(user ? "/counselor" : "/auth?mode=signin")}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              pathname === "/counselor"
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <GraduationCap className="h-3.5 w-3.5" />
-            Counselor
-          </button>
+              <button
+                onClick={() => router.push(user ? "/advisor" : "/auth?mode=signin")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  pathname === "/advisor"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <GraduationCap className="h-3.5 w-3.5" />
+                Advisor
+              </button>
+            </>
+          )}
 
           {user ? (
             /* ── Authenticated: compact avatar dropdown ── */
@@ -203,60 +237,93 @@ export function Header() {
                 <SheetTitle>Navigation</SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-1 px-4 pt-4">
-                <Link
-                  href="/tracker"
-                  onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    pathname === "/tracker"
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <TableIcon className="h-4 w-4" />
-                  Tracker
-                </Link>
+                {isCounselor ? (
+                  <>
+                    <Link
+                      href="/counselor"
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname === "/counselor" || pathname.startsWith("/counselor/")
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <Users className="h-4 w-4" />
+                      My Students
+                    </Link>
+                    <Link
+                      href="/counselor/deadlines"
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname === "/counselor/deadlines"
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <CalendarDays className="h-4 w-4" />
+                      Deadlines
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/tracker"
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname === "/tracker"
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <TableIcon className="h-4 w-4" />
+                      Tracker
+                    </Link>
 
-                <Link
-                  href="/list-builder"
-                  onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    pathname === "/list-builder"
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <ListTree className="h-4 w-4" />
-                  List Builder
-                </Link>
+                    <Link
+                      href="/list-builder"
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname === "/list-builder"
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <ListTree className="h-4 w-4" />
+                      List Builder
+                    </Link>
 
-                <Link
-                  href="/lists"
-                  onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    pathname === "/lists"
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <Share2 className="h-4 w-4" />
-                  Lists
-                </Link>
+                    <Link
+                      href="/lists"
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname === "/lists"
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <Share2 className="h-4 w-4" />
+                      Lists
+                    </Link>
 
-                <button
-                  onClick={() => { setMobileOpen(false); router.push(user ? "/counselor" : "/auth?mode=signin"); }}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors w-full text-left",
-                    pathname === "/counselor"
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <GraduationCap className="h-4 w-4" />
-                  Counselor
-                </button>
+                    <button
+                      onClick={() => { setMobileOpen(false); router.push(user ? "/advisor" : "/auth?mode=signin"); }}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors w-full text-left",
+                        pathname === "/advisor"
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <GraduationCap className="h-4 w-4" />
+                      Advisor
+                    </button>
+                  </>
+                )}
 
                 {user ? (
                   <>

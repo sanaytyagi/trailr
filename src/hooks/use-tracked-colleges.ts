@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { logActivity } from "@/lib/activity";
 import type {
   TrackedCollege,
   ApplicationStatus,
@@ -42,6 +43,15 @@ function rowToTracked(row: UserCollegeRow): TrackedCollege {
     notes: row.notes ?? "",
     added_at: row.added_at,
   };
+}
+
+async function getCounselorId(supabase: ReturnType<typeof createClient>, userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("counselor_id")
+    .eq("id", userId)
+    .single();
+  return data?.counselor_id ?? null;
 }
 
 export function useTrackedColleges() {
@@ -135,6 +145,17 @@ export function useTrackedColleges() {
         // Revert on failure
         setTrackedColleges((prev) => prev.filter((c) => c.id !== college.id));
         console.error("addCollege:", error.message);
+      } else {
+        const counselorId = await getCounselorId(supabase, user.id);
+        if (counselorId) {
+          logActivity(supabase, {
+            studentId: user.id,
+            counselorId,
+            type: "add_college",
+            collegeName: college.name,
+            collegeId: college.id,
+          });
+        }
       }
     },
     [supabase, trackedColleges]
@@ -152,6 +173,23 @@ export function useTrackedColleges() {
         .delete()
         .eq("college_id", collegeId);
       // RLS automatically scopes this to the signed-in user.
+
+      if (!error) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const counselorId = await getCounselorId(supabase, user.id);
+          const college = trackedColleges.find((c) => c.id === collegeId);
+          if (counselorId && college) {
+            logActivity(supabase, {
+              studentId: user.id,
+              counselorId,
+              type: "remove_college",
+              collegeName: college.name,
+              collegeId: college.id,
+            });
+          }
+        }
+      }
 
       if (error) {
         console.error("removeCollege:", error.message);
@@ -203,8 +241,26 @@ export function useTrackedColleges() {
         .from("user_colleges")
         .update({ application_status: status, updated_at: new Date().toISOString() })
         .eq("college_id", collegeId)
-        .then(({ error }) => {
-          if (error) console.error("setStatus:", error.message);
+        .then(async ({ error }) => {
+          if (error) { console.error("setStatus:", error.message); return; }
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          const counselorId = await getCounselorId(supabase, user.id);
+          if (!counselorId) return;
+          setTrackedColleges((prev) => {
+            const college = prev.find((c) => c.id === collegeId);
+            if (college) {
+              logActivity(supabase, {
+                studentId: user.id,
+                counselorId,
+                type: "status_change",
+                collegeName: college.name,
+                collegeId: college.id,
+                metadata: { status },
+              });
+            }
+            return prev;
+          });
         });
     },
     [supabase]
@@ -219,8 +275,27 @@ export function useTrackedColleges() {
         .from("user_colleges")
         .update({ decision, updated_at: new Date().toISOString() })
         .eq("college_id", collegeId)
-        .then(({ error }) => {
-          if (error) console.error("setDecision:", error.message);
+        .then(async ({ error }) => {
+          if (error) { console.error("setDecision:", error.message); return; }
+          if (!decision) return;
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          const counselorId = await getCounselorId(supabase, user.id);
+          if (!counselorId) return;
+          setTrackedColleges((prev) => {
+            const college = prev.find((c) => c.id === collegeId);
+            if (college) {
+              logActivity(supabase, {
+                studentId: user.id,
+                counselorId,
+                type: "decision_change",
+                collegeName: college.name,
+                collegeId: college.id,
+                metadata: { decision },
+              });
+            }
+            return prev;
+          });
         });
     },
     [supabase]

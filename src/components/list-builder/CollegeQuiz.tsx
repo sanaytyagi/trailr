@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 interface QuizAnswers {
   state: string;
   gpa: number;
-  testType: "SAT" | "ACT" | "Neither";
-  testScore: number | null;
+  testTypes: ("SAT" | "ACT")[];
+  satScore: number | null;
+  actScore: number | null;
   major: string;
   majorImportance: number;
   preferenceResearch: "Research-focused" | "Teaching-focused";
@@ -16,14 +17,18 @@ interface QuizAnswers {
   fafsa: boolean;
   loans: "Yes" | "No" | "Prefer to minimize";
   setting: "Urban" | "Suburban" | "Rural";
-  size: "Small" | "Medium" | "Large";
+  sizes: ("Small" | "Medium" | "Large")[];
   schoolType: "Public" | "Private" | "No preference";
   coopImportance: number;
-  startupImportance: number;
+  careerCultureImportance: number;
+  careerCultureDescription: string;
   gradSchool: "Yes" | "Maybe" | "No";
+  gradSchoolTypes: string[];
   careers: string;
   alumniNetworkImportance: number;
-  onCampusHousing: boolean;
+  campusDiversityImportance: number;
+  campusLifeImportance: number;
+  otherPriorities: string;
 }
 
 interface CollegeQuizProps {
@@ -43,6 +48,7 @@ const STATES = [
 ];
 
 const BUDGET_OPTIONS = ["Under $30k", "$30k–$50k", "$50k–$70k", "$70k+", "Unsure"];
+const GRAD_SCHOOL_TYPES = ["Masters", "PhD", "Medical School", "Law School", "Business School", "Unsure"];
 
 export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps) {
   const [step, setStep] = useState(0);
@@ -50,8 +56,9 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
   const [answers, setAnswers] = useState<QuizAnswers>({
     state: "",
     gpa: 3.5,
-    testType: "Neither",
-    testScore: null,
+    testTypes: [],
+    satScore: null,
+    actScore: null,
     major: "",
     majorImportance: 3,
     preferenceResearch: "Research-focused",
@@ -59,23 +66,62 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
     fafsa: true,
     loans: "Yes",
     setting: "Suburban",
-    size: "Medium",
+    sizes: ["Medium"],
     schoolType: "No preference",
     coopImportance: 3,
-    startupImportance: 2,
+    careerCultureImportance: 3,
+    careerCultureDescription: "",
     gradSchool: "Maybe",
+    gradSchoolTypes: [],
     careers: "",
     alumniNetworkImportance: 3,
-    onCampusHousing: true,
+    campusDiversityImportance: 3,
+    campusLifeImportance: 3,
+    otherPriorities: "",
   });
 
-  // Step 0 is the intro slide; steps 1–17 are the quiz questions
-  const totalSteps = 18;
-  // Don't show progress on intro slide; start progress from step 1
+  // Step 0 = intro, steps 1–20 = questions
+  const totalSteps = 21;
   const progress = step === 0 ? 0 : (step / (totalSteps - 1)) * 100;
 
   const updateAnswer = (key: keyof QuizAnswers, value: any) => {
     setAnswers((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const toggleTestType = (type: "SAT" | "ACT") => {
+    setAnswers((prev) => {
+      const current = prev.testTypes;
+      if (current.includes(type)) {
+        const next = current.filter((t) => t !== type);
+        return {
+          ...prev,
+          testTypes: next,
+          satScore: type === "SAT" ? null : prev.satScore,
+          actScore: type === "ACT" ? null : prev.actScore,
+        };
+      }
+      return { ...prev, testTypes: [...current, type] };
+    });
+  };
+
+  const toggleSize = (size: "Small" | "Medium" | "Large") => {
+    setAnswers((prev) => {
+      const current = prev.sizes;
+      if (current.includes(size)) {
+        return { ...prev, sizes: current.filter((s) => s !== size) };
+      }
+      return { ...prev, sizes: [...current, size] };
+    });
+  };
+
+  const toggleGradType = (type: string) => {
+    setAnswers((prev) => {
+      const current = prev.gradSchoolTypes;
+      if (current.includes(type)) {
+        return { ...prev, gradSchoolTypes: current.filter((t) => t !== type) };
+      }
+      return { ...prev, gradSchoolTypes: [...current, type] };
+    });
   };
 
   const transition = (nextStep: number) => {
@@ -92,15 +138,13 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
   };
 
   const handleBack = () => {
-    if (step === 0) {
-      onExit?.();
-    } else {
-      transition(step - 1);
-    }
+    if (step === 0) onExit?.();
+    else transition(step - 1);
   };
 
   const renderQuestion = () => {
     switch (step) {
+      // ── Intro ─────────────────────────────────────────────────────────────
       case 0:
         return (
           <div>
@@ -114,11 +158,13 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} label="Let's get started" />
           </div>
         );
+
+      // ── Q1: State ─────────────────────────────────────────────────────────
       case 1:
         return (
           <StepShell
             question="What state do you currently live in?"
-            subtext="We'll find schools and programs that fit your region."
+            subtext="We'll use this to factor in in-state tuition and regional fit."
           >
             <select
               value={answers.state}
@@ -127,14 +173,14 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             >
               <option value="">Select a state...</option>
               {STATES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
             {answers.state && <NextButton onClick={handleNext} />}
           </StepShell>
         );
+
+      // ── Q2: GPA ───────────────────────────────────────────────────────────
       case 2:
         return (
           <StepShell
@@ -157,23 +203,22 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q3: Test scores ───────────────────────────────────────────────────
       case 3:
         return (
           <StepShell
             question="Have you taken the SAT or ACT?"
-            subtext="Select the test(s) you've taken."
+            subtext="Select all that apply. Score inputs will appear for each selected test."
           >
             <div className="grid grid-cols-3 gap-3 mt-8">
               {(["SAT", "ACT"] as const).map((type) => (
                 <button
                   key={type}
-                  onClick={() => {
-                    updateAnswer("testType", type as any);
-                    if (type !== "Neither") updateAnswer("testScore", null);
-                  }}
+                  onClick={() => toggleTestType(type)}
                   className={cn(
                     "rounded-2xl border-2 py-4 text-sm font-semibold transition-all",
-                    answers.testType === type
+                    answers.testTypes.includes(type)
                       ? "border-primary bg-primary/5 text-primary"
                       : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-muted"
                   )}
@@ -183,41 +228,52 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
               ))}
               <button
                 onClick={() => {
-                  updateAnswer("testType", "Neither");
-                  updateAnswer("testScore", null);
+                  updateAnswer("testTypes", []);
+                  updateAnswer("satScore", null);
+                  updateAnswer("actScore", null);
                 }}
                 className={cn(
                   "rounded-2xl border-2 py-4 text-sm font-semibold transition-all",
-                  answers.testType === "Neither"
+                  answers.testTypes.length === 0
                     ? "border-primary bg-primary/5 text-primary"
                     : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-muted"
                 )}
               >
-                Haven't tested
+                Haven't tested yet
               </button>
             </div>
-            {answers.testType !== "Neither" && (
+            {answers.testTypes.includes("SAT") && (
               <input
                 type="number"
-                placeholder="Enter your score"
-                value={answers.testScore || ""}
-                onChange={(e) => updateAnswer("testScore", parseInt(e.target.value) || null)}
-                onKeyDown={(e) => e.key === "Enter" && handleNext()}
+                placeholder="SAT score (400–1600)"
+                value={answers.satScore || ""}
+                onChange={(e) => updateAnswer("satScore", parseInt(e.target.value) || null)}
+                className="w-full mt-4 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+            )}
+            {answers.testTypes.includes("ACT") && (
+              <input
+                type="number"
+                placeholder="ACT score (1–36)"
+                value={answers.actScore || ""}
+                onChange={(e) => updateAnswer("actScore", parseInt(e.target.value) || null)}
                 className="w-full mt-4 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               />
             )}
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q4: Major ─────────────────────────────────────────────────────────
       case 4:
         return (
           <StepShell
-            question="What is your intended major?"
-            subtext="Or the field(s) that interest you if undecided."
+            question="What is your intended major or field of study?"
+            subtext="If undecided, what subjects interest you most?"
           >
             <input
               type="text"
-              placeholder="e.g. Computer Science"
+              placeholder="e.g. Computer Science, Biology, Undecided"
               value={answers.major}
               onChange={(e) => updateAnswer("major", e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleNext()}
@@ -226,10 +282,12 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q5: Major ranking importance ──────────────────────────────────────
       case 5:
         return (
           <StepShell
-            question="How important is major-specific ranking?"
+            question="How important is it that your school is highly ranked in your intended major?"
             subtext="1 = not important, 5 = very important"
           >
             <div className="flex gap-3 mt-8">
@@ -251,11 +309,13 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q6: Research vs teaching ──────────────────────────────────────────
       case 6:
         return (
           <StepShell
-            question="Research or teaching-focused?"
-            subtext="Prefer hands-on research or classroom teaching?"
+            question="Do you prefer a research-focused university or a teaching-focused college?"
+            subtext="Research universities emphasize labs and graduate study; teaching colleges prioritize undergrad instruction."
           >
             <div className="grid grid-cols-2 gap-3 mt-8">
               {(["Research-focused", "Teaching-focused"] as const).map((type) => (
@@ -276,11 +336,13 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q7: Budget ────────────────────────────────────────────────────────
       case 7:
         return (
           <StepShell
-            question="What's your college budget?"
-            subtext="Annual cost including tuition, room, and board."
+            question="What is your approximate annual budget for college?"
+            subtext="Including tuition, room, and board."
           >
             <select
               value={answers.budget}
@@ -288,19 +350,19 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
               className="w-full mt-8 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             >
               {BUDGET_OPTIONS.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
+                <option key={b} value={b}>{b}</option>
               ))}
             </select>
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q8: FAFSA ─────────────────────────────────────────────────────────
       case 8:
         return (
           <StepShell
-            question="Will you apply for financial aid?"
-            subtext="Via FAFSA (Federal Student Aid)"
+            question="Will you be applying for financial aid via FAFSA?"
+            subtext="The Free Application for Federal Student Aid determines your eligibility for grants and loans."
           >
             <div className="grid grid-cols-2 gap-3 mt-8">
               {["Yes", "No"].map((opt) => (
@@ -321,11 +383,13 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q9: Loans ─────────────────────────────────────────────────────────
       case 9:
         return (
           <StepShell
-            question="Open to student loans?"
-            subtext="Are you willing to take on debt to pay for college?"
+            question="Are you open to taking on student loans?"
+            subtext="This helps us factor in cost and financial fit."
           >
             <div className="flex flex-col gap-2 mt-8">
               {(["Yes", "No", "Prefer to minimize"] as const).map((opt) => (
@@ -346,11 +410,13 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q10: Setting ──────────────────────────────────────────────────────
       case 10:
         return (
           <StepShell
-            question="Preferred campus setting?"
-            subtext="Urban, suburban, or rural area?"
+            question="What campus setting do you prefer?"
+            subtext="Think about the type of environment where you'd feel most at home."
           >
             <div className="grid grid-cols-3 gap-3 mt-8">
               {(["Urban", "Suburban", "Rural"] as const).map((opt) => (
@@ -371,36 +437,43 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q11: Student body size ────────────────────────────────────────────
       case 11:
         return (
           <StepShell
-            question="Preferred student body size?"
-            subtext="How many students should the school have?"
+            question="What student body size do you prefer?"
+            subtext="Select all that you'd be comfortable with."
           >
             <div className="grid grid-cols-3 gap-3 mt-8">
               {(["Small", "Medium", "Large"] as const).map((opt) => (
                 <button
                   key={opt}
-                  onClick={() => updateAnswer("size", opt)}
+                  onClick={() => toggleSize(opt)}
                   className={cn(
                     "rounded-2xl border-2 py-4 text-sm font-semibold transition-all",
-                    answers.size === opt
+                    answers.sizes.includes(opt)
                       ? "border-primary bg-primary/5 text-primary"
                       : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-muted"
                   )}
                 >
-                  {opt}
+                  <div>{opt}</div>
+                  <div className="text-xs font-normal mt-1 opacity-70">
+                    {opt === "Small" ? "under 5k" : opt === "Medium" ? "5k–15k" : "15k+"}
+                  </div>
                 </button>
               ))}
             </div>
-            <NextButton onClick={handleNext} />
+            {answers.sizes.length > 0 && <NextButton onClick={handleNext} />}
           </StepShell>
         );
+
+      // ── Q12: Public vs private ────────────────────────────────────────────
       case 12:
         return (
           <StepShell
-            question="Public or private school?"
-            subtext="Any preference between public universities and private colleges?"
+            question="Do you have a preference between public and private institutions?"
+            subtext="Public universities are typically larger with lower in-state tuition; private colleges are often smaller and more selective."
           >
             <div className="flex flex-col gap-2 mt-8">
               {(["Public", "Private", "No preference"] as const).map((opt) => (
@@ -421,10 +494,12 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q13: Career services / co-op ──────────────────────────────────────
       case 13:
         return (
           <StepShell
-            question="Co-op/internship support?"
+            question="How important is strong career services, co-op, or internship placement support?"
             subtext="1 = not important, 5 = very important"
           >
             <div className="flex gap-3 mt-8">
@@ -446,20 +521,22 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q14: Career culture importance ────────────────────────────────────
       case 14:
         return (
           <StepShell
-            question="Startup/entrepreneurship culture?"
-            subtext="1 = not important, 5 = very important"
+            question="How important is it that your school has a strong culture around your intended career field?"
+            subtext="e.g. entrepreneurship, research labs, clinical rotations, studio culture, pre-law societies"
           >
             <div className="flex gap-3 mt-8">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
                   key={n}
-                  onClick={() => updateAnswer("startupImportance", n)}
+                  onClick={() => updateAnswer("careerCultureImportance", n)}
                   className={cn(
                     "h-14 w-14 rounded-2xl border-2 font-semibold transition-all",
-                    answers.startupImportance === n
+                    answers.careerCultureImportance === n
                       ? "border-primary bg-primary/5 text-primary"
                       : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-muted"
                   )}
@@ -468,20 +545,32 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
                 </button>
               ))}
             </div>
+            <input
+              type="text"
+              placeholder="Optional: describe what that culture looks like for you"
+              value={answers.careerCultureDescription}
+              onChange={(e) => updateAnswer("careerCultureDescription", e.target.value)}
+              className="w-full mt-4 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            />
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q15: Grad school ──────────────────────────────────────────────────
       case 15:
         return (
           <StepShell
-            question="Considering graduate school?"
-            subtext="Are you planning to continue your education?"
+            question="Are you considering graduate or professional school after undergrad?"
+            subtext="This helps us weigh research opportunities and academic rigor."
           >
             <div className="grid grid-cols-3 gap-3 mt-8">
               {(["Yes", "Maybe", "No"] as const).map((opt) => (
                 <button
                   key={opt}
-                  onClick={() => updateAnswer("gradSchool", opt)}
+                  onClick={() => {
+                    updateAnswer("gradSchool", opt);
+                    if (opt === "No") updateAnswer("gradSchoolTypes", []);
+                  }}
                   className={cn(
                     "rounded-2xl border-2 py-4 text-sm font-semibold transition-all",
                     answers.gradSchool === opt
@@ -493,18 +582,43 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
                 </button>
               ))}
             </div>
+            {(answers.gradSchool === "Yes" || answers.gradSchool === "Maybe") && (
+              <div className="mt-6">
+                <p className="text-sm font-medium text-foreground mb-3">
+                  What type? <span className="text-muted-foreground font-normal">(select all that apply)</span>
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {GRAD_SCHOOL_TYPES.map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => toggleGradType(type)}
+                      className={cn(
+                        "rounded-2xl border-2 py-3 text-sm font-semibold transition-all",
+                        answers.gradSchoolTypes.includes(type)
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-muted"
+                      )}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q16: Career interests ─────────────────────────────────────────────
       case 16:
         return (
           <StepShell
-            question="What industries interest you?"
-            subtext="Fields or careers you're thinking about."
+            question="What industries or career paths are you currently drawn to?"
+            subtext="Even broadly — e.g. medicine, journalism, education, finance, engineering"
           >
             <input
               type="text"
-              placeholder="e.g. Tech, Finance, Healthcare..."
+              placeholder="e.g. Tech, Finance, Healthcare, Law..."
               value={answers.careers}
               onChange={(e) => updateAnswer("careers", e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleNext()}
@@ -513,10 +627,12 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q17: Alumni network ───────────────────────────────────────────────
       case 17:
         return (
           <StepShell
-            question="Tech alumni network importance?"
+            question="How important is it that your school has a strong alumni network in your intended industry?"
             subtext="1 = not important, 5 = very important"
           >
             <div className="flex gap-3 mt-8">
@@ -538,6 +654,79 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
             <NextButton onClick={handleNext} />
           </StepShell>
         );
+
+      // ── Q18: Campus diversity ─────────────────────────────────────────────
+      case 18:
+        return (
+          <StepShell
+            question="How important is campus diversity — ethnic, cultural, and socioeconomic?"
+            subtext="1 = not important, 5 = very important"
+          >
+            <div className="flex gap-3 mt-8">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => updateAnswer("campusDiversityImportance", n)}
+                  className={cn(
+                    "h-14 w-14 rounded-2xl border-2 font-semibold transition-all",
+                    answers.campusDiversityImportance === n
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-muted"
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <NextButton onClick={handleNext} />
+          </StepShell>
+        );
+
+      // ── Q19: Campus life ──────────────────────────────────────────────────
+      case 19:
+        return (
+          <StepShell
+            question="How important is campus life — clubs, organizations, traditions, and school spirit?"
+            subtext="1 = not important, 5 = very important"
+          >
+            <div className="flex gap-3 mt-8">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => updateAnswer("campusLifeImportance", n)}
+                  className={cn(
+                    "h-14 w-14 rounded-2xl border-2 font-semibold transition-all",
+                    answers.campusLifeImportance === n
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-muted"
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <NextButton onClick={handleNext} />
+          </StepShell>
+        );
+
+      // ── Q20: Other priorities ─────────────────────────────────────────────
+      case 20:
+        return (
+          <StepShell
+            question="Do you have any other priorities or dealbreakers we should know about?"
+            subtext="Optional — e.g. 'I need a strong music program', 'I want to be near family', 'I have a specific religious preference'"
+          >
+            <textarea
+              placeholder="Share anything else that matters to you..."
+              value={answers.otherPriorities}
+              onChange={(e) => updateAnswer("otherPriorities", e.target.value)}
+              rows={4}
+              className="w-full mt-8 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+            />
+            <NextButton onClick={handleNext} label="Generate My List" />
+          </StepShell>
+        );
+
       default:
         return null;
     }
@@ -553,7 +742,7 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
         />
       </div>
 
-      {/* Top bar: back button + step counter */}
+      {/* Top bar */}
       <div className="flex items-center justify-between px-6 pt-5 min-h-[40px]">
         <button
           onClick={handleBack}

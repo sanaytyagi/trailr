@@ -187,8 +187,8 @@ function PortalDropdown({ trigger, children }: PortalDropdownProps) {
 
 // ─── Deadline cell ────────────────────────────────────────────────────────────
 
-function DeadlineCell({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
-  const status = value ? getDeadlineStatus(value) : null;
+function DeadlineCell({ value, onChange, submitted }: { value: string | null; onChange: (v: string | null) => void; submitted?: boolean }) {
+  const status = value && !submitted ? getDeadlineStatus(value) : null;
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
       <DatePicker value={value} onChange={onChange} />
@@ -213,6 +213,7 @@ interface CollegeRowProps {
   onDeadlineChange: (id: string, deadline: string | null) => void;
   onCategoryChange: (id: string, category: AdmissionsCategory | null) => void;
   onNotesChange: (id: string, notes: string) => void;
+  counselorNote?: string;
   isNew?: boolean;
   isLast: boolean;
   isDragging: boolean;
@@ -232,6 +233,7 @@ export const CollegeRow = memo(function CollegeRow({
   onDeadlineChange,
   onCategoryChange,
   onNotesChange,
+  counselorNote,
   isNew,
   isLast,
   isDragging,
@@ -246,6 +248,7 @@ export const CollegeRow = memo(function CollegeRow({
   const borderColor = decisionConfig?.color ?? "hsl(270,60%,55%)";
 
   return (
+    <>
     <tr
       draggable
       onDragStart={(e) => {
@@ -258,7 +261,7 @@ export const CollegeRow = memo(function CollegeRow({
         "group transition-colors",
         isNew && "row-enter",
         isDragging ? "opacity-40" : "hover:bg-muted/30",
-        !isLast && "border-b border-border"
+        !isLast && !counselorNote && "border-b border-border"
       )}
       style={{ boxShadow: `inset 4px 0 0 ${borderColor}` }}
     >
@@ -515,6 +518,7 @@ export const CollegeRow = memo(function CollegeRow({
         <DeadlineCell
           value={college.personal_deadline}
           onChange={(v) => onDeadlineChange(college.id, v)}
+          submitted={college.application_status === "submitted"}
         />
       </td>
 
@@ -573,5 +577,25 @@ export const CollegeRow = memo(function CollegeRow({
         </button>
       </td>
     </tr>
+    {counselorNote && (
+      <tr
+        className={cn(
+          "bg-amber-50/60",
+          isDragging && "opacity-40",
+          !isLast && "border-b border-border"
+        )}
+        style={{ boxShadow: `inset 4px 0 0 ${borderColor}` }}
+      >
+        <td colSpan={10} className="pl-11 pr-4 py-2">
+          <div className="flex items-start gap-2">
+            <span className="inline-flex items-center rounded-sm bg-amber-100 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 uppercase tracking-wide shrink-0 leading-none mt-0.5">
+              Counselor
+            </span>
+            <span className="text-xs text-amber-900 leading-snug">{counselorNote}</span>
+          </div>
+        </td>
+      </tr>
+    )}
+    </>
   );
 });

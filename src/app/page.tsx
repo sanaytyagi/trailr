@@ -600,9 +600,19 @@ export default function HomePage() {
   const [supabase] = useState(() => createClient());
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) router.replace("/tracker");
-    });
+    async function redirect() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      router.replace(profile?.role === "counselor" ? "/counselor" : "/tracker");
+    }
+    redirect();
   }, [supabase, router]);
 
   return (

@@ -5,8 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 interface QuizAnswers {
   state: string;
   gpa: number;
-  testType: "SAT" | "ACT" | "Neither";
-  testScore: number | null;
+  testTypes: ("SAT" | "ACT")[];
+  satScore: number | null;
+  actScore: number | null;
   major: string;
   majorImportance: number;
   preferenceResearch: "Research-focused" | "Teaching-focused";
@@ -14,14 +15,18 @@ interface QuizAnswers {
   fafsa: boolean;
   loans: "Yes" | "No" | "Prefer to minimize";
   setting: "Urban" | "Suburban" | "Rural";
-  size: "Small" | "Medium" | "Large";
+  sizes: ("Small" | "Medium" | "Large")[];
   schoolType: "Public" | "Private" | "No preference";
   coopImportance: number;
-  startupImportance: number;
+  careerCultureImportance: number;
+  careerCultureDescription: string;
   gradSchool: "Yes" | "Maybe" | "No";
+  gradSchoolTypes: string[];
   careers: string;
   alumniNetworkImportance: number;
-  onCampusHousing: boolean;
+  campusDiversityImportance: number;
+  campusLifeImportance: number;
+  otherPriorities: string;
 }
 
 interface GeneratedCollege {
@@ -66,13 +71,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Filter colleges by student's state and nearby states, reduce to essential fields
-    const studentState = answers.state;
-    const nearbyStates = [studentState, "New York", "California", "Massachusetts", "Illinois", "Pennsylvania"];
-
+    // Reduce to essential fields and cap at 150 to stay within token limits
     const collegesSlim = colleges
-      .filter((c: any) => !c.state || nearbyStates.includes(c.state))
-      .slice(0, 150) // Limit to first 150 colleges
+      .slice(0, 150)
       .map((c: any) => ({
         id: c.id,
         name: c.name,
@@ -82,13 +83,17 @@ export async function POST(req: NextRequest) {
       }));
 
     // Build student profile string for AI
+    const testInfo = answers.testTypes.length === 0
+      ? "Not taken"
+      : answers.testTypes.map((t) =>
+          t === "SAT" ? `SAT: ${answers.satScore ?? "score not provided"}`
+                      : `ACT: ${answers.actScore ?? "score not provided"}`
+        ).join(", ");
+
     const studentProfile = {
       state: answers.state,
       gpa: answers.gpa,
-      standardizedTest:
-        answers.testType === "Neither"
-          ? "Not taken"
-          : `${answers.testType}: ${answers.testScore}`,
+      standardizedTests: testInfo,
       intendedMajor: answers.major,
       majorSpecificRankingImportance: `${answers.majorImportance}/5`,
       preferredTeachingStyle: answers.preferenceResearch,
@@ -96,14 +101,18 @@ export async function POST(req: NextRequest) {
       applyingForFinancialAid: answers.fafsa ? "Yes" : "No",
       willingToTakeLoan: answers.loans,
       preferredSetting: answers.setting,
-      preferredStudentBody: answers.size,
+      preferredStudentBodySizes: answers.sizes.join(", "),
       schoolTypePreference: answers.schoolType,
-      coopPlacementImportance: `${answers.coopImportance}/5`,
-      startupCultureImportance: `${answers.startupImportance}/5`,
+      careerServicesImportance: `${answers.coopImportance}/5`,
+      careerCultureImportance: `${answers.careerCultureImportance}/5`,
+      careerCultureDescription: answers.careerCultureDescription || "Not specified",
       consideringGraduateSchool: answers.gradSchool,
+      intendedGradSchoolTypes: answers.gradSchoolTypes.length > 0 ? answers.gradSchoolTypes.join(", ") : "N/A",
       interestedIndustries: answers.careers,
-      techAlumniNetworkImportance: `${answers.alumniNetworkImportance}/5`,
-      wantOnCampusHousing: answers.onCampusHousing ? "Yes" : "No",
+      alumniNetworkImportance: `${answers.alumniNetworkImportance}/5`,
+      campusDiversityImportance: `${answers.campusDiversityImportance}/5`,
+      campusLifeImportance: `${answers.campusLifeImportance}/5`,
+      otherPriorities: answers.otherPriorities || "None",
     };
 
     // Call OpenAI
@@ -149,11 +158,7 @@ Return only the JSON array.`,
     const generatedList: GeneratedCollege[] = JSON.parse(jsonMatch[0]);
 
     // Validate the list
-    if (
-      !Array.isArray(generatedList) ||
-      generatedList.length < 10 ||
-      generatedList.length > 30
-    ) {
+    if (!Array.isArray(generatedList) || generatedList.length === 0) {
       return NextResponse.json(
         { error: "Invalid college list format" },
         { status: 500 }

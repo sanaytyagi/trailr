@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Plus, X, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, X, CheckCircle2, XCircle, Link2, UserCheck } from "lucide-react";
 import type { College } from "@/types";
 import { CollegeSearch, type CollegeSearchHandle } from "@/components/college-search";
 import { CollegeGrid } from "@/components/college-grid";
 import { CollegeDetailDialog } from "@/components/college-detail-dialog";
 import { DeadlineCalendar } from "@/components/deadline-calendar";
 import { useTrackedColleges } from "@/hooks/use-tracked-colleges";
+import { useProfile } from "@/hooks/use-profile";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { TrackedCollege, ApplicationStatus, DecisionResult } from "@/types";
 
@@ -258,6 +260,82 @@ export default function TrackerPage() {
     setAdmissionsCategory,
   } = useTrackedColleges();
 
+  const { profile, refetch: refetchProfile } = useProfile();
+  const [supabase] = useState(() => createClient());
+  const [inviteCode, setInviteCode] = useState("");
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [isChanging, setIsChanging] = useState(false);
+  const [counselorName, setCounselorName] = useState<string | null>(null);
+  const [counselorNotes, setCounselorNotes] = useState<Record<string, string>>({});
+
+  // Fetch counselor name + notes when profile has a counselor_id
+  useEffect(() => {
+    if (!profile?.counselor_id) return;
+
+    async function fetchCounselorData() {
+      const { data: counselorProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", profile!.counselor_id!)
+        .single();
+      setCounselorName(counselorProfile?.full_name ?? null);
+
+      const { data: notes } = await supabase
+        .from("counselor_college_notes")
+        .select("college_id, note")
+        .eq("student_id", profile!.id);
+      if (notes) {
+        const map: Record<string, string> = {};
+        for (const row of notes) map[row.college_id] = row.note;
+        setCounselorNotes(map);
+      }
+    }
+    fetchCounselorData();
+  }, [profile, supabase]);
+
+  async function handleConnect() {
+    if (!inviteCode.trim()) return;
+    setConnecting(true);
+    setConnectError(null);
+
+    const { data: counselor } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .eq("invite_code", inviteCode.trim().toUpperCase())
+      .eq("role", "counselor")
+      .maybeSingle();
+
+    if (!counselor) {
+      setConnectError("No counselor found with that invite code.");
+      setConnecting(false);
+      return;
+    }
+
+    await supabase
+      .from("profiles")
+      .update({ counselor_id: counselor.id })
+      .eq("id", profile!.id);
+
+    await refetchProfile();
+    setInviteCode("");
+    setIsChanging(false);
+    setConnecting(false);
+  }
+
+  async function handleDisconnect() {
+    setDisconnecting(true);
+    await supabase
+      .from("profiles")
+      .update({ counselor_id: null })
+      .eq("id", profile!.id);
+    setCounselorName(null);
+    setCounselorNotes({});
+    await refetchProfile();
+    setDisconnecting(false);
+  }
+
   const searchRef = useRef<CollegeSearchHandle>(null);
   const [selectedCollege, setSelectedCollege] = useState<TrackedCollege | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -380,6 +458,68 @@ export default function TrackerPage() {
       <div className="flex gap-8 items-start">
         {/* Left column */}
         <div className="flex-1 min-w-0">
+          {/* Counselor connect banner / chip */}
+          {profile && profile.role === "student" && (
+            profile.counselor_id && !isChanging ? (
+              <div className="mb-4 flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm">
+                <UserCheck className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-muted-foreground">Counselor:</span>
+                <span className="font-medium text-foreground">{counselorName ?? "Connected"}</span>
+                <div className="ml-auto flex items-center gap-3">
+                  <button
+                    onClick={() => { setIsChanging(true); setConnectError(null); }}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Change
+                  </button>
+                  <button
+                    onClick={handleDisconnect}
+                    disabled={disconnecting}
+                    className="text-xs text-destructive/70 hover:text-destructive transition-colors disabled:opacity-50"
+                  >
+                    {disconnecting ? "Removing…" : "Remove"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4 flex flex-wrap items-center gap-3 px-4 py-3 rounded-lg border border-border bg-card">
+                <Link2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm text-muted-foreground">
+                  {isChanging ? "Change counselor" : "Connect with your counselor"}
+                </span>
+                <div className="flex items-center gap-2 ml-auto">
+                  <input
+                    type="text"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && handleConnect()}
+                    placeholder="Enter invite code"
+                    maxLength={6}
+                    className="h-8 rounded-md border border-input bg-background px-3 text-sm font-mono uppercase tracking-widest w-36 focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <button
+                    onClick={handleConnect}
+                    disabled={connecting || !inviteCode.trim()}
+                    className="h-8 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >
+                    {connecting ? "Connecting…" : "Connect"}
+                  </button>
+                  {isChanging && (
+                    <button
+                      onClick={() => { setIsChanging(false); setInviteCode(""); setConnectError(null); }}
+                      className="h-8 rounded-md px-3 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+                {connectError && (
+                  <p className="w-full text-xs text-destructive mt-1">{connectError}</p>
+                )}
+              </div>
+            )
+          )}
+
           {/* Title + search + add button */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-foreground mb-1">My College List</h1>
@@ -539,6 +679,7 @@ export default function TrackerPage() {
               onCategoryChange={setAdmissionsCategory}
               onNotesChange={handleNotesChange}
               lastAddedId={lastAddedId}
+              counselorNotes={Object.keys(counselorNotes).length > 0 ? counselorNotes : undefined}
             />
           )}
 

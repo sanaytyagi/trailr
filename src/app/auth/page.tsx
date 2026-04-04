@@ -15,7 +15,7 @@ export default function AuthPage() {
   // Redirect already-signed-in users.
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) router.replace("/tracker");
+      if (user) router.replace("/onboarding");
     });
   }, [supabase, router]);
 
@@ -27,7 +27,7 @@ export default function AuthPage() {
   }, []);
 
   function handleSuccess() {
-    router.push("/tracker");
+    router.push("/onboarding");
     router.refresh();
   }
 
