@@ -27,6 +27,10 @@ export default function ListBuilderPage() {
 
   const supabase = createClient();
 
+  // Redirect — page temporarily hidden
+  useEffect(() => { router.replace("/tracker"); }, [router]);
+  return null;
+
   // Load user and check for saved list
   useEffect(() => {
     async function loadUserAndList() {

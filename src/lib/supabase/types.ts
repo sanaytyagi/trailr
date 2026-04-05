@@ -211,6 +211,87 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      essays: {
+        Row: {
+          id: string;
+          user_id: string;
+          college_id: string;
+          prompt: string;
+          word_limit: number;
+          body: string;
+          status: "not_started" | "drafting" | "final";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          college_id: string;
+          prompt?: string;
+          word_limit?: number;
+          body?: string;
+          status?: "not_started" | "drafting" | "final";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          prompt?: string;
+          word_limit?: number;
+          body?: string;
+          status?: "not_started" | "drafting" | "final";
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      essay_notes: {
+        Row: {
+          id: string;
+          essay_id: string;
+          counselor_id: string;
+          note: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          essay_id: string;
+          counselor_id: string;
+          note?: string;
+          created_at?: string;
+        };
+        Update: {
+          note?: string;
+        };
+        Relationships: [];
+      };
+      essay_comments: {
+        Row: {
+          id: string;
+          essay_id: string;
+          counselor_id: string;
+          text: string;
+          start_offset: number;
+          end_offset: number;
+          color_index: number;
+          resolved: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          essay_id: string;
+          counselor_id: string;
+          text: string;
+          start_offset: number;
+          end_offset: number;
+          color_index?: number;
+          resolved?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          text?: string;
+          resolved?: boolean;
+        };
+        Relationships: [];
+      };
     };
   };
 }

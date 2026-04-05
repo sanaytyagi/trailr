@@ -2,8 +2,9 @@
 
 import { memo, useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import confetti from "canvas-confetti";
-import { Trash2, ChevronDown, ExternalLink, FileText } from "lucide-react";
+import { Trash2, ChevronDown, ExternalLink, FileText, Plus } from "lucide-react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CollegeLogo } from "@/components/college-logo";
 import { cn } from "@/lib/utils";
@@ -214,6 +215,7 @@ interface CollegeRowProps {
   onCategoryChange: (id: string, category: AdmissionsCategory | null) => void;
   onNotesChange: (id: string, notes: string) => void;
   counselorNote?: string;
+  essayCount?: number;
   isNew?: boolean;
   isLast: boolean;
   isDragging: boolean;
@@ -234,6 +236,7 @@ export const CollegeRow = memo(function CollegeRow({
   onCategoryChange,
   onNotesChange,
   counselorNote,
+  essayCount,
   isNew,
   isLast,
   isDragging,
@@ -301,6 +304,27 @@ export const CollegeRow = memo(function CollegeRow({
                 <ExternalLink className="h-3 w-3" />
                 <span>Website</span>
               </a>
+            )}
+            {essayCount !== undefined && (
+              essayCount > 0 ? (
+                <Link
+                  href="/essays"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 mt-2 rounded-full border border-primary/30 bg-primary/8 px-3.5 py-1 text-xs font-semibold text-primary hover:bg-primary/15 transition-colors w-fit"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span>{essayCount} {essayCount === 1 ? "essay" : "essays"} →</span>
+                </Link>
+              ) : (
+                <Link
+                  href="/essays?add=true"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1.5 mt-2 rounded-full bg-primary px-3.5 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors w-fit shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add essay</span>
+                </Link>
+              )
             )}
           </div>
         </div>
@@ -570,7 +594,7 @@ export const CollegeRow = memo(function CollegeRow({
       <td className="pr-3 py-4">
         <button
           onClick={() => onRemove(college.id)}
-          className="rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive"
+          className="rounded-lg p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive"
           aria-label={`Remove ${college.name}`}
         >
           <Trash2 className="h-3.5 w-3.5" />

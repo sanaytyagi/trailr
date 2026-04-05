@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, GraduationCap, ListTree, Share2, Users, CalendarDays } from "lucide-react";
+import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, Share2, Users, CalendarDays, BookText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -115,16 +115,16 @@ export function Header() {
               </Link>
 
               <Link
-                href="/list-builder"
+                href="/essays"
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  pathname === "/list-builder"
+                  pathname === "/essays" || pathname.startsWith("/essays/")
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <ListTree className="h-3.5 w-3.5" />
-                List Builder
+                <BookText className="h-3.5 w-3.5" />
+                Essays
               </Link>
 
               <Link
@@ -139,19 +139,6 @@ export function Header() {
                 <Share2 className="h-3.5 w-3.5" />
                 Lists
               </Link>
-
-              <button
-                onClick={() => router.push(user ? "/advisor" : "/auth?mode=signin")}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  pathname === "/advisor"
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <GraduationCap className="h-3.5 w-3.5" />
-                Advisor
-              </button>
             </>
           )}
 
@@ -283,17 +270,17 @@ export function Header() {
                     </Link>
 
                     <Link
-                      href="/list-builder"
+                      href="/essays"
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                        pathname === "/list-builder"
+                        pathname === "/essays" || pathname.startsWith("/essays/")
                           ? "bg-muted text-foreground"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       )}
                     >
-                      <ListTree className="h-4 w-4" />
-                      List Builder
+                      <BookText className="h-4 w-4" />
+                      Essays
                     </Link>
 
                     <Link
@@ -309,19 +296,6 @@ export function Header() {
                       <Share2 className="h-4 w-4" />
                       Lists
                     </Link>
-
-                    <button
-                      onClick={() => { setMobileOpen(false); router.push(user ? "/advisor" : "/auth?mode=signin"); }}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors w-full text-left",
-                        pathname === "/advisor"
-                          ? "bg-muted text-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      <GraduationCap className="h-4 w-4" />
-                      Advisor
-                    </button>
                   </>
                 )}
 

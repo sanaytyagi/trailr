@@ -269,6 +269,7 @@ export default function TrackerPage() {
   const [isChanging, setIsChanging] = useState(false);
   const [counselorName, setCounselorName] = useState<string | null>(null);
   const [counselorNotes, setCounselorNotes] = useState<Record<string, string>>({});
+  const [essayCounts, setEssayCounts] = useState<Record<string, number>>({});
 
   // Fetch counselor name + notes when profile has a counselor_id
   useEffect(() => {
@@ -293,6 +294,25 @@ export default function TrackerPage() {
       }
     }
     fetchCounselorData();
+  }, [profile, supabase]);
+
+  // Fetch essay counts per college
+  useEffect(() => {
+    if (!profile) return;
+    async function fetchEssayCounts() {
+      const { data } = await supabase
+        .from("essays")
+        .select("college_id")
+        .eq("user_id", profile!.id);
+      if (data) {
+        const counts: Record<string, number> = {};
+        for (const row of data) {
+          counts[row.college_id] = (counts[row.college_id] ?? 0) + 1;
+        }
+        setEssayCounts(counts);
+      }
+    }
+    fetchEssayCounts();
   }, [profile, supabase]);
 
   async function handleConnect() {
@@ -680,6 +700,7 @@ export default function TrackerPage() {
               onNotesChange={handleNotesChange}
               lastAddedId={lastAddedId}
               counselorNotes={Object.keys(counselorNotes).length > 0 ? counselorNotes : undefined}
+              essayCounts={essayCounts}
             />
           )}
 

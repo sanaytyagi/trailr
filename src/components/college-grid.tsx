@@ -68,6 +68,7 @@ interface CollegeGridProps {
   onNotesChange: (id: string, notes: string) => void;
   lastAddedId?: string | null;
   counselorNotes?: Record<string, string>;
+  essayCounts?: Record<string, number>;
 }
 
 export function CollegeGrid({
@@ -82,6 +83,7 @@ export function CollegeGrid({
   onNotesChange,
   lastAddedId,
   counselorNotes,
+  essayCounts,
 }: CollegeGridProps) {
   const [order, setOrder] = useState<string[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -259,6 +261,7 @@ export function CollegeGrid({
                 onCategoryChange={onCategoryChange}
                 onNotesChange={onNotesChange}
                 counselorNote={counselorNotes ? (counselorNotes[college.id] ?? "") : undefined}
+                essayCount={essayCounts ? (essayCounts[college.id] ?? 0) : undefined}
                 isNew={college.id === lastAddedId}
                 isLast={i === sorted.length - 1}
                 isDragging={draggingId === college.id}

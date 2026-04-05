@@ -2,10 +2,19 @@
 
 import { use, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ArrowLeft, MessageSquare } from "lucide-react";
+import { Loader2, ArrowLeft, MessageSquare, BookText } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
+
+interface StudentEssay {
+  id: string;
+  college_id: string;
+  prompt: string;
+  word_limit: number;
+  body: string;
+  status: "not_started" | "drafting" | "final";
+}
 
 interface StudentCollege {
   id: string;
@@ -56,6 +65,12 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"colleges" | "essays">("colleges");
+  const [studentEssays, setStudentEssays] = useState<StudentEssay[]>([]);
+  const [essayNotes, setEssayNotes] = useState<Record<string, string>>({});
+  const [editingEssayNote, setEditingEssayNote] = useState<string | null>(null);
+  const [editingEssayText, setEditingEssayText] = useState("");
+  const [essaysLoaded, setEssaysLoaded] = useState(false);
 
   useEffect(() => {
     if (profileLoading) return;
@@ -129,6 +144,47 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
     setEditingNote(null);
   }
 
+  async function loadEssays() {
+    if (!profile || essaysLoaded) return;
+    const { data: essays } = await supabase
+      .from("essays")
+      .select("id, college_id, prompt, word_limit, body, status")
+      .eq("user_id", studentId)
+      .order("created_at", { ascending: true });
+    setStudentEssays((essays ?? []) as StudentEssay[]);
+
+    const { data: enotes } = await supabase
+      .from("essay_notes")
+      .select("essay_id, note")
+      .eq("counselor_id", profile.id)
+      .in("essay_id", (essays ?? []).map((e) => e.id));
+    if (enotes) {
+      const map: Record<string, string> = {};
+      for (const row of enotes) map[row.essay_id] = row.note;
+      setEssayNotes(map);
+    }
+    setEssaysLoaded(true);
+  }
+
+  async function saveEssayNote(essayId: string, note: string) {
+    if (!profile) return;
+    if (note.trim()) {
+      await supabase.from("essay_notes").upsert(
+        { essay_id: essayId, counselor_id: profile.id, note: note.trim() },
+        { onConflict: "essay_id,counselor_id" }
+      );
+      setEssayNotes((prev) => ({ ...prev, [essayId]: note.trim() }));
+    } else {
+      await supabase
+        .from("essay_notes")
+        .delete()
+        .eq("essay_id", essayId)
+        .eq("counselor_id", profile.id);
+      setEssayNotes((prev) => { const next = { ...prev }; delete next[essayId]; return next; });
+    }
+    setEditingEssayNote(null);
+  }
+
   if (profileLoading || loading) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
@@ -171,8 +227,150 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-border">
+        {(["colleges", "essays"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => { setTab(t); if (t === "essays") loadEssays(); }}
+            className={cn(
+              "px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px",
+              tab === t
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* Essays tab */}
+      {tab === "essays" && (
+        <div className="flex flex-col gap-4">
+          {studentEssays.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-dashed border-border">
+              <BookText className="h-9 w-9 text-muted-foreground/30 mb-2" />
+              <p className="text-sm font-medium text-foreground mb-0.5">No essays yet</p>
+              <p className="text-xs text-muted-foreground">This student hasn't added any essays.</p>
+            </div>
+          ) : (
+            (() => {
+              // Group by college_id
+              const byCollege = new Map<string, StudentEssay[]>();
+              for (const e of studentEssays) {
+                const arr = byCollege.get(e.college_id) ?? [];
+                arr.push(e);
+                byCollege.set(e.college_id, arr);
+              }
+              // Build college name map from colleges state
+              const nameMap = new Map(colleges.map((c) => [c.college_id, c.college.name]));
+
+              return Array.from(byCollege.entries()).map(([collegeId, essays]) => (
+                <div key={collegeId} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-border bg-muted/30">
+                    <p className="text-sm font-semibold text-foreground">{nameMap.get(collegeId) ?? collegeId}</p>
+                  </div>
+                  <div className="divide-y divide-border">
+                    {essays.map((essay) => {
+                      const words = essay.body.trim() === "" ? 0 : essay.body.trim().split(/\s+/).length;
+                      const pct = Math.min((words / essay.word_limit) * 100, 100);
+                      const over = words > essay.word_limit;
+                      const statusLabel = essay.status === "final" ? "Complete" : !essay.body.trim() ? "Not Started" : "Drafting";
+                      const badgeCls =
+                        statusLabel === "Complete" ? "bg-emerald-100 text-emerald-700" :
+                        statusLabel === "Drafting" ? "bg-amber-100 text-amber-700" :
+                        "bg-muted text-muted-foreground";
+                      const isEditingEssay = editingEssayNote === essay.id;
+                      const enote = essayNotes[essay.id];
+
+                      return (
+                        <div key={essay.id} className="px-5 py-4">
+                          {/* Prompt */}
+                          <p className="text-sm text-foreground line-clamp-2 leading-snug mb-2.5">
+                            {essay.prompt || <span className="italic text-muted-foreground">No prompt</span>}
+                          </p>
+                          {/* Word count + status */}
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className={cn("h-full rounded-full", over ? "bg-destructive" : "bg-primary")}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <p className={cn("text-[11px] mt-1 tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
+                                {words} / {essay.word_limit} words
+                              </p>
+                            </div>
+                            <span className={cn("shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-0.5", badgeCls)}>
+                              {statusLabel}
+                            </span>
+                          </div>
+                          {/* View essay link */}
+                          <div className="flex items-center justify-between mt-1 gap-3">
+                          <div className="flex-1 min-w-0">
+                            {isEditingEssay ? (
+                              <div className="flex flex-col gap-1">
+                                <textarea
+                                  autoFocus
+                                  value={editingEssayText}
+                                  onChange={(e) => setEditingEssayText(e.target.value)}
+                                  rows={3}
+                                  placeholder="Add a note for this essay…"
+                                  className="w-full text-xs bg-muted/50 rounded-md px-2 py-1.5 resize-none outline-none focus:ring-2 focus:ring-ring"
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => saveEssayNote(essay.id, editingEssayText)}
+                                    className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingEssayNote(null)}
+                                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setEditingEssayNote(essay.id); setEditingEssayText(enote ?? ""); }}
+                                className="text-left w-full rounded-md px-2 py-1 hover:bg-muted/60 transition-colors group"
+                              >
+                                {enote ? (
+                                  <p className="text-xs text-amber-900 leading-snug">{enote}</p>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-xs text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+                                    <MessageSquare className="h-3 w-3" />
+                                    Add note
+                                  </span>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => router.push(`/essays/${essay.id}`)}
+                            className="shrink-0 text-xs font-medium text-primary hover:underline whitespace-nowrap"
+                          >
+                            View essay →
+                          </button>
+                        </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ));
+            })()
+          )}
+        </div>
+      )}
+
       {/* Unified card: stats + progress + table */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      {tab === "colleges" && <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
 
         {/* Stats strip */}
         <div className="flex items-center gap-8 px-6 py-4 border-b border-border bg-muted/20 flex-wrap">
@@ -314,7 +512,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
             </tbody>
           </table>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
