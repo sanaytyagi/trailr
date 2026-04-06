@@ -77,7 +77,12 @@ CRITICAL RULES:
 - Soft preferences should only differentiate between schools of equivalent academic standing
 - The list must reflect what a knowledgeable human admissions counselor would actually recommend — prioritize program quality and reputation in the student's intended field above all soft preferences
 - Return ONLY a raw JSON array with no markdown, no code fences, no commentary
-- Each object must have: college_id (exact id from provided data), name, tier, reason (one sentence explaining fit for THIS specific student)`;
+- Each object must have: college_id (exact id from provided data), name, tier, reason
+- reason: One to two sentences that connect this school to something SPECIFIC the student told us.
+  Always reference at least one of: their intended major/field, career goals, grad school plans, a setting or culture preference they rated 4–5/5, or a stated priority.
+  NEVER describe the school in general terms ("known for strong research" or "vibrant campus life") without tying it directly to what this student values.
+  For Reach schools: acknowledge the competitive odds while still making the case for why it's worth applying.
+  Vary sentence structure across the list — avoid starting every reason the same way.`;
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -155,6 +160,27 @@ export async function POST(req: NextRequest) {
        (answers.actScore != null && answers.actScore >= 26));
     const profileStrength = isStrong ? "strong" : isCompetitive ? "competitive" : "average";
 
+    // Tier distribution targets based on academic strength
+    const tierDistribution = {
+      strong:      { reach: "5–7", highMatch: "5–6", match: "4–5", safety: "2–3" },
+      competitive: { reach: "3–4", highMatch: "4–5", match: "5–6", safety: "3–4" },
+      average:     { reach: "1–2", highMatch: "2–3", match: "6–8", safety: "4–5" },
+    }[profileStrength];
+
+    // Extract top priorities to surface prominently for personalized reasoning
+    const topPriorities: string[] = [];
+    topPriorities.push(`Intended major: ${answers.major}`);
+    if (answers.careers) topPriorities.push(`Target careers/industries: ${answers.careers}`);
+    topPriorities.push(`Grad school intention: ${answers.gradSchool}${answers.gradSchoolTypes.length > 0 ? ` (${answers.gradSchoolTypes.join(", ")})` : ""}`);
+    if (answers.careerCultureDescription) topPriorities.push(`Career culture they want: ${answers.careerCultureDescription}`);
+    if (answers.otherPriorities) topPriorities.push(`Other priorities: ${answers.otherPriorities}`);
+    if (answers.majorImportance >= 4)           topPriorities.push(`Major-specific ranking matters to them (${answers.majorImportance}/5)`);
+    if (answers.coopImportance >= 4)            topPriorities.push(`Career services / co-op programs matter (${answers.coopImportance}/5)`);
+    if (answers.careerCultureImportance >= 4)   topPriorities.push(`Career culture fit matters (${answers.careerCultureImportance}/5)`);
+    if (answers.alumniNetworkImportance >= 4)   topPriorities.push(`Alumni network matters (${answers.alumniNetworkImportance}/5)`);
+    if (answers.campusDiversityImportance >= 4) topPriorities.push(`Campus diversity matters (${answers.campusDiversityImportance}/5)`);
+    if (answers.campusLifeImportance >= 4)      topPriorities.push(`Campus life matters (${answers.campusLifeImportance}/5)`);
+
     // Build structured student profile
     const studentProfile = {
       state: answers.state,
@@ -181,7 +207,17 @@ export async function POST(req: NextRequest) {
       otherPriorities: answers.otherPriorities || "None",
     };
 
-    const userContent = `STUDENT ACADEMIC PROFILE SUMMARY:
+    const userContent = `RECOMMENDED TIER DISTRIBUTION FOR THIS STUDENT (profile: ${profileStrength}):
+- Reach: ${tierDistribution.reach} schools
+- High Match: ${tierDistribution.highMatch} schools
+- Match: ${tierDistribution.match} schools
+- Safety: ${tierDistribution.safety} schools
+Total target: 16–20 schools. These are targets, not hard requirements — never pad a tier with low-quality or poor-fit schools just to hit the number. If fewer genuine fits exist for a tier, use fewer.
+
+STUDENT TOP PRIORITIES (use these when writing the reason for each school):
+${topPriorities.map(p => `- ${p}`).join("\n")}
+
+STUDENT ACADEMIC PROFILE SUMMARY:
 GPA: ${answers.gpa}/4.0
 Test Scores: ${testInfo}
 Intended Major: ${answers.major}

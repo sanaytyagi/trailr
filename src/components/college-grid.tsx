@@ -13,7 +13,13 @@ type SortCol = "name" | "acceptance_rate" | "category" | "application" | "round"
 type SortDir = "asc" | "desc";
 
 // ── Custom sort-order maps ─────────────────────────────────────────────────
-const CATEGORY_ORDER: Record<string, number> = { reach: 0, target: 1, safety: 2 };
+// 4 rotations: reach→high_match→match→safety, high_match→match→safety→reach, etc.
+const CATEGORY_ORDERS: Record<string, number>[] = [
+  { reach: 0, high_match: 1, target: 2, safety: 3 },
+  { high_match: 0, target: 1, safety: 2, reach: 3 },
+  { target: 0, safety: 1, reach: 2, high_match: 3 },
+  { safety: 0, reach: 1, high_match: 2, target: 3 },
+];
 const APP_ORDER: Record<string, number>      = { not_started: 0, in_progress: 1, submitted: 2 };
 const ROUND_ORDER: Record<string, number>    = { ea: 0, ed: 1, rd: 2, rolling: 3, unknown: 4 };
 const DECISION_ORDER: Record<string, number> = { pending: 0, accepted: 1, rejected: 2, waitlisted: 3, deferred: 4 };
@@ -90,6 +96,7 @@ export function CollegeGrid({
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [sortCol, setSortCol] = useState<SortCol | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [categoryCycle, setCategoryCycle] = useState(0);
   const sortedRef = useRef<typeof colleges>([]);
 
   useEffect(() => {
@@ -112,6 +119,15 @@ export function CollegeGrid({
   }, [sortCol, sortDir]);
 
   function handleSort(col: SortCol) {
+    if (col === "category") {
+      if (sortCol === "category") {
+        setCategoryCycle(prev => (prev + 1) % 4);
+      } else {
+        setSortCol("category");
+        setCategoryCycle(0);
+      }
+      return;
+    }
     if (sortCol === col) {
       setSortDir(prev => prev === "asc" ? "desc" : "asc");
     } else {
@@ -139,9 +155,10 @@ export function CollegeGrid({
           }
 
           case "category": {
-            const av = a.admissions_category != null ? CATEGORY_ORDER[a.admissions_category] : 99;
-            const bv = b.admissions_category != null ? CATEGORY_ORDER[b.admissions_category] : 99;
-            return dir * (av - bv);
+            const orderMap = CATEGORY_ORDERS[categoryCycle];
+            const av = a.admissions_category != null ? (orderMap[a.admissions_category] ?? 99) : 99;
+            const bv = b.admissions_category != null ? (orderMap[b.admissions_category] ?? 99) : 99;
+            return av - bv;
           }
 
           case "application":
@@ -188,7 +205,7 @@ export function CollegeGrid({
       if (bHas) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [colleges, order, sortCol, sortDir]);
+  }, [colleges, order, sortCol, sortDir, categoryCycle]);
 
   sortedRef.current = sorted;
 
