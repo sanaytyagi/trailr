@@ -1,19 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, RotateCcw, X } from "lucide-react";
+import { Check, Loader2, Plus, RotateCcw, Search, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CollegeQuiz } from "@/components/list-builder/CollegeQuiz";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatAcceptanceRate } from "@/lib/utils";
 
 interface GeneratedCollege {
   college_id: string;
   name: string;
   tier: "Reach" | "High Match" | "Match" | "Safety";
   reason: string;
+}
+
+interface SearchResult {
+  id: string;
+  name: string;
+  location: string;
+  acceptance_rate: number | null;
 }
 
 export default function ListBuilderPage() {
@@ -25,11 +33,19 @@ export default function ListBuilderPage() {
   const [error, setError] = useState<string | null>(null);
   const [removedColleges, setRemovedColleges] = useState<Set<string>>(new Set());
 
-  const supabase = createClient();
+  // Add college state
+  const [addQuery, setAddQuery] = useState("");
+  const [addResults, setAddResults] = useState<SearchResult[]>([]);
+  const [addDropdownOpen, setAddDropdownOpen] = useState(false);
+  const [addSearchLoading, setAddSearchLoading] = useState(false);
+  const [pendingCollege, setPendingCollege] = useState<{ id: string; name: string } | null>(null);
 
-  // Redirect — page temporarily hidden
-  useEffect(() => { router.replace("/tracker"); }, [router]);
-  return null;
+  // Add to tracker state
+  const [confirmReplace, setConfirmReplace] = useState(false);
+  const [addingToTracker, setAddingToTracker] = useState(false);
+
+  const addInputRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
 
   // Load user and check for saved list
   useEffect(() => {
@@ -42,7 +58,7 @@ export default function ListBuilderPage() {
         return;
       }
 
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("user_lists")
         .select("colleges")
         .eq("user_id", user.id)
@@ -56,6 +72,30 @@ export default function ListBuilderPage() {
 
     loadUserAndList();
   }, [supabase]);
+
+  // Debounced search for add-college input
+  useEffect(() => {
+    if (!addQuery.trim()) {
+      setAddResults([]);
+      setAddSearchLoading(false);
+      return;
+    }
+
+    setAddSearchLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/colleges/search?q=${encodeURIComponent(addQuery)}`);
+        const data = await res.json();
+        setAddResults(data.colleges ?? []);
+      } catch {
+        setAddResults([]);
+      } finally {
+        setAddSearchLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [addQuery]);
 
   const handleQuizComplete = async (answers: any) => {
     if (!user) {
@@ -83,7 +123,7 @@ export default function ListBuilderPage() {
       setSavedList(colleges);
 
       // Save to Supabase
-      await supabase
+      await (supabase as any)
         .from("user_lists")
         .upsert(
           {
@@ -101,8 +141,17 @@ export default function ListBuilderPage() {
     }
   };
 
-  const handleRemoveCollege = (collegeId: string) => {
+  const handleRemoveCollege = async (collegeId: string) => {
     setRemovedColleges((prev) => new Set(prev).add(collegeId));
+    if (!user || !savedList) return;
+    const updated = savedList.filter((c) => c.college_id !== collegeId);
+    setSavedList(updated);
+    await (supabase as any)
+      .from("user_lists")
+      .upsert(
+        { user_id: user.id, colleges: updated, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
   };
 
   const handleStartOver = async () => {
@@ -115,6 +164,67 @@ export default function ListBuilderPage() {
 
     setSavedList(null);
     setRemovedColleges(new Set());
+  };
+
+  const handleSelectSearchResult = (result: SearchResult) => {
+    setAddDropdownOpen(false);
+    setPendingCollege({ id: result.id, name: result.name });
+    setAddQuery("");
+    setAddResults([]);
+  };
+
+  const handleAddWithTier = async (tier: GeneratedCollege["tier"]) => {
+    if (!pendingCollege || !user || !savedList) return;
+
+    const updated = [
+      ...savedList,
+      { college_id: pendingCollege.id, name: pendingCollege.name, tier, reason: "Manually added" },
+    ];
+    setSavedList(updated);
+    setRemovedColleges((prev) => {
+      const next = new Set(prev);
+      next.delete(pendingCollege.id);
+      return next;
+    });
+    setPendingCollege(null);
+
+    await (supabase as any)
+      .from("user_lists")
+      .upsert(
+        { user_id: user.id, colleges: updated, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
+  };
+
+  const handleAddToTracker = async () => {
+    if (!user || !savedList) return;
+    setAddingToTracker(true);
+
+    const visibleList = savedList.filter((c) => !removedColleges.has(c.college_id));
+
+    // Delete all existing user_colleges rows for this user
+    await supabase.from("user_colleges").delete().eq("user_id", user.id);
+
+    // Bulk insert
+    if (visibleList.length > 0) {
+      const tierToCategory: Record<string, string> = {
+        "Reach": "reach",
+        "High Match": "high_match",
+        "Match": "target",
+        "Safety": "safety",
+      };
+      const rows = visibleList.map((c) => ({
+        user_id: user.id,
+        college_id: c.college_id,
+        application_status: "not_started",
+        application_round: "unknown",
+        admissions_category: tierToCategory[c.tier] ?? null,
+        notes: "",
+      }));
+      await (supabase as any).from("user_colleges").insert(rows);
+    }
+
+    router.push("/tracker");
   };
 
   if (!user && !loading) {
@@ -160,31 +270,177 @@ export default function ListBuilderPage() {
   const tiers = ["Reach", "High Match", "Match", "Safety"] as const;
   const tierColors = {
     Reach: "bg-red-100 text-red-700",
-    "High Match": "bg-blue-100 text-blue-700",
-    Match: "bg-green-100 text-green-700",
-    Safety: "bg-yellow-100 text-yellow-700",
+    "High Match": "bg-yellow-100 text-yellow-700",
+    Match: "bg-blue-100 text-blue-700",
+    Safety: "bg-green-100 text-green-700",
   };
+
+  const visibleIds = new Set(
+    savedList.filter((c) => !removedColleges.has(c.college_id)).map((c) => c.college_id)
+  );
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-background">
-      {/* Header with Start Over button */}
+      {/* Sticky header */}
       <div className="sticky top-16 z-40 border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Your Personalized College List</h1>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleStartOver}
-            className="gap-2"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Start Over
-          </Button>
+        <div className="max-w-6xl mx-auto px-6 py-4">
+          {confirmReplace ? (
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                This will replace your current tracker list with {savedList.filter((c) => !removedColleges.has(c.college_id)).length} colleges. Are you sure?
+              </p>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmReplace(false)}
+                  disabled={addingToTracker}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleAddToTracker}
+                  disabled={addingToTracker}
+                  className="gap-1.5"
+                >
+                  {addingToTracker ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Confirm
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold">Your Personalized College List</h1>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleStartOver}
+                  className="gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Start Over
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setConfirmReplace(true)}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add to Tracker
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Colleges grouped by tier */}
+      {/* Main content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Add college search */}
+        <div className="mb-8">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            {addSearchLoading ? (
+              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            ) : null}
+            <input
+              ref={addInputRef}
+              type="text"
+              placeholder="Add a college to your list…"
+              value={addQuery}
+              onChange={(e) => { setAddQuery(e.target.value); setAddDropdownOpen(true); }}
+              onFocus={() => setAddDropdownOpen(true)}
+              onBlur={() => setTimeout(() => setAddDropdownOpen(false), 150)}
+              className={cn(
+                "h-10 w-full rounded-xl border border-border bg-card pl-9 pr-4",
+                "text-sm placeholder:text-muted-foreground text-foreground",
+                "outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-shadow"
+              )}
+            />
+
+            {/* Search dropdown */}
+            {addDropdownOpen && (addResults.length > 0 || (addQuery.length >= 2 && !addSearchLoading)) && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1.5 overflow-hidden rounded-xl border border-border bg-card shadow-md">
+                {addResults.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-sm text-muted-foreground">No colleges found.</div>
+                ) : (
+                  <ul className="max-h-64 overflow-y-auto py-1">
+                    {addResults.map((result) => {
+                      const alreadyVisible = visibleIds.has(result.id);
+                      return (
+                        <li key={result.id}>
+                          <button
+                            className={cn(
+                              "flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors",
+                              alreadyVisible
+                                ? "cursor-default opacity-50"
+                                : "hover:bg-muted cursor-pointer"
+                            )}
+                            onClick={() => !alreadyVisible && handleSelectSearchResult(result)}
+                            disabled={alreadyVisible}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-foreground truncate">{result.name}</p>
+                              {result.location && (
+                                <p className="text-xs text-muted-foreground">
+                                  {result.location}
+                                  {result.acceptance_rate !== null && (
+                                    <span className="ml-2 font-mono">
+                                      {formatAcceptanceRate(result.acceptance_rate)} acceptance
+                                    </span>
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                            {alreadyVisible && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Tier picker card */}
+          {pendingCollege && (
+            <div className="mt-3 rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-foreground">
+                  Add <span className="text-primary">{pendingCollege.name}</span> as:
+                </p>
+                <button
+                  onClick={() => setPendingCollege(null)}
+                  className="p-1 hover:bg-muted rounded transition-colors"
+                >
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(["Reach", "High Match", "Match", "Safety"] as const).map((tier) => (
+                  <button
+                    key={tier}
+                    onClick={() => handleAddWithTier(tier)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors hover:opacity-80",
+                      tier === "Reach" && "bg-red-100 text-red-700 border-red-200",
+                      tier === "High Match" && "bg-yellow-100 text-yellow-700 border-yellow-200",
+                      tier === "Match" && "bg-blue-100 text-blue-700 border-blue-200",
+                      tier === "Safety" && "bg-green-100 text-green-700 border-green-200"
+                    )}
+                  >
+                    {tier}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Colleges grouped by tier */}
         {tiers.map((tier) => {
           const tierColleges = savedList.filter((c) => c.tier === tier && !removedColleges.has(c.college_id));
           if (tierColleges.length === 0) return null;

@@ -60,9 +60,10 @@ type CategoryOption = {
 };
 
 const CATEGORY_OPTIONS: CategoryOption[] = [
-  { value: "reach",  label: "Reach",  color: "hsl(0,65%,42%)",    bg: "hsl(0,65%,96%)",    border: "hsl(0,65%,80%)"    },
-  { value: "target", label: "Target", color: "hsl(38,85%,35%)",   bg: "hsl(38,85%,95%)",   border: "hsl(38,85%,75%)"   },
-  { value: "safety", label: "Safety", color: "hsl(142,60%,30%)",  bg: "hsl(142,60%,95%)",  border: "hsl(142,60%,78%)"  },
+  { value: "reach",      label: "Reach",      color: "hsl(0,65%,42%)",    bg: "hsl(0,65%,96%)",    border: "hsl(0,65%,80%)"    },
+  { value: "high_match", label: "High Match", color: "hsl(38,85%,35%)",   bg: "hsl(38,85%,95%)",   border: "hsl(38,85%,75%)"   },
+  { value: "target",     label: "Match",      color: "hsl(213,80%,40%)",  bg: "hsl(213,80%,95%)",  border: "hsl(213,80%,75%)"  },
+  { value: "safety",     label: "Safety",     color: "hsl(142,60%,30%)",  bg: "hsl(142,60%,95%)",  border: "hsl(142,60%,78%)"  },
 ];
 
 function getCategoryConfig(c: AdmissionsCategory | null) {

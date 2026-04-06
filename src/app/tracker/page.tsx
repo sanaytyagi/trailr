@@ -544,9 +544,11 @@ export default function TrackerPage() {
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-foreground mb-1">My College List</h1>
             <p className="text-sm text-muted-foreground mb-4">
-              {hydrated && trackedColleges.length > 0
-                ? `Tracking ${trackedColleges.length} college${trackedColleges.length !== 1 ? "s" : ""}`
-                : "Search and track colleges you're interested in."}
+              {!hydrated
+                ? "Loading your colleges…"
+                : trackedColleges.length > 0
+                  ? `Tracking ${trackedColleges.length} college${trackedColleges.length !== 1 ? "s" : ""}`
+                  : "Search and track colleges you're interested in."}
             </p>
             <div className="flex items-center gap-3">
               <div className="flex-1">
@@ -705,7 +707,21 @@ export default function TrackerPage() {
           )}
 
           {!hydrated && (
-            <div className="rounded-xl border border-border bg-card h-48 animate-pulse" />
+            <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className={cn("flex items-center gap-4 px-5 py-4 animate-pulse", i !== 4 && "border-b border-border")}>
+                  <div className="h-8 w-8 rounded-full bg-muted shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3.5 w-48 rounded bg-muted" />
+                    <div className="h-2.5 w-32 rounded bg-muted/60" />
+                  </div>
+                  <div className="h-7 w-20 rounded-lg bg-muted shrink-0" />
+                  <div className="h-7 w-24 rounded-lg bg-muted shrink-0" />
+                  <div className="h-7 w-16 rounded-lg bg-muted shrink-0" />
+                  <div className="h-7 w-20 rounded-lg bg-muted shrink-0" />
+                </div>
+              ))}
+            </div>
           )}
         </div>
 

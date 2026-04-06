@@ -14,7 +14,7 @@ export type DecisionResult =
   | "waitlisted"
   | "deferred";
 
-export type AdmissionsCategory = "reach" | "target" | "safety";
+export type AdmissionsCategory = "reach" | "high_match" | "target" | "safety";
 
 export interface College {
   id: string;

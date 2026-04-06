@@ -36,6 +36,49 @@ interface GeneratedCollege {
   reason: string;
 }
 
+const SYSTEM_PROMPT = `You are an expert college admissions advisor. Your job is to select 18-20 colleges from the provided list that best fit the student.
+
+TIERING RULES — assign tiers based ONLY on acceptance rate vs student academic profile:
+- Reach: Student is below or at the very low end of the typical admitted range
+- High Match: Student is at the low-to-mid end of the typical admitted range
+- Match: Student is solidly within the typical admitted range
+- Safety: Student is comfortably above the typical admitted range
+
+Use these academic benchmarks as a guide:
+- Sub 10% acceptance rate = almost always Reach regardless of student stats
+- 10-25% = Reach for most students, High Match for exceptional stats (3.9+ GPA, 1500+ SAT)
+- 25-40% = High Match to Match depending on student stats
+- 40-60% = Match to Safety depending on student stats
+- 60%+ = Safety for strong students
+
+PREFERENCE WEIGHTING — use this hierarchy strictly:
+
+HARD CONSTRAINTS (eliminate any school that fails these):
+- Must offer the student's intended major or a closely related field
+- Must be a US institution
+
+STRONG PREFERENCES (weight heavily in selection but never eliminate a strong academic fit):
+- Campus setting (urban/suburban/rural)
+- Research vs teaching focus
+- School type (public/private)
+- Career services and co-op support
+- Field-specific culture and opportunities
+
+SOFT PREFERENCES (use only to choose between schools of similar quality, never to eliminate or downrank a strong fit):
+- Budget and tuition cost
+- School size
+- Financial aid preferences
+- Campus diversity
+- Campus life and social scene
+
+CRITICAL RULES:
+- A student with strong academic stats (3.8+ GPA, 1400+ SAT) must have genuinely elite and well-known programs in their Reach and High Match tiers — do not fill these tiers with obscure schools to satisfy soft preferences like budget or size
+- Never recommend a lesser-known or lower-ranked school over a stronger program just because it better fits budget or size preferences
+- Soft preferences should only differentiate between schools of equivalent academic standing
+- The list must reflect what a knowledgeable human admissions counselor would actually recommend — prioritize program quality and reputation in the student's intended field above all soft preferences
+- Return ONLY a raw JSON array with no markdown, no code fences, no commentary
+- Each object must have: college_id (exact id from provided data), name, tier, reason (one sentence explaining fit for THIS specific student)`;
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(req: NextRequest) {
@@ -71,18 +114,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Reduce to essential fields and cap at 150 to stay within token limits
-    const collegesSlim = colleges
-      .slice(0, 150)
-      .map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        state: c.state,
-        college_type: c.college_type,
-        acceptance_rate: c.acceptance_rate,
-      }));
+    // Pre-filter: school type (hard constraint handled in code, not by AI)
+    let filtered = colleges as any[];
+    if (answers.schoolType === "Public")  filtered = filtered.filter(c => c.college_type === "public");
+    if (answers.schoolType === "Private") filtered = filtered.filter(c => c.college_type === "private");
 
-    // Build student profile string for AI
+    // Drop colleges without acceptance_rate — AI cannot tier them accurately
+    filtered = filtered.filter(c => c.acceptance_rate !== null);
+
+    // Sort most-selective first so the top-200 slice never omits elite schools
+    filtered.sort((a, b) => a.acceptance_rate - b.acceptance_rate);
+
+    // Build slim college list with all fields useful to the AI
+    const collegesSlim = filtered.slice(0, 200).map(c => ({
+      id: c.id,
+      name: c.name,
+      state: c.state,
+      location: c.location,
+      college_type: c.college_type,
+      acceptance_rate: c.acceptance_rate,
+      website_url: c.website_url,
+    }));
+
+    // Build test score string
     const testInfo = answers.testTypes.length === 0
       ? "Not taken"
       : answers.testTypes.map((t) =>
@@ -90,6 +144,18 @@ export async function POST(req: NextRequest) {
                       : `ACT: ${answers.actScore ?? "score not provided"}`
         ).join(", ");
 
+    // Determine academic profile strength
+    const isStrong =
+      answers.gpa >= 3.8 &&
+      ((answers.satScore != null && answers.satScore >= 1400) ||
+       (answers.actScore != null && answers.actScore >= 31));
+    const isCompetitive =
+      answers.gpa >= 3.5 &&
+      ((answers.satScore != null && answers.satScore >= 1200) ||
+       (answers.actScore != null && answers.actScore >= 26));
+    const profileStrength = isStrong ? "strong" : isCompetitive ? "competitive" : "average";
+
+    // Build structured student profile
     const studentProfile = {
       state: answers.state,
       gpa: answers.gpa,
@@ -115,23 +181,26 @@ export async function POST(req: NextRequest) {
       otherPriorities: answers.otherPriorities || "None",
     };
 
-    // Call OpenAI
-    const message = await openai.chat.completions.create({
-      model: "gpt-4o",
-      max_tokens: 2000,
-      messages: [
-        {
-          role: "user",
-          content: `You are a college admissions advisor. Select 18-20 colleges that best fit this student. Return ONLY a JSON array with no other text. Each college must have: college_id, name, tier (Reach/High Match/Match/Safety), and reason (1 sentence).
+    const userContent = `STUDENT ACADEMIC PROFILE SUMMARY:
+GPA: ${answers.gpa}/4.0
+Test Scores: ${testInfo}
+Intended Major: ${answers.major}
+This student has ${profileStrength} academic credentials. Tier assignments must reflect this accurately.
 
 Student Profile:
 ${JSON.stringify(studentProfile, null, 2)}
 
 Colleges to choose from:
-${JSON.stringify(collegesSlim, null, 2)}
+${JSON.stringify(collegesSlim, null, 2)}`;
 
-Return only the JSON array.`,
-        },
+    // Call OpenAI
+    const message = await openai.chat.completions.create({
+      model: "gpt-4o",
+      max_tokens: 4096,
+      temperature: 0.3,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user",   content: userContent },
       ],
     });
 
@@ -145,8 +214,13 @@ Return only the JSON array.`,
       );
     }
 
-    // Parse JSON from response
-    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+    // Strip markdown code fences before extracting JSON array
+    const cleaned = responseText
+      .replace(/```json\n?/gi, "")
+      .replace(/```\n?/g, "")
+      .trim();
+
+    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       console.error("Could not find JSON in response:", responseText);
       return NextResponse.json(
@@ -165,7 +239,19 @@ Return only the JSON array.`,
       );
     }
 
-    return NextResponse.json({ colleges: generatedList });
+    // Reject hallucinated IDs — only keep colleges that were actually sent to the AI
+    const validIds = new Set(collegesSlim.map(c => c.id));
+    const validatedList = generatedList.filter(c => validIds.has(c.college_id));
+
+    if (validatedList.length < 10) {
+      console.error("AI returned too many invalid college references:", validatedList.length, "valid out of", generatedList.length);
+      return NextResponse.json(
+        { error: "AI returned too many invalid college references" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ colleges: validatedList });
   } catch (error) {
     console.error("Error generating list:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
