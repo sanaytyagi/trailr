@@ -54,6 +54,9 @@ export function Header() {
   const userInitial = ((user?.user_metadata?.name || user?.email || "U") as string)[0].toUpperCase();
   const userDisplayName = user?.user_metadata?.name || user?.email || "";
 
+  // Redirect unauthenticated users to sign-in for protected routes
+  const authHref = (path: string) => user ? path : "/auth?mode=login";
+
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm">
       <div className="flex h-16 w-full items-center justify-between">
@@ -102,7 +105,7 @@ export function Header() {
           ) : (
             <>
               <Link
-                href="/tracker"
+                href={authHref("/tracker")}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   pathname === "/tracker"
@@ -115,7 +118,7 @@ export function Header() {
               </Link>
 
               <Link
-                href="/essays"
+                href={authHref("/essays")}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   pathname === "/essays" || pathname.startsWith("/essays/")
@@ -128,7 +131,7 @@ export function Header() {
               </Link>
 
               <Link
-                href="/lists"
+                href={authHref("/lists")}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   pathname === "/lists"
@@ -141,7 +144,7 @@ export function Header() {
               </Link>
 
               <Link
-                href="/list-builder"
+                href={authHref("/list-builder")}
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   pathname === "/list-builder"
@@ -269,7 +272,7 @@ export function Header() {
                 ) : (
                   <>
                     <Link
-                      href="/tracker"
+                      href={authHref("/tracker")}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -283,7 +286,7 @@ export function Header() {
                     </Link>
 
                     <Link
-                      href="/essays"
+                      href={authHref("/essays")}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -297,7 +300,7 @@ export function Header() {
                     </Link>
 
                     <Link
-                      href="/lists"
+                      href={authHref("/lists")}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -311,7 +314,7 @@ export function Header() {
                     </Link>
 
                     <Link
-                      href="/list-builder"
+                      href={authHref("/list-builder")}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",

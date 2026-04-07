@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, FileText, BookText, Loader2, MessageSquare, Search, ChevronRight, ArrowLeft, Minus } from "lucide-react";
+import { Plus, BookText, Loader2, MessageSquare, Search, ChevronRight, ArrowLeft, Minus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useTrackedColleges } from "@/hooks/use-tracked-colleges";
 import { useProfile } from "@/hooks/use-profile";
@@ -36,18 +36,23 @@ function countWords(text: string): number {
   return text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
 }
 
-function deriveStatus(essay: Essay): "Not Started" | "Drafting" | "Complete" {
-  if (essay.status === "final") return "Complete";
-  if (!essay.body.trim()) return "Not Started";
-  return "Drafting";
+function deriveStatus(essay: Essay): { label: string; className: string } {
+  if (essay.status === "final")           return { label: "Done",        className: "bg-emerald-100 text-emerald-700" };
+  if (!essay.body || !essay.body.trim()) return { label: "Not Started", className: "bg-slate-100 text-slate-500" };
+  return                                         { label: "In Progress", className: "bg-amber-100 text-amber-700" };
 }
 
-const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  "Not Started": { label: "Not Started", className: "bg-muted text-muted-foreground" },
-  Drafting:      { label: "Drafting",    className: "bg-amber-100 text-amber-700" },
-  Complete:      { label: "Complete",    className: "bg-emerald-100 text-emerald-700" },
-};
+function statusDotColor(essay: Essay): string {
+  if (essay.status === "final") return "bg-emerald-400";
+  if (essay.body && essay.body.trim()) return "bg-amber-400";
+  return "bg-slate-300";
+}
 
+function wordCountClass(words: number, limit: number): string {
+  if (words > limit)       return "text-red-600 font-semibold";
+  if (words >= limit - 50) return "text-amber-600 font-semibold";
+  return "text-muted-foreground";
+}
 
 // ── Add Essay Modal ───────────────────────────────────────────────────────────
 
@@ -147,7 +152,7 @@ function AddEssayModal({ open, onOpenChange, colleges, essayCountsByCollege, loc
     setSubmitting(true);
     setError(null);
 
-    const { data, error: insertError } = await supabase
+    const { data, error: insertError } = await (supabase as any)
       .from("essays")
       .insert({
         user_id: profile.id,
@@ -353,78 +358,6 @@ function AddEssayModal({ open, onOpenChange, colleges, essayCountsByCollege, loc
   );
 }
 
-// ── Essay Card (per college) ──────────────────────────────────────────────────
-
-interface CollegeEssayCardProps {
-  collegeName: string;
-  collegeId: string;
-  essays: Essay[];
-  commentCounts: Record<string, number>;
-  onAddEssay: (collegeId: string) => void;
-}
-
-function CollegeEssayCard({ collegeName, collegeId, essays, commentCounts, onAddEssay }: CollegeEssayCardProps) {
-  const router = useRouter();
-
-  return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-      {/* Card header */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-muted/30">
-        <h2 className="text-sm font-semibold text-foreground">{collegeName}</h2>
-        <button
-          onClick={() => onAddEssay(collegeId)}
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add Essay
-        </button>
-      </div>
-
-      {/* Essay rows */}
-      <div className="divide-y divide-border">
-        {essays.map((essay) => {
-          const words = countWords(essay.body);
-          const over = words > essay.word_limit;
-          const statusLabel = deriveStatus(essay);
-          const badge = STATUS_BADGE[statusLabel];
-          const unresolvedCount = commentCounts[essay.id] ?? 0;
-
-          return (
-            <button
-              key={essay.id}
-              onClick={() => router.push(`/essays/${essay.id}`)}
-              className="w-full text-left px-5 py-4 hover:bg-muted/20 transition-colors group"
-            >
-              <p className="text-sm text-foreground line-clamp-2 leading-snug mb-2.5">
-                {essay.prompt || <span className="text-muted-foreground italic">No prompt</span>}
-              </p>
-
-              <div className="flex items-center gap-2">
-                <div className="flex-1 min-w-0">
-                  <p className={cn("text-[11px] tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
-                    {words} / {essay.word_limit} words
-                  </p>
-                </div>
-
-                {unresolvedCount > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                    <MessageSquare className="h-3 w-3" />
-                    {unresolvedCount}
-                  </span>
-                )}
-
-                <span className={cn("shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-0.5", badge.className)}>
-                  {badge.label}
-                </span>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 function EssaysPageInner() {
@@ -439,6 +372,7 @@ function EssaysPageInner() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [lockedCollegeId, setLockedCollegeId] = useState<string | null>(null);
+  const [selectedCollegeId, setSelectedCollegeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (searchParams.get("add") === "true") setAddOpen(true);
@@ -504,6 +438,20 @@ function EssaysPageInner() {
     return counts;
   }, [groupedByCollege]);
 
+  // Auto-select first college
+  useEffect(() => {
+    if (collegesWithEssays.length > 0 && !selectedCollegeId) {
+      setSelectedCollegeId(collegesWithEssays[0].id);
+    }
+  }, [collegesWithEssays.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectedCollege = useMemo(
+    () => trackedColleges.find((c) => c.id === selectedCollegeId) ?? null,
+    [trackedColleges, selectedCollegeId]
+  );
+
+  const selectedEssays = selectedCollegeId ? (groupedByCollege.get(selectedCollegeId) ?? []) : [];
+
   function handleAddEssay(collegeId: string) {
     setLockedCollegeId(collegeId);
     setAddOpen(true);
@@ -521,63 +469,161 @@ function EssaysPageInner() {
   const showLoader = !hydrated || loading;
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">My Essays</h1>
+    <div className="flex min-h-[calc(100vh-4rem)]">
+
+      {/* ── Sidebar ──────────────────────────────────────────────────────── */}
+      <aside className="w-64 shrink-0 border-r border-border bg-card overflow-y-auto sticky top-16 h-[calc(100vh-4rem)]">
+        {/* Header */}
+        <div className="px-4 py-4 border-b border-border">
+          <h1 className="text-sm font-semibold text-foreground">My Essays</h1>
           {!showLoader && essays.length > 0 && (
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {essays.length} essay{essays.length !== 1 ? "s" : ""} across {collegesWithEssays.length} school{collegesWithEssays.length !== 1 ? "s" : ""}
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {essays.length} essay{essays.length !== 1 ? "s" : ""} · {collegesWithEssays.length} school{collegesWithEssays.length !== 1 ? "s" : ""}
             </p>
           )}
         </div>
-        <button
-          onClick={() => { setLockedCollegeId(null); setAddOpen(true); }}
-          disabled={collegeOptions.length === 0}
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 h-10 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-sm whitespace-nowrap"
-        >
-          <Plus className="h-4 w-4" />
-          Add Essay
-        </button>
-      </div>
 
-      {showLoader ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : collegesWithEssays.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center rounded-xl border border-dashed border-border">
-          <BookText className="h-10 w-10 text-muted-foreground/30 mb-3" />
-          <p className="text-sm font-medium text-foreground mb-1">No essays yet</p>
-          <p className="text-xs text-muted-foreground mb-4">
-            {collegeOptions.length === 0
-              ? "Add colleges to your tracker first, then come back to write essays."
-              : "Click \"Add Essay\" to start writing."}
-          </p>
-          {collegeOptions.length > 0 && (
-            <button
-              onClick={() => { setLockedCollegeId(null); setAddOpen(true); }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Add Essay
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {collegesWithEssays.map((college) => (
-            <CollegeEssayCard
-              key={college.id}
-              collegeName={college.name}
-              collegeId={college.id}
-              essays={groupedByCollege.get(college.id) ?? []}
-              commentCounts={commentCounts}
-              onAddEssay={handleAddEssay}
-            />
-          ))}
-        </div>
-      )}
+        {/* College list */}
+        {showLoader ? (
+          <div className="p-3 space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-14 rounded-lg bg-muted animate-pulse" />
+            ))}
+          </div>
+        ) : collegesWithEssays.length === 0 ? (
+          <div className="px-4 py-8 text-center">
+            <p className="text-xs text-muted-foreground">No essays yet</p>
+          </div>
+        ) : (
+          <div>
+            {collegesWithEssays.map((college) => {
+              const essayList = groupedByCollege.get(college.id) ?? [];
+              const isActive = selectedCollegeId === college.id;
+              return (
+                <button
+                  key={college.id}
+                  onClick={() => setSelectedCollegeId(college.id)}
+                  className={cn(
+                    "w-full text-left px-4 py-3 border-l-2 transition-colors",
+                    isActive ? "border-primary bg-primary/8" : "border-transparent hover:bg-muted/50"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className={cn("text-sm font-medium truncate", isActive ? "text-primary" : "text-foreground")}>
+                      {college.name}
+                    </span>
+                    <span className="text-xs bg-muted rounded-full px-1.5 py-0.5 ml-2 shrink-0 tabular-nums">
+                      {essayList.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {essayList.map((e) => (
+                      <span key={e.id} className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDotColor(e))} />
+                    ))}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </aside>
+
+      {/* ── Right panel ──────────────────────────────────────────────────── */}
+      <div className="flex-1 min-w-0 px-8 py-8">
+        {showLoader ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : collegesWithEssays.length === 0 ? (
+          /* Empty state — no essays at all */
+          <div className="flex flex-col items-center justify-center h-full text-center py-24">
+            <BookText className="h-10 w-10 text-muted-foreground/30 mb-3" />
+            <p className="text-sm font-medium text-foreground mb-1">No essays yet</p>
+            <p className="text-xs text-muted-foreground mb-4">
+              {collegeOptions.length === 0
+                ? "Add colleges to your tracker first, then come back to write essays."
+                : "Select a school and add your first essay."}
+            </p>
+            {collegeOptions.length > 0 && (
+              <button
+                onClick={() => { setLockedCollegeId(null); setAddOpen(true); }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Add Essay
+              </button>
+            )}
+          </div>
+        ) : selectedCollege ? (
+          /* Selected college panel */
+          <div>
+            {/* College header + contextual add button */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <CollegeLogo
+                  name={selectedCollege.name}
+                  website_url={selectedCollege.website_url}
+                  logo_url={selectedCollege.logo_url}
+                  size={36}
+                />
+                <h2 className="text-xl font-bold text-foreground">{selectedCollege.name}</h2>
+              </div>
+              <button
+                onClick={() => handleAddEssay(selectedCollege.id)}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 h-10 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4" />
+                Add Essay
+              </button>
+            </div>
+
+            {/* Essays list */}
+            {selectedEssays.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-dashed border-border">
+                <BookText className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                <p className="text-sm font-medium text-foreground mb-1">No essays yet</p>
+                <p className="text-xs text-muted-foreground">Click the button above to add your first essay for this school.</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                <div className="divide-y divide-border">
+                  {selectedEssays.map((essay) => {
+                    const words = countWords(essay.body);
+                    const status = deriveStatus(essay);
+                    const unresolvedCount = commentCounts[essay.id] ?? 0;
+
+                    return (
+                      <button
+                        key={essay.id}
+                        onClick={() => router.push(`/essays/${essay.id}`)}
+                        className="w-full text-left px-5 py-4 hover:bg-muted/20 transition-colors group"
+                      >
+                        <p className="text-sm text-foreground line-clamp-2 leading-snug mb-2.5">
+                          {essay.prompt || <span className="text-muted-foreground italic">No prompt</span>}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className={cn("text-[11px] tabular-nums flex-1 min-w-0", wordCountClass(words, essay.word_limit))}>
+                            {words} / {essay.word_limit} words
+                          </p>
+                          {unresolvedCount > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                              <MessageSquare className="h-3 w-3" />
+                              {unresolvedCount}
+                            </span>
+                          )}
+                          <span className={cn("shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-0.5", status.className)}>
+                            {status.label}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
 
       <AddEssayModal
         open={addOpen}
@@ -587,7 +633,7 @@ function EssaysPageInner() {
         lockedCollegeId={lockedCollegeId}
         onCreated={handleCreated}
       />
-    </main>
+    </div>
   );
 }
 
