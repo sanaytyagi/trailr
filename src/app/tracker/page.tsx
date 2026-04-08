@@ -473,6 +473,38 @@ export default function TrackerPage() {
   const handleCardClick = (card: CardFilter) =>
     setActiveCard((prev) => (prev === card ? null : card));
 
+  // ── DEV ONLY: autofill test data ─────────────────────────────────────────────
+  const [autofilling, setAutofilling] = useState(false);
+
+  async function handleDevAutofill() {
+    if (!profile || trackedColleges.length === 0) return;
+    setAutofilling(true);
+
+    const rounds = ["ea", "ed", "rd"] as const;
+    const decisions: DecisionResult[] = ["accepted", "rejected", "waitlisted", "deferred", "pending"];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (const college of trackedColleges) {
+      const round = rounds[Math.floor(Math.random() * rounds.length)];
+      const decision = decisions[Math.floor(Math.random() * decisions.length)];
+
+      // Deadline: 1–45 days from today
+      const daysAhead = Math.floor(Math.random() * 45) + 1;
+      const dl = new Date(today);
+      dl.setDate(today.getDate() + daysAhead);
+      const deadline = dl.toISOString().slice(0, 10);
+
+      setStatus(college.id, "submitted");
+      setRound(college.id, round);
+      setDeadline(college.id, deadline);
+      setDecision(college.id, decision);
+    }
+
+    setAutofilling(false);
+  }
+
   return (
     <main className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex gap-8 items-start">
@@ -561,6 +593,17 @@ export default function TrackerPage() {
                 <Plus className="h-4 w-4" />
                 Add College
               </button>
+              {/* DEV ONLY — remove before public launch */}
+              {trackedColleges.length > 0 && (
+                <button
+                  onClick={handleDevAutofill}
+                  disabled={autofilling}
+                  className="flex items-center gap-2 rounded-xl border border-dashed border-orange-400 bg-orange-50 px-4 h-11 text-sm font-semibold text-orange-700 hover:bg-orange-100 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0"
+                  title="DEV ONLY: autofill test data"
+                >
+                  {autofilling ? "Filling…" : "⚡ Autofill"}
+                </button>
+              )}
             </div>
           </div>
 

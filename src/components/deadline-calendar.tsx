@@ -111,10 +111,10 @@ export function DeadlineCalendar({ entries }: DeadlineCalendarProps) {
 
   const overdue = sorted.filter(e => e.deadline < todayIso);
 
-  // Next 7 calendar days (today through today+6) grouped by date
+  // Next 7 calendar days (today through today+7) grouped by date
   const next5Days = useMemo(() => {
     const days: { iso: string; label: string; entries: DeadlineEntry[] }[] = [];
-    for (let i = 0; i <= 6; i++) {
+    for (let i = 0; i <= 7; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
       const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

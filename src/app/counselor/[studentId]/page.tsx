@@ -3,6 +3,7 @@
 import { use, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowLeft, MessageSquare, BookText } from "lucide-react";
+import { CollegeLogo } from "@/components/college-logo";
 import { createClient } from "@/lib/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
@@ -23,13 +24,38 @@ interface StudentCollege {
   application_round: string;
   decision: string | null;
   personal_deadline: string | null;
+  admissions_category: "reach" | "high_match" | "target" | "safety" | null;
   college: {
     id: string;
     name: string;
     location: string | null;
     acceptance_rate: number | null;
+    website_url: string | null;
+    logo_url: string | null;
   };
 }
+
+const CATEGORY_ORDER: Record<string, number> = { reach: 0, high_match: 1, target: 2, safety: 3 };
+
+function getDeadlineStatus(iso: string): { label: string; className: string } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [y, m, d] = iso.split("-").map(Number);
+  const deadline = new Date(y, m - 1, d);
+  const diffDays = Math.round((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0)   return { label: "Overdue",          className: "text-destructive" };
+  if (diffDays === 0) return { label: "Today",            className: "text-destructive" };
+  if (diffDays <= 7)  return { label: `${diffDays}d left`, className: "text-destructive" };
+  if (diffDays <= 30) return { label: `${diffDays}d left`, className: "text-[hsl(38,85%,35%)]" };
+  return                     { label: `${diffDays}d left`, className: "text-[hsl(142,60%,35%)]" };
+}
+
+const CATEGORY_STYLE: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  reach:      { label: "Reach",      color: "hsl(0,65%,42%)",    bg: "hsl(0,65%,96%)",    border: "hsl(0,65%,80%)"    },
+  high_match: { label: "High Match", color: "hsl(38,85%,35%)",   bg: "hsl(38,85%,95%)",   border: "hsl(38,85%,75%)"   },
+  target:     { label: "Match",      color: "hsl(213,80%,40%)",  bg: "hsl(213,80%,95%)",  border: "hsl(213,80%,75%)"  },
+  safety:     { label: "Safety",     color: "hsl(142,60%,30%)",  bg: "hsl(142,60%,95%)",  border: "hsl(142,60%,78%)"  },
+};
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
   not_started: { label: "Not Started", color: "hsl(215,15%,50%)", bg: "hsl(215,15%,94%)" },
@@ -99,7 +125,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
 
     const { data: userColleges } = await supabase
       .from("user_colleges")
-      .select("id, college_id, application_status, application_round, decision, personal_deadline, college:colleges(id, name, location, acceptance_rate)")
+      .select("id, college_id, application_status, application_round, decision, personal_deadline, admissions_category, college:colleges(id, name, location, acceptance_rate, website_url, logo_url)")
       .eq("user_id", studentId)
       .order("added_at", { ascending: true });
 
@@ -206,8 +232,14 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
   const pct = stats.total > 0 ? (stats.submitted / stats.total) * 100 : 0;
   const isComplete = pct === 100 && stats.total > 0;
 
+  const sortedColleges = [...colleges].sort((a, b) => {
+    const ai = a.admissions_category != null ? (CATEGORY_ORDER[a.admissions_category] ?? 99) : 99;
+    const bi = b.admissions_category != null ? (CATEGORY_ORDER[b.admissions_category] ?? 99) : 99;
+    return ai - bi;
+  });
+
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="mx-auto max-w-7xl px-6 py-8">
       {/* Page-level header — outside the card */}
       <div className="flex items-center gap-4 mb-6">
         <button
@@ -415,29 +447,53 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                <th className="text-left pl-6 pr-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">College</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Application</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Decision</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Deadline</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-amber-700">Counselor Note</th>
+                <th className="text-left pl-5 pr-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">College</th>
+                <th className="text-left px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</th>
+                <th className="text-left px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Application</th>
+                <th className="text-left px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Decision</th>
+                <th className="text-left px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Deadline</th>
+                <th className="text-left px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-amber-700">Counselor Note</th>
               </tr>
             </thead>
             <tbody>
-              {colleges.map((c, i) => {
+              {sortedColleges.map((c, i) => {
                 const status = STATUS_STYLE[c.application_status] ?? STATUS_STYLE.not_started;
                 const decision = c.decision ? DECISION_STYLE[c.decision] : null;
+                const category = c.admissions_category ? CATEGORY_STYLE[c.admissions_category] : null;
                 const note = notes[c.college_id];
                 const isEditingThis = editingNote === c.college_id;
 
                 return (
                   <tr
                     key={c.id}
-                    className={cn("hover:bg-muted/20 transition-colors", i < colleges.length - 1 && "border-b border-border")}
+                    className={cn("hover:bg-muted/20 transition-colors", i < sortedColleges.length - 1 && "border-b border-border")}
                   >
-                    <td className="pl-6 pr-4 py-4">
-                      <p className="font-medium text-foreground">{c.college.name}</p>
-                      {c.college.location && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{c.college.location}</p>
+                    <td className="pl-5 pr-4 py-4">
+                      <div className="flex items-center gap-3">
+                        <CollegeLogo
+                          name={c.college.name}
+                          website_url={c.college.website_url}
+                          logo_url={c.college.logo_url}
+                          size={32}
+                        />
+                        <div>
+                          <p className="font-medium text-foreground">{c.college.name}</p>
+                          {c.college.location && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{c.college.location}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      {category ? (
+                        <span
+                          className="text-xs font-semibold rounded-md border px-2 py-0.5 whitespace-nowrap"
+                          style={{ color: category.color, backgroundColor: category.bg, borderColor: category.border }}
+                        >
+                          {category.label}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/40">—</span>
                       )}
                     </td>
                     <td className="px-4 py-4">
@@ -461,9 +517,15 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
                       )}
                     </td>
                     <td className="px-4 py-4 text-xs text-muted-foreground">
-                      {c.personal_deadline
-                        ? new Date(c.personal_deadline + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
-                        : <span className="text-muted-foreground/40">—</span>}
+                      {c.personal_deadline ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span>{new Date(c.personal_deadline + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                          {c.application_status !== "submitted" && (() => {
+                            const ds = getDeadlineStatus(c.personal_deadline);
+                            return <span className={cn("font-medium", ds.className)}>{ds.label}</span>;
+                          })()}
+                        </div>
+                      ) : <span className="text-muted-foreground/40">—</span>}
                     </td>
                     <td className="px-4 py-4 max-w-[200px]">
                       {isEditingThis ? (

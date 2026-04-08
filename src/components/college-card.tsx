@@ -309,7 +309,7 @@ export const CollegeRow = memo(function CollegeRow({
             {essayCount !== undefined && (
               essayCount > 0 ? (
                 <Link
-                  href="/essays"
+                  href={`/essays?college=${college.id}`}
                   onClick={(e) => e.stopPropagation()}
                   className="inline-flex items-center gap-1.5 mt-2 rounded-full border border-primary/30 bg-primary/8 px-3.5 py-1 text-xs font-semibold text-primary hover:bg-primary/15 transition-colors w-fit"
                 >

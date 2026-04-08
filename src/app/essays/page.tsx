@@ -376,6 +376,8 @@ function EssaysPageInner() {
 
   useEffect(() => {
     if (searchParams.get("add") === "true") setAddOpen(true);
+    const collegeParam = searchParams.get("college");
+    if (collegeParam) setSelectedCollegeId(collegeParam);
   }, [searchParams]);
 
   const fetchEssays = useCallback(async () => {

@@ -186,7 +186,8 @@ function Step({ n, title, description }: { n: number; title: string; description
 // ── Mock dashboard data ────────────────────────────────────────────────────────
 
 const RC  = "text-[hsl(0,65%,42%)] bg-[hsl(0,65%,96%)] border-[hsl(0,65%,80%)]";
-const TC  = "text-[hsl(38,85%,35%)] bg-[hsl(38,85%,95%)] border-[hsl(38,85%,75%)]";
+const HC  = "text-[hsl(38,85%,35%)] bg-[hsl(38,85%,95%)] border-[hsl(38,85%,75%)]";
+const MC  = "text-[hsl(213,80%,40%)] bg-[hsl(213,80%,95%)] border-[hsl(213,80%,75%)]";
 const SC  = "text-[hsl(142,60%,30%)] bg-[hsl(142,60%,95%)] border-[hsl(142,60%,78%)]";
 const SUB = "text-[hsl(205,85%,50%)] bg-[hsl(205,85%,96%)] border-[hsl(205,85%,78%)]";
 const INP = "text-[hsl(38,85%,35%)] bg-[hsl(38,85%,95%)] border-[hsl(38,85%,75%)]";
@@ -204,8 +205,8 @@ const MOCK_ROWS = [
   { name: "MIT",        rate: "3.9%",  category: "Reach",  catColor: RC,  status: "Submitted",   statusColor: SUB, round: "ED", roundColor: RED, decision: "Pending",    decisionColor: PEN, deadline: "Jan 1"  },
   { name: "Stanford",   rate: "3.7%",  category: "Reach",  catColor: RC,  status: "In Progress", statusColor: INP, round: "RD", roundColor: RRD, decision: "—",          decisionColor: MUT, deadline: "Jan 2"  },
   { name: "UCLA",       rate: "8.6%",  category: "Reach",  catColor: RC,  status: "Submitted",   statusColor: SUB, round: "RD", roundColor: RRD, decision: "Waitlisted", decisionColor: WAI, deadline: "Nov 30" },
-  { name: "UMich",      rate: "17.7%", category: "Target", catColor: TC,  status: "Submitted",   statusColor: SUB, round: "RD", roundColor: RRD, decision: "Rejected",   decisionColor: RC,  deadline: "Feb 1"  },
-  { name: "UT Austin",  rate: "31%",   category: "Target", catColor: TC,  status: "Submitted",   statusColor: SUB, round: "RD", roundColor: RRD, decision: "Accepted",   decisionColor: ACC, deadline: "Dec 1"  },
+  { name: "UMich",      rate: "17.7%", category: "High Match", catColor: HC,  status: "Submitted",   statusColor: SUB, round: "RD", roundColor: RRD, decision: "Rejected",   decisionColor: RC,  deadline: "Feb 1"  },
+  { name: "UT Austin",  rate: "31%",   category: "Match",      catColor: MC,  status: "Submitted",   statusColor: SUB, round: "RD", roundColor: RRD, decision: "Accepted",   decisionColor: ACC, deadline: "Dec 1"  },
   { name: "Ohio State", rate: "49%",   category: "Safety", catColor: SC,  status: "In Progress", statusColor: INP, round: "EA", roundColor: REA, decision: "—",          decisionColor: MUT, deadline: "Feb 15" },
   { name: "Penn State", rate: "54%",   category: "Safety", catColor: SC,  status: "Not Started", statusColor: MUT, round: "—",  roundColor: MUT, decision: "—",          decisionColor: MUT, deadline: "Mar 1"  },
 ];
