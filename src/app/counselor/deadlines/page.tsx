@@ -35,7 +35,7 @@ export default function CounselorDeadlinesPage() {
   const fetchData = useCallback(async () => {
     if (!profile) return;
 
-    const { data: studentProfiles } = await supabase
+    const { data: studentProfiles } = await (supabase as any)
       .from("profiles")
       .select("id, full_name, email")
       .eq("counselor_id", profile.id);
@@ -47,28 +47,35 @@ export default function CounselorDeadlinesPage() {
       return;
     }
 
-    setStudents(studentProfiles);
+    setStudents(studentProfiles as StudentProfile[]);
 
-    const studentIds = studentProfiles.map((s) => s.id);
+    const studentIds = (studentProfiles as any[]).map((s: any) => s.id);
     const nameMap = Object.fromEntries(
-      studentProfiles.map((s) => [s.id, s.full_name ?? s.email])
+      (studentProfiles as any[]).map((s: any) => [s.id, s.full_name ?? s.email])
     );
 
-    const { data: userColleges } = await supabase
+    // Include all deadlines (submitted + unsubmitted) for Change 1
+    const { data: userColleges } = await (supabase as any)
       .from("user_colleges")
       .select("user_id, application_status, personal_deadline, college:colleges(id, name)")
       .in("user_id", studentIds)
-      .not("personal_deadline", "is", null)
-      .neq("application_status", "submitted");
+      .not("personal_deadline", "is", null);
 
-    const allEntries: DeadlineEntry[] = (userColleges ?? [])
-      .filter((c) => c.personal_deadline)
-      .map((c) => ({
-        collegeId: `${c.user_id}-${(c.college as any).id}`,
-        collegeName: `${nameMap[c.user_id]} — ${(c.college as any).name}`,
-        deadline: c.personal_deadline!,
-        studentId: c.user_id,
-      }));
+    const allEntries: DeadlineEntry[] = ((userColleges ?? []) as any[])
+      .filter((c: any) => c.personal_deadline)
+      .map((c: any) => {
+        const college = c.college as { id: string; name: string };
+        const studentName = nameMap[c.user_id] as string;
+        return {
+          collegeId: `${c.user_id}-${college.id}`,
+          collegeName: `${studentName} — ${college.name}`,
+          deadline: c.personal_deadline as string,
+          studentId: c.user_id as string,
+          applicationStatus: c.application_status as string,
+          studentName,
+          rawCollegeName: college.name,
+        };
+      });
 
     setEntries(allEntries);
     setLoading(false);
@@ -90,10 +97,14 @@ export default function CounselorDeadlinesPage() {
 
   const filteredEntries = selectedStudent === "all"
     ? entries
-    : entries.filter((e) => (e as any).studentId === selectedStudent);
+    : entries.filter((e) => e.studentId === selectedStudent);
+
+  function handleEntryClick(entry: DeadlineEntry) {
+    if (entry.studentId) router.push(`/counselor/${entry.studentId}`);
+  }
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8">
+    <div className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Deadlines</h1>
@@ -124,9 +135,7 @@ export default function CounselorDeadlinesPage() {
           </p>
         </div>
       ) : (
-        <div className="flex justify-center">
-          <DeadlineCalendar entries={filteredEntries} />
-        </div>
+        <DeadlineCalendar entries={filteredEntries} onEntryClick={handleEntryClick} twoColumn />
       )}
     </div>
   );

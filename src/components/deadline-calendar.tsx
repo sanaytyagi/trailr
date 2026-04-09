@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -12,12 +12,18 @@ const MONTHS = [
 
 export interface DeadlineEntry {
   collegeId: string;
-  collegeName: string;
-  deadline: string; // YYYY-MM-DD
+  collegeName: string;       // "StudentName — CollegeName" for counselor, just college for student
+  deadline: string;          // YYYY-MM-DD
+  studentId?: string;        // counselor navigation
+  applicationStatus?: string; // status indicator
+  studentName?: string;      // rich card display
+  rawCollegeName?: string;   // rich card display
 }
 
 interface DeadlineCalendarProps {
   entries: DeadlineEntry[];
+  onEntryClick?: (entry: DeadlineEntry) => void;
+  twoColumn?: boolean;
 }
 
 function getDaysInMonth(year: number, month: number) {
@@ -44,6 +50,16 @@ function getDotColor(iso: string, today: Date, isSelected: boolean, isPast: bool
   return "bg-[hsl(142,60%,45%)]";
 }
 
+function getEntryDotColor(iso: string, today: Date): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const diffDays = Math.round((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0)   return "bg-destructive";
+  if (diffDays <= 7)  return "bg-destructive";
+  if (diffDays <= 30) return "bg-[hsl(38,85%,50%)]";
+  return "bg-[hsl(142,60%,45%)]";
+}
+
 function formatRelative(iso: string, today: Date): { label: string; overdue: boolean } {
   const date = parseLocalDate(iso);
   const diffMs = date.getTime() - today.getTime();
@@ -59,17 +75,25 @@ function formatRelative(iso: string, today: Date): { label: string; overdue: boo
   };
 }
 
-export function DeadlineCalendar({ entries }: DeadlineCalendarProps) {
+const LEGEND = [
+  { dot: "bg-destructive",          label: "Due soon (≤7d)"  },
+  { dot: "bg-[hsl(38,85%,50%)]",   label: "Upcoming (≤30d)" },
+  { dot: "bg-[hsl(142,60%,45%)]",  label: "Later"           },
+  { dot: "bg-destructive/60",       label: "Overdue"         },
+];
+
+export function DeadlineCalendar({ entries, onEntryClick, twoColumn }: DeadlineCalendarProps) {
   const today = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
   }, []);
 
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [viewYear, setViewYear]     = useState(today.getFullYear());
+  const [viewMonth, setViewMonth]   = useState(today.getMonth());
   const [selectedIso, setSelectedIso] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [windowDays, setWindowDays] = useState<7 | 14 | 30>(7);
 
   const navigate = (fn: () => void) => {
     setSelectedIso(null);
@@ -87,7 +111,7 @@ export function DeadlineCalendar({ entries }: DeadlineCalendarProps) {
     else setViewMonth(m => m + 1);
   });
 
-  // Map ISO date -> colleges with that deadline
+  // Map ISO date -> entries with that deadline
   const deadlineMap = useMemo(() => {
     const map = new Map<string, DeadlineEntry[]>();
     for (const e of entries) {
@@ -98,23 +122,32 @@ export function DeadlineCalendar({ entries }: DeadlineCalendarProps) {
     return map;
   }, [entries]);
 
-  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
-  const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
-  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+  const daysInMonth    = getDaysInMonth(viewYear, viewMonth);
+  const firstDay       = getFirstDayOfMonth(viewYear, viewMonth);
+  const totalCells     = Math.ceil((firstDay + daysInMonth) / 7) * 7;
 
   const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-  // Upcoming deadlines sorted by date (show all, past first then future)
-  const sorted = useMemo(() => {
-    return [...entries].sort((a, b) => a.deadline.localeCompare(b.deadline));
-  }, [entries]);
+  const sorted = useMemo(() => [...entries].sort((a, b) => a.deadline.localeCompare(b.deadline)), [entries]);
 
-  const overdue = sorted.filter(e => e.deadline < todayIso);
+  // Overdue: past deadline + not submitted (or no status set)
+  const overdue = useMemo(() =>
+    sorted.filter(e => e.deadline < todayIso && e.applicationStatus !== "submitted"),
+  [sorted, todayIso]);
 
-  // Next 7 calendar days (today through today+7) grouped by date
-  const next5Days = useMemo(() => {
+  // Window end date for label
+  const windowEnd = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + windowDays);
+    return d;
+  }, [today, windowDays]);
+
+  const windowEndLabel = windowEnd.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  // Upcoming deadlines grouped by day within window
+  const upcomingDays = useMemo(() => {
     const days: { iso: string; label: string; entries: DeadlineEntry[] }[] = [];
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i <= windowDays; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
       const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -128,29 +161,22 @@ export function DeadlineCalendar({ entries }: DeadlineCalendarProps) {
       }
     }
     return days;
-  }, [today, deadlineMap]);
+  }, [today, deadlineMap, windowDays]);
 
   const selectedEntries = selectedIso ? (deadlineMap.get(selectedIso) ?? []) : [];
+  const isRichMode = entries.some(e => !!e.studentName);
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Calendar card */}
-      <div className="rounded-xl border border-border bg-card p-4">
+    <div className={twoColumn ? "flex gap-6 items-start" : "flex flex-col gap-4"}>
+      {/* ── Calendar card ────────────────────────────────────────────────────── */}
+      <div className={cn("rounded-xl border border-border bg-card p-4", twoColumn && "w-72 shrink-0")}>
         {/* Month nav */}
         <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={prevMonth}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
+          <button onClick={prevMonth} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="text-sm font-semibold text-foreground">
-            {MONTHS[viewMonth]} {viewYear}
-          </span>
-          <button
-            onClick={nextMonth}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
+          <span className="text-sm font-semibold text-foreground">{MONTHS[viewMonth]} {viewYear}</span>
+          <button onClick={nextMonth} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
@@ -158,9 +184,7 @@ export function DeadlineCalendar({ entries }: DeadlineCalendarProps) {
         {/* Day names */}
         <div className="grid grid-cols-7 mb-1">
           {DAYS.map((d) => (
-            <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">
-              {d}
-            </div>
+            <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
           ))}
         </div>
 
@@ -173,18 +197,15 @@ export function DeadlineCalendar({ entries }: DeadlineCalendarProps) {
               ? `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
               : null;
             const hasDeadline = iso ? deadlineMap.has(iso) : false;
-            const isToday = iso === todayIso;
+            const isToday    = iso === todayIso;
             const isSelected = iso !== null && iso === selectedIso;
-            const isPast = iso ? iso < todayIso : false;
+            const isPast     = iso ? iso < todayIso : false;
 
             return (
               <button
                 key={i}
                 disabled={!isCurrentMonth}
-                onClick={() => {
-                  if (!isCurrentMonth || !iso) return;
-                  setSelectedIso(prev => prev === iso ? null : iso);
-                }}
+                onClick={() => { if (!isCurrentMonth || !iso) return; setSelectedIso(prev => prev === iso ? null : iso); }}
                 className={cn(
                   "relative flex flex-col items-center justify-center h-9 w-full rounded-md text-xs transition-colors",
                   !isCurrentMonth && "invisible",
@@ -196,36 +217,96 @@ export function DeadlineCalendar({ entries }: DeadlineCalendarProps) {
               >
                 {isCurrentMonth ? day : ""}
                 {hasDeadline && iso && (
-                  <span
-                    className={cn(
-                      "absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full",
-                      getDotColor(iso, today, isSelected, isPast)
-                    )}
-                  />
+                  <span className={cn("absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full", getDotColor(iso, today, isSelected, isPast))} />
                 )}
               </button>
             );
           })}
         </div>
 
-        {/* Selected day tooltip */}
+        {/* Change 4: Legend */}
+        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border flex-wrap">
+          {LEGEND.map(({ dot, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <span className={cn("h-2 w-2 rounded-full shrink-0", dot)} />
+              <span className="text-[10px] text-muted-foreground">{label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Change 5: Selected day detail */}
         {selectedEntries.length > 0 && selectedIso && (
           <div className="mt-3 border-t border-border pt-3 space-y-1">
-            {selectedEntries.map((e) => (
-              <div key={e.collegeId} className="flex items-center gap-2">
-                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", getDotColor(selectedIso, today, false, selectedIso < todayIso))} />
-                <span className="text-xs text-foreground truncate">{e.collegeName}</span>
-              </div>
-            ))}
+            {selectedEntries.map((e) => {
+              if (!isRichMode) {
+                return (
+                  <div key={e.collegeId} className="flex items-center gap-2">
+                    <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", getDotColor(selectedIso, today, false, selectedIso < todayIso))} />
+                    <span className="text-xs text-foreground truncate">{e.collegeName}</span>
+                  </div>
+                );
+              }
+              const rel = formatRelative(e.deadline, today);
+              const isSubmitted = e.applicationStatus === "submitted";
+              const statusLabel = isSubmitted ? "Submitted" : e.applicationStatus === "in_progress" ? "In Progress" : "Not Started";
+              const statusStyle = isSubmitted
+                ? { color: "hsl(142,60%,30%)", backgroundColor: "hsl(142,60%,95%)" }
+                : e.applicationStatus === "in_progress"
+                ? { color: "hsl(38,85%,35%)", backgroundColor: "hsl(38,85%,95%)" }
+                : { color: "hsl(215,15%,50%)", backgroundColor: "hsl(215,15%,94%)" };
+              return (
+                <div
+                  key={e.collegeId}
+                  onClick={() => onEntryClick?.(e)}
+                  className={cn(
+                    "rounded-lg border border-border bg-muted/20 px-3 py-2 mt-2 first:mt-0",
+                    onEntryClick && "cursor-pointer hover:bg-muted/40 transition-colors"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <p className="text-xs font-semibold text-foreground truncate">{e.studentName}</p>
+                    <span className={cn("text-[10px] font-semibold shrink-0 tabular-nums", rel.overdue ? "text-destructive" : "text-muted-foreground")}>
+                      {rel.label}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate mb-1">{e.rawCollegeName}</p>
+                  <span className="inline-block text-[10px] font-medium rounded px-1.5 py-0.5" style={statusStyle}>
+                    {statusLabel}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Deadline list */}
-      <div className="rounded-xl border border-border bg-card p-4">
+      {/* ── Deadline list ─────────────────────────────────────────────────────── */}
+      <div className={cn("rounded-xl border border-border bg-card p-4", twoColumn && "flex-1 min-w-0")}>
+        {/* Header with Change 6 toggle */}
         <div className="flex items-center gap-2 mb-3">
-          <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-semibold text-foreground">Upcoming Deadlines <span className="text-xs font-normal text-muted-foreground">(next 7 days)</span></span>
+          <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm font-semibold text-foreground">
+            Upcoming Deadlines
+            <span className="text-xs font-normal text-muted-foreground ml-1">
+              (today – {windowEndLabel})
+            </span>
+          </span>
+          <div className="flex items-center gap-0.5 ml-auto">
+            {([7, 14, 30] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => setWindowDays(d)}
+                className={cn(
+                  "px-2 py-0.5 rounded text-xs font-medium transition-colors",
+                  windowDays === d
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
         </div>
 
         {entries.length === 0 ? (
@@ -234,44 +315,73 @@ export function DeadlineCalendar({ entries }: DeadlineCalendarProps) {
           </p>
         ) : (
           <div className="space-y-1">
-            {/* Overdue section */}
+            {/* Change 2: Overdue section — only unsubmitted */}
             {overdue.length > 0 && (
               <>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-destructive mb-1">Overdue</p>
                 {overdue.map((e) => {
                   const rel = formatRelative(e.deadline, today);
                   return (
-                    <div key={e.collegeId} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-lg hover:bg-muted/50 transition-colors">
-                      <span className="text-xs text-foreground truncate flex-1">{e.collegeName}</span>
+                    <div
+                      key={e.collegeId}
+                      onClick={() => onEntryClick?.(e)}
+                      className={cn(
+                        "flex items-center justify-between gap-2 py-1.5 px-2 rounded-lg transition-colors",
+                        onEntryClick ? "cursor-pointer hover:bg-red-50" : "hover:bg-muted/50"
+                      )}
+                    >
+                      {/* Change 1: red dot for unsubmitted overdue */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="h-1.5 w-1.5 rounded-full bg-destructive shrink-0" />
+                        <span className="text-xs text-foreground truncate">{e.collegeName}</span>
+                      </div>
                       <span className="text-[10px] font-medium text-destructive shrink-0">{rel.label}</span>
                     </div>
                   );
                 })}
-                {next5Days.length > 0 && <div className="my-2 border-t border-border" />}
+                {upcomingDays.length > 0 && <div className="my-2 border-t border-border" />}
               </>
             )}
 
-            {/* Next 5 days grouped */}
-            {next5Days.length === 0 && overdue.length === 0 && (
-              <p className="text-xs text-muted-foreground py-2">No deadlines in the next 7 days.</p>
+            {/* Upcoming days grouped */}
+            {upcomingDays.length === 0 && overdue.length === 0 && (
+              <p className="text-xs text-muted-foreground py-2">No deadlines in the next {windowDays} days.</p>
             )}
-            {next5Days.map(({ iso, label, entries: dayEntries }, idx) => (
+
+            {upcomingDays.map(({ iso, label, entries: dayEntries }, idx) => (
               <div key={iso}>
                 {idx > 0 && <div className="my-2 border-t border-border" />}
                 <p className={cn(
                   "text-[10px] font-semibold uppercase tracking-wider mb-1",
-                  label === "Today" ? "text-destructive" :
-                  label === "Tomorrow" ? "text-[hsl(38,85%,35%)]" :
+                  label === "Today"    ? "text-destructive"          :
+                  label === "Tomorrow" ? "text-[hsl(38,85%,35%)]"   :
                   "text-muted-foreground"
                 )}>
                   {label}
                 </p>
-                {dayEntries.map((e) => (
-                  <div key={e.collegeId} className="flex items-center gap-2 py-1 px-2 rounded-lg hover:bg-muted/50 transition-colors">
-                    <span className="h-1.5 w-1.5 rounded-full bg-destructive shrink-0" />
-                    <span className="text-xs text-foreground truncate">{e.collegeName}</span>
-                  </div>
-                ))}
+                {dayEntries.map((e) => {
+                  const isSubmitted = e.applicationStatus === "submitted";
+                  return (
+                    <div
+                      key={e.collegeId}
+                      onClick={() => onEntryClick?.(e)}
+                      className={cn(
+                        "flex items-center gap-2 py-1 px-2 rounded-lg transition-colors",
+                        isSubmitted ? "opacity-50" : "",
+                        onEntryClick ? "cursor-pointer hover:bg-muted/50" : "hover:bg-muted/50"
+                      )}
+                    >
+                      {/* Change 1: green check for submitted, urgency dot for unsubmitted */}
+                      {isSubmitted
+                        ? <Check className="h-3 w-3 text-emerald-500 shrink-0" />
+                        : <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", getEntryDotColor(iso, today))} />
+                      }
+                      <span className={cn("text-xs truncate", isSubmitted ? "text-muted-foreground" : "text-foreground")}>
+                        {e.collegeName}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
