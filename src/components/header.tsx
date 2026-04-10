@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { useProfile } from "@/hooks/use-profile";
+import { useCounselorNotifications } from "@/hooks/use-counselor-notifications";
 import {
   Sheet,
   SheetTrigger,
@@ -26,6 +27,7 @@ export function Header() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { profile, loading: profileLoading } = useProfile();
   const isCounselor = !profileLoading && !!user && profile?.role === "counselor";
+  const { count: unreadCount } = useCounselorNotifications(profile ?? null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
@@ -115,6 +117,11 @@ export function Header() {
               >
                 <TableIcon className="h-3.5 w-3.5" />
                 Tracker
+                {unreadCount > 0 && (
+                  <span className="inline-flex items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground min-w-[16px]">
+                    {unreadCount > 5 ? "5+" : unreadCount}
+                  </span>
+                )}
               </Link>
 
               <Link
@@ -283,6 +290,11 @@ export function Header() {
                     >
                       <TableIcon className="h-4 w-4" />
                       Tracker
+                      {unreadCount > 0 && (
+                        <span className="inline-flex items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground min-w-[16px] ml-auto">
+                          {unreadCount > 5 ? "5+" : unreadCount}
+                        </span>
+                      )}
                     </Link>
 
                     <Link

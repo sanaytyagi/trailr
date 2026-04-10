@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Plus, X, CheckCircle2, XCircle, Link2, UserCheck } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, X, CheckCircle2, XCircle, Link2, UserCheck, MessageSquare } from "lucide-react";
 import type { College } from "@/types";
 import { CollegeSearch, type CollegeSearchHandle } from "@/components/college-search";
 import { CollegeGrid } from "@/components/college-grid";
@@ -9,6 +10,7 @@ import { CollegeDetailDialog } from "@/components/college-detail-dialog";
 import { DeadlineCalendar } from "@/components/deadline-calendar";
 import { useTrackedColleges } from "@/hooks/use-tracked-colleges";
 import { useProfile } from "@/hooks/use-profile";
+import { useCounselorNotifications, type CounselorNotification } from "@/hooks/use-counselor-notifications";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { TrackedCollege, ApplicationStatus, DecisionResult } from "@/types";
@@ -261,6 +263,10 @@ export default function TrackerPage() {
   } = useTrackedColleges();
 
   const { profile, refetch: refetchProfile } = useProfile();
+  const router = useRouter();
+  const { notifications, count: unreadCount, markAllRead } = useCounselorNotifications(profile ?? null);
+  const [notifDismissed, setNotifDismissed] = useState(false);
+  const [shownNotifs, setShownNotifs] = useState<CounselorNotification[]>([]);
   const [supabase] = useState(() => createClient());
   const [inviteCode, setInviteCode] = useState("");
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -270,6 +276,20 @@ export default function TrackerPage() {
   const [counselorName, setCounselorName] = useState<string | null>(null);
   const [counselorNotes, setCounselorNotes] = useState<Record<string, string>>({});
   const [essayCounts, setEssayCounts] = useState<Record<string, number>>({});
+
+  // Snapshot the 3 most recent notifications when they first load
+  useEffect(() => {
+    if (shownNotifs.length === 0 && notifications.length > 0) {
+      setShownNotifs(notifications.slice(0, 3));
+    }
+  }, [notifications]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mark all as read when the section is visible
+  useEffect(() => {
+    if (!notifDismissed && unreadCount > 0 && profile?.counselor_id) {
+      markAllRead();
+    }
+  }, [unreadCount, notifDismissed, profile?.counselor_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch counselor name + notes when profile has a counselor_id
   useEffect(() => {
@@ -570,6 +590,36 @@ export default function TrackerPage() {
                 )}
               </div>
             )
+          )}
+
+          {/* From your counselor */}
+          {profile?.counselor_id && !notifDismissed && shownNotifs.length > 0 && (
+            <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-primary">From your counselor</span>
+                <button
+                  onClick={() => setNotifDismissed(true)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <div className="space-y-0.5">
+                {shownNotifs.map((n) => (
+                  <button
+                    key={n.id}
+                    onClick={() => router.push(`/essays/${n.essay_id}`)}
+                    className="w-full text-left flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-primary/10 transition-colors"
+                  >
+                    <MessageSquare className="h-3 w-3 text-primary shrink-0" />
+                    <span className="text-xs text-foreground">
+                      Your counselor left a comment on your{" "}
+                      {n.college_name ? <strong>{n.college_name}</strong> : "an"} essay
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Title + search + add button */}

@@ -4,13 +4,14 @@ import { use, useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Loader2, CheckCircle2,
+  ArrowLeft, Loader2, CheckCircle2, X,
   Undo2, Redo2, MessageSquare, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Bold, Italic, Underline,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
+import { useCounselorNotifications } from "@/hooks/use-counselor-notifications";
 import { cn } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -111,6 +112,10 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+function truncateQuote(text: string, max = 80) {
+  return text.length > max ? text.slice(0, max) + "…" : text;
+}
+
 /** Returns urgency level for the bottom bar based on words remaining. */
 function barUrgency(words: number, limit: number): "over" | "warn" | "ok" {
   if (words > limit)        return "over";
@@ -147,6 +152,12 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
   const [newCommentText, setNewCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
 
+  // Counselor notification banner
+  const { notifications: counselorNotifs, markEssayRead } = useCounselorNotifications(profile ?? null);
+  const essayUnread = viewMode === "owner" && counselorNotifs.some((n) => n.essay_id === essayId);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const showBanner = essayUnread && !bannerDismissed;
+
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bodyRef = useRef(body);
   bodyRef.current = body;
@@ -155,6 +166,22 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const essayTextRef = useRef<HTMLDivElement>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Mark essay comments as read when the student scrolls essay text into view
+  useEffect(() => {
+    if (!showBanner || !essayTextRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          markEssayRead(essayId);
+          setBannerDismissed(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(essayTextRef.current);
+    return () => observer.disconnect();
+  }, [showBanner, essayId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load ────────────────────────────────────────────────────────────────────
 
@@ -471,7 +498,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         {/* Top bar */}
         <div className="flex items-center gap-3 mb-5">
           <button
-            onClick={() => router.push(`/counselor/${essay.user_id}`)}
+            onClick={() => router.push(`/counselor/${essay.user_id}?tab=essays`)}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -537,7 +564,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
                   </div>
                   <p className="text-[11px] italic leading-snug mb-2 rounded px-1.5 py-0.5"
                     style={{ backgroundColor: color.bg, color: "hsl(var(--foreground) / 0.7)" }}>
-                    &ldquo;{body.slice(c.start_offset, c.end_offset)}&rdquo;
+                    &ldquo;{truncateQuote(body.slice(c.start_offset, c.end_offset))}&rdquo;
                   </p>
                   <p className="text-xs text-foreground leading-snug">{c.text}</p>
                 </div>
@@ -549,7 +576,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
               >
                 <p className="text-[11px] italic leading-snug mb-2 rounded px-1.5 py-0.5"
                   style={{ backgroundColor: HIGHLIGHT_COLORS[pendingColorIndex].bg, color: "hsl(var(--foreground) / 0.7)" }}>
-                  &ldquo;{body.slice(pendingSelection.start, pendingSelection.end)}&rdquo;
+                  &ldquo;{truncateQuote(body.slice(pendingSelection.start, pendingSelection.end))}&rdquo;
                 </p>
                 <textarea
                   ref={commentInputRef}
@@ -624,6 +651,22 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
           </span>
         </div>
 
+        {/* Counselor comment banner */}
+        {showBanner && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="text-sm text-foreground">Your counselor left a comment on this essay.</span>
+            </div>
+            <button
+              onClick={() => { markEssayRead(essayId); setBannerDismissed(true); }}
+              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {/* Two-column layout */}
         <div className="flex gap-6 items-start">
           <div className="flex-1 min-w-0 rounded-xl border border-border bg-card overflow-hidden shadow-sm">
@@ -661,7 +704,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
                   </div>
                   <p className="text-[11px] italic leading-snug mb-2 rounded px-1.5 py-0.5"
                     style={{ backgroundColor: color.bg, color: "hsl(var(--foreground) / 0.7)" }}>
-                    &ldquo;{body.slice(c.start_offset, c.end_offset)}&rdquo;
+                    &ldquo;{truncateQuote(body.slice(c.start_offset, c.end_offset))}&rdquo;
                   </p>
                   <p className="text-xs text-foreground leading-snug mb-3">{c.text}</p>
                   <button
@@ -738,6 +781,22 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
           {isFinal ? "Completed" : "Mark as Complete"}
         </button>
       </div>
+
+      {/* Counselor comment banner */}
+      {showBanner && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="text-sm text-foreground">Your counselor left a comment on this essay.</span>
+          </div>
+          <button
+            onClick={() => { markEssayRead(essayId); setBannerDismissed(true); }}
+            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Editor card */}
       <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">

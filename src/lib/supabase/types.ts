@@ -273,6 +273,7 @@ export interface Database {
           end_offset: number;
           color_index: number;
           resolved: boolean;
+          read_by_student: boolean;
           created_at: string;
         };
         Insert: {
@@ -284,11 +285,13 @@ export interface Database {
           end_offset: number;
           color_index?: number;
           resolved?: boolean;
+          read_by_student?: boolean;
           created_at?: string;
         };
         Update: {
           text?: string;
           resolved?: boolean;
+          read_by_student?: boolean;
         };
         Relationships: [];
       };
