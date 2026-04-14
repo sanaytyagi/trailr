@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ArrowLeft, MessageSquare, BookText } from "lucide-react";
 import { CollegeLogo } from "@/components/college-logo";
 import { createClient } from "@/lib/supabase/client";
@@ -91,11 +91,11 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"colleges" | "essays">("colleges");
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<"colleges" | "essays">(
+    searchParams.get("tab") === "essays" ? "essays" : "colleges"
+  );
   const [studentEssays, setStudentEssays] = useState<StudentEssay[]>([]);
-  const [essayNotes, setEssayNotes] = useState<Record<string, string>>({});
-  const [editingEssayNote, setEditingEssayNote] = useState<string | null>(null);
-  const [editingEssayText, setEditingEssayText] = useState("");
   const [essaysLoaded, setEssaysLoaded] = useState(false);
 
   useEffect(() => {
@@ -178,38 +178,12 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
       .eq("user_id", studentId)
       .order("created_at", { ascending: true });
     setStudentEssays((essays ?? []) as StudentEssay[]);
-
-    const { data: enotes } = await supabase
-      .from("essay_notes")
-      .select("essay_id, note")
-      .eq("counselor_id", profile.id)
-      .in("essay_id", (essays ?? []).map((e) => e.id));
-    if (enotes) {
-      const map: Record<string, string> = {};
-      for (const row of enotes) map[row.essay_id] = row.note;
-      setEssayNotes(map);
-    }
     setEssaysLoaded(true);
   }
 
-  async function saveEssayNote(essayId: string, note: string) {
-    if (!profile) return;
-    if (note.trim()) {
-      await supabase.from("essay_notes").upsert(
-        { essay_id: essayId, counselor_id: profile.id, note: note.trim() },
-        { onConflict: "essay_id,counselor_id" }
-      );
-      setEssayNotes((prev) => ({ ...prev, [essayId]: note.trim() }));
-    } else {
-      await supabase
-        .from("essay_notes")
-        .delete()
-        .eq("essay_id", essayId)
-        .eq("counselor_id", profile.id);
-      setEssayNotes((prev) => { const next = { ...prev }; delete next[essayId]; return next; });
-    }
-    setEditingEssayNote(null);
-  }
+  useEffect(() => {
+    if (tab === "essays" && !essaysLoaded && profile) loadEssays();
+  }, [tab, essaysLoaded, profile]);
 
   if (profileLoading || loading) {
     return (
@@ -313,13 +287,14 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
                         statusLabel === "Complete" ? "bg-emerald-100 text-emerald-700" :
                         statusLabel === "Drafting" ? "bg-amber-100 text-amber-700" :
                         "bg-muted text-muted-foreground";
-                      const isEditingEssay = editingEssayNote === essay.id;
-                      const enote = essayNotes[essay.id];
-
                       return (
-                        <div key={essay.id} className="px-5 py-4">
+                        <div
+                          key={essay.id}
+                          onClick={() => router.push(`/essays/${essay.id}`)}
+                          className="px-5 py-4 cursor-pointer hover:bg-primary/5 hover:border-l-2 hover:border-l-primary transition-all group"
+                        >
                           {/* Prompt */}
-                          <p className="text-sm text-foreground line-clamp-2 leading-snug mb-2.5">
+                          <p className="text-sm text-foreground line-clamp-2 leading-snug mb-2.5 group-hover:text-primary transition-colors">
                             {essay.prompt || <span className="italic text-muted-foreground">No prompt</span>}
                           </p>
                           {/* Word count + status */}
@@ -339,57 +314,15 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
                               {statusLabel}
                             </span>
                           </div>
-                          {/* View essay link */}
-                          <div className="flex items-center justify-between mt-1 gap-3">
-                          <div className="flex-1 min-w-0">
-                            {isEditingEssay ? (
-                              <div className="flex flex-col gap-1">
-                                <textarea
-                                  autoFocus
-                                  value={editingEssayText}
-                                  onChange={(e) => setEditingEssayText(e.target.value)}
-                                  rows={3}
-                                  placeholder="Add a note for this essay…"
-                                  className="w-full text-xs bg-muted/50 rounded-md px-2 py-1.5 resize-none outline-none focus:ring-2 focus:ring-ring"
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => saveEssayNote(essay.id, editingEssayText)}
-                                    className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-                                  >
-                                    Save
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingEssayNote(null)}
-                                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => { setEditingEssayNote(essay.id); setEditingEssayText(enote ?? ""); }}
-                                className="text-left w-full rounded-md px-2 py-1 hover:bg-muted/60 transition-colors group"
-                              >
-                                {enote ? (
-                                  <p className="text-xs text-amber-900 leading-snug">{enote}</p>
-                                ) : (
-                                  <span className="flex items-center gap-1 text-xs text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
-                                    <MessageSquare className="h-3 w-3" />
-                                    Add note
-                                  </span>
-                                )}
-                              </button>
-                            )}
+                          {/* View link */}
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => router.push(`/essays/${essay.id}`)}
+                              className="text-xs font-medium text-primary hover:underline whitespace-nowrap"
+                            >
+                              View essay →
+                            </button>
                           </div>
-                          <button
-                            onClick={() => router.push(`/essays/${essay.id}`)}
-                            className="shrink-0 text-xs font-medium text-primary hover:underline whitespace-nowrap"
-                          >
-                            View essay →
-                          </button>
-                        </div>
                         </div>
                       );
                     })}
@@ -463,6 +396,15 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
                 const note = notes[c.college_id];
                 const isEditingThis = editingNote === c.college_id;
 
+                const urgencyDot = (() => {
+                  if (!c.personal_deadline || c.application_status === "submitted") return null;
+                  const ds = getDeadlineStatus(c.personal_deadline);
+                  if (ds.className === "text-[hsl(142,60%,35%)]") return null;
+                  return ds.className === "text-[hsl(38,85%,35%)]"
+                    ? "bg-[hsl(38,85%,50%)]"
+                    : "bg-destructive";
+                })();
+
                 return (
                   <tr
                     key={c.id}
@@ -477,7 +419,10 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
                           size={32}
                         />
                         <div>
-                          <p className="font-medium text-foreground">{c.college.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-medium text-foreground">{c.college.name}</p>
+                            {urgencyDot && <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", urgencyDot)} />}
+                          </div>
                           {c.college.location && (
                             <p className="text-xs text-muted-foreground mt-0.5">{c.college.location}</p>
                           )}
