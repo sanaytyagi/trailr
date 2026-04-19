@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
 import { useCounselorNotifications } from "@/hooks/use-counselor-notifications";
 import { cn } from "@/lib/utils";
+import { CollegeLogo } from "@/components/college-logo";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -133,6 +134,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
 
   const [essay, setEssay] = useState<Essay | null>(null);
   const [collegeName, setCollegeName] = useState<string>("");
+  const [collegeWebsiteUrl, setCollegeWebsiteUrl] = useState<string | null>(null);
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -216,10 +218,11 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
 
       const { data: collegeData } = await (supabase as any)
         .from("colleges")
-        .select("name")
+        .select("name, website_url")
         .eq("id", essayData.college_id)
         .single();
-      setCollegeName((collegeData as { name: string } | null)?.name ?? "");
+      setCollegeName((collegeData as { name: string; website_url: string | null } | null)?.name ?? "");
+      setCollegeWebsiteUrl((collegeData as { name: string; website_url: string | null } | null)?.website_url ?? null);
 
       // Load sibling essays for navigation (Change 3)
       const { data: siblingsData } = await (supabase as any)
@@ -499,13 +502,14 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         <div className="flex items-center gap-3 mb-5">
           <button
             onClick={() => router.push(`/counselor/${essay.user_id}?tab=essays`)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
           {collegeName && (
-            <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-medium text-foreground truncate max-w-xs">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 pl-1.5 pr-3 py-1 text-sm font-medium text-foreground truncate max-w-xs">
+              <CollegeLogo name={collegeName} website_url={collegeWebsiteUrl} size={24} />
               {collegeName}
             </span>
           )}
@@ -631,13 +635,14 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         <div className="flex items-center gap-3 mb-5">
           <button
             onClick={() => router.push("/essays")}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
           {collegeName && (
-            <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-medium text-foreground truncate max-w-xs">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 pl-1.5 pr-3 py-1 text-sm font-medium text-foreground truncate max-w-xs">
+              <CollegeLogo name={collegeName} website_url={collegeWebsiteUrl} size={24} />
               {collegeName}
             </span>
           )}
@@ -733,14 +738,15 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
       <div className="flex items-center gap-3 mb-5">
         <button
           onClick={() => router.push("/essays")}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors shrink-0"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
         </button>
 
         {collegeName && (
-          <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-medium text-foreground truncate max-w-xs">
+          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 pl-1.5 pr-3 py-1 text-sm font-medium text-foreground truncate max-w-xs">
+            <CollegeLogo name={collegeName} website_url={collegeWebsiteUrl} size={24} />
             {collegeName}
           </span>
         )}

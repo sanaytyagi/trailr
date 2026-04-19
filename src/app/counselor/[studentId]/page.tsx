@@ -218,7 +218,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => router.push("/counselor")}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors shrink-0"
         >
           <ArrowLeft className="h-4 w-4" />
           Back

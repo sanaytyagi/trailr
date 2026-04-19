@@ -287,9 +287,6 @@ export function DeadlineCalendar({ entries, onEntryClick, twoColumn }: DeadlineC
           <CalendarDays className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="text-sm font-semibold text-foreground">
             Upcoming Deadlines
-            <span className="text-xs font-normal text-muted-foreground ml-1">
-              (today – {windowEndLabel})
-            </span>
           </span>
           <div className="flex items-center gap-0.5 ml-auto">
             {([7, 14, 30] as const).map((d) => (
