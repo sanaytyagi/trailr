@@ -24,6 +24,7 @@ import {
   MessageSquare,
   Check,
   Activity,
+  Trash2,
 } from "lucide-react";
 
 // ── Motion variants ───────────────────────────────────────────────────────────
@@ -167,6 +168,11 @@ function MockRow({
       <td className="px-4 py-3.5"><span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${roundColor}`}>{round}</span></td>
       <td className="px-4 py-3.5"><span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${decisionColor}`}>{decision}</span></td>
       <td className="px-4 py-3.5 text-xs text-muted-foreground">{deadline}</td>
+      <td className="pl-2 pr-4 py-3.5">
+        <button className="text-muted-foreground/30">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </td>
     </tr>
   );
 }
@@ -232,6 +238,7 @@ function DashboardPreview() {
   const [dukeCat, setDukeCat]           = useState("—");
   const [dukeStatus, setDukeStatus]     = useState("Not Started");
   const [dukeRound, setDukeRound]       = useState("—");
+  const [trashHovered, setTrashHovered] = useState(false);
   const [cursorPos, setCursorPos]       = useState({ x: 0, y: 0 });
   const [cursorVisible, setCursorVisible]   = useState(false);
   const [cursorClicking, setCursorClicking] = useState(false);
@@ -242,6 +249,7 @@ function DashboardPreview() {
   const catCellRef        = useRef<HTMLTableCellElement>(null);
   const statusCellRef     = useRef<HTMLTableCellElement>(null);
   const roundCellRef      = useRef<HTMLTableCellElement>(null);
+  const trashBtnRef       = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -265,9 +273,9 @@ function DashboardPreview() {
       t(onDone, 140);
     }
 
-    function moveTo(ref: { current: HTMLElement | null }) {
+    function moveTo(ref: { current: HTMLElement | null }, offsetX = 0, offsetY = 0) {
       const pos = getElPos(ref);
-      if (pos) setCursorPos(pos);
+      if (pos) setCursorPos({ x: pos.x + offsetX, y: pos.y + offsetY });
     }
 
     function cycle() {
@@ -275,6 +283,7 @@ function DashboardPreview() {
       setSearchText(""); setShowDropdown(false);
       setShowNewRow(false); setHighlightNew(false); setCollegeCount(8);
       setDukeCat("—"); setDukeStatus("Not Started"); setDukeRound("—");
+      setTrashHovered(false);
       setCursorVisible(false);
 
       const name = "Duke University";
@@ -323,10 +332,17 @@ function DashboardPreview() {
       t(() => click(() => setDukeRound("RD")), d);
       d += 1100;
 
-      t(() => setCursorVisible(false), d);
-      d += 500;
+      t(() => moveTo(trashBtnRef, -20, 0), d);
+      t(() => setTrashHovered(true), d + 420);
+      d += 550;
 
-      t(() => { setShowNewRow(false); setCollegeCount(8); t(cycle, 700); }, d);
+      t(() => click(() => { setTrashHovered(false); setShowNewRow(false); setCollegeCount(8); }), d);
+      d += 700;
+
+      t(() => setCursorVisible(false), d);
+      d += 300;
+
+      t(cycle, d);
     }
 
     t(cycle, 0);
@@ -445,6 +461,7 @@ function DashboardPreview() {
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Round</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Decision</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Deadline</th>
+                <th className="py-2.5 pr-4" />
               </tr>
             </thead>
             <tbody>
@@ -479,6 +496,11 @@ function DashboardPreview() {
                       <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${MUT}`}>—</span>
                     </td>
                     <td className="px-4 py-3.5 text-xs text-muted-foreground">Jan 5</td>
+                    <td className="pl-2 pr-4 py-3.5">
+                      <button ref={trashBtnRef} className={`transition-colors ${trashHovered ? "text-destructive/70" : "text-muted-foreground/30"}`}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
                   </motion.tr>
                 )}
               </AnimatePresence>
@@ -795,12 +817,14 @@ const ALEX_ESSAY_GROUPS = [
 function CounselorPreview() {
   const [scene, setScene]   = useState<"list" | "detail">("list");
   const [tab, setTab]       = useState<"colleges" | "essays">("colleges");
+  const [backHovered, setBackHovered]   = useState(false);
   const [cursorPos, setCursorPos]       = useState({ x: 46, y: 220 });
   const [cursorClicking, setCursorClicking] = useState(false);
 
   const containerRef   = useRef<HTMLDivElement>(null);
   const alexRowRef     = useRef<HTMLDivElement>(null);
   const essaysTabRef   = useRef<HTMLButtonElement>(null);
+  const backBtnRef     = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -833,6 +857,7 @@ function CounselorPreview() {
       if (!mounted) return;
       setScene("list");
       setTab("colleges");
+      setBackHovered(false);
 
       // 600ms  — cursor glides to Alex row
       t(() => moveTo(alexRowRef), 600);
@@ -842,8 +867,13 @@ function CounselorPreview() {
       t(() => moveTo(essaysTabRef), 4800);
       // 5700ms — cursor has arrived; click Essays tab
       t(() => click(() => setTab("essays")), 5700);
-      // 8700ms — 3s on essays page, then loop
-      t(cycle, 8700);
+      // 8400ms — 3s on essays; cursor moves to Back button
+      t(() => moveTo(backBtnRef), 8400);
+      t(() => setBackHovered(true), 8820);
+      // 9200ms — click Back; scene returns to list
+      t(() => click(() => { setBackHovered(false); setScene("list"); }), 9200);
+      // 9900ms — loop
+      t(cycle, 9900);
     }
 
     t(cycle, 0);
@@ -1064,7 +1094,7 @@ function CounselorPreview() {
 
               {/* Page header — Back + student name */}
               <div className="flex items-center gap-3 mb-5">
-                <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm shrink-0 select-none">
+                <div ref={backBtnRef} className={`flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground shadow-sm shrink-0 select-none transition-colors ${backHovered ? "bg-muted" : "bg-card"}`}>
                   <ArrowLeft className="h-3.5 w-3.5" />
                   Back
                 </div>

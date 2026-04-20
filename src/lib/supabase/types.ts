@@ -295,6 +295,27 @@ export interface Database {
         };
         Relationships: [];
       };
+      assistant_messages: {
+        Row: {
+          id: string;
+          user_id: string;
+          role: "user" | "assistant";
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          role: "user" | "assistant";
+          content: string;
+          created_at?: string;
+        };
+        Update: {
+          role?: "user" | "assistant";
+          content?: string;
+        };
+        Relationships: [];
+      };
     };
   };
 }

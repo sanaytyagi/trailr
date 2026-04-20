@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, Share2, Users, CalendarDays, BookText, ListTree } from "lucide-react";
+import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, Share2, Users, CalendarDays, BookText, ListTree, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -31,8 +31,20 @@ export function Header() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
+        setUser(session?.user ?? null);
+      } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+        setUser(null);
+      } else {
+        setUser(session?.user ?? null);
+      }
+    });
+    // If the stored token is already invalid on mount, clear it silently
+    supabase.auth.getSession().then(({ error }) => {
+      if (error?.message?.toLowerCase().includes("refresh token")) {
+        supabase.auth.signOut();
+      }
     });
     return () => subscription.unsubscribe();
   }, [supabase]);
@@ -161,6 +173,19 @@ export function Header() {
               >
                 <ListTree className="h-3.5 w-3.5" />
                 List Builder
+              </Link>
+
+              <Link
+                href={authHref("/assistant")}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  pathname === "/assistant"
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Assistant
               </Link>
             </>
           )}
@@ -337,6 +362,20 @@ export function Header() {
                     >
                       <ListTree className="h-4 w-4" />
                       List Builder
+                    </Link>
+
+                    <Link
+                      href={authHref("/assistant")}
+                      onClick={() => setMobileOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        pathname === "/assistant"
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Assistant
                     </Link>
                   </>
                 )}
