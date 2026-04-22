@@ -299,7 +299,7 @@ function ChatView({
       </div>
 
       {/* Input */}
-      <div className="border-t border-border bg-background">
+      <div className="border-t border-border bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
         <div className="mx-auto max-w-3xl px-4 py-3">
           {showChips && (
             <div className="mb-3 flex flex-wrap gap-2">
