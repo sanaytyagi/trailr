@@ -377,7 +377,7 @@ function TypingIndicatorBubble() {
       <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
         <Sparkles className="h-3.5 w-3.5 text-primary" />
       </div>
-      <div className="max-w-2xl rounded-2xl border border-border/40 bg-muted/60 px-4 py-3">
+      <div className="max-w-2xl rounded-2xl border border-border/50 bg-card px-4 py-3 shadow-sm">
         <div className="flex h-5 items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0ms]" />
           <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:150ms]" />
@@ -404,17 +404,17 @@ function MessageBubble({ message }: { message: UIMessage }) {
           "rounded-2xl px-4 py-3 text-sm",
           isUser
             ? "max-w-[85%] bg-primary text-primary-foreground leading-6"
-            : "max-w-2xl border border-border/40 bg-muted/60 text-foreground leading-relaxed",
+            : "max-w-2xl border border-border/50 bg-card text-foreground leading-relaxed shadow-sm",
         )}
       >
         {isUser ? (
           <div className="whitespace-pre-wrap">{text}</div>
         ) : (
-          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-3 prose-ul:my-3 prose-ol:my-3 prose-headings:mt-4 prose-headings:mb-2 prose-pre:bg-background prose-pre:text-foreground prose-strong:font-semibold prose-strong:text-foreground/90">
+          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2.5 prose-ul:my-2.5 prose-ol:my-2.5 prose-headings:mt-3.5 prose-headings:mb-1.5 prose-headings:font-semibold prose-pre:bg-muted prose-pre:text-foreground prose-strong:font-semibold prose-strong:text-foreground/90">
             <ReactMarkdown
               components={{
                 li: ({ children }) => (
-                  <li className="border-l-2 border-muted py-0.5 pl-3 my-1.5">{children}</li>
+                  <li className="border-l-2 border-border/60 py-0.5 pl-3 my-1.5">{children}</li>
                 ),
               }}
             >
