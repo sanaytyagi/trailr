@@ -342,9 +342,9 @@ function ChatView({
           )}
           {streaming && (
             <div className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-pulse [animation-delay:0ms]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-pulse [animation-delay:200ms]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-pulse [animation-delay:400ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-primary/70 chat-dot" style={{ animationDelay: "0ms" }} />
+              <span className="h-1.5 w-1.5 rounded-full bg-primary/70 chat-dot" style={{ animationDelay: "160ms" }} />
+              <span className="h-1.5 w-1.5 rounded-full bg-primary/70 chat-dot" style={{ animationDelay: "320ms" }} />
               <span>AI is responding…</span>
             </div>
           )}
@@ -405,9 +405,9 @@ function TypingIndicatorBubble() {
       </div>
       <div className="max-w-2xl rounded-2xl border border-border/50 bg-card px-4 py-3 shadow-sm">
         <div className="flex h-5 items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0ms]" />
-          <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:150ms]" />
-          <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:300ms]" />
+          <span className="h-2 w-2 rounded-full bg-muted-foreground/60 chat-dot" style={{ animationDelay: "0ms" }} />
+          <span className="h-2 w-2 rounded-full bg-muted-foreground/60 chat-dot" style={{ animationDelay: "160ms" }} />
+          <span className="h-2 w-2 rounded-full bg-muted-foreground/60 chat-dot" style={{ animationDelay: "320ms" }} />
         </div>
       </div>
     </div>
