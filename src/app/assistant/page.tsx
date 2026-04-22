@@ -273,8 +273,8 @@ function ChatView({
       </div>
 
       {/* Scroll area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto bg-muted/20">
+        <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 pt-6 pb-10">
           {messages.map((m) => (
             <MessageBubble key={m.id} message={m} />
           ))}
