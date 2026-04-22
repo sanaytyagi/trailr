@@ -350,35 +350,40 @@ export function AssistantSidebar({
         </Panel>
       )}
 
-      {/* Panel 4: Essay Health */}
+      {/* Panel 4: Essay Progress */}
       {essayStats && (
-        <Panel icon={<FileText className="h-3.5 w-3.5" />} title="Essay health">
-          <ul className="flex flex-col gap-1.5">
-            {essayStats.essays.map((e, i) => (
-              <li key={i} className="flex items-center gap-2 px-1">
-                <span
-                  className={cn(
-                    "h-2 w-2 shrink-0 rounded-full",
-                    e.pct >= 0.8 ? "bg-emerald-500" : e.pct >= 0.2 ? "bg-amber-500" : "bg-red-500"
-                  )}
-                />
-                <span className="min-w-0 flex-1 truncate text-xs text-foreground/90">{e.college}</span>
-                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                  {e.wordCount}/{e.limit || "?"}
-                </span>
-              </li>
-            ))}
+        <Panel icon={<FileText className="h-3.5 w-3.5" />} title="Essay progress">
+          <ul className="flex flex-col divide-y divide-border/50">
+            {essayStats.essays.map((e, i) => {
+              const pct = Math.min(e.pct, 1);
+              const status = pct >= 0.8 ? "On track" : pct >= 0.2 ? "Drafting" : "Not started";
+              const statusColor = pct >= 0.8 ? "text-emerald-600" : pct >= 0.2 ? "text-amber-600" : "text-muted-foreground/60";
+              return (
+                <li key={i} className="flex items-center justify-between gap-3 px-1 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium text-foreground/90">{e.college}</p>
+                    <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+                      {e.wordCount} / {e.limit || "?"} words
+                    </p>
+                  </div>
+                  <span className={cn("shrink-0 text-[11px] font-medium", statusColor)}>{status}</span>
+                </li>
+              );
+            })}
           </ul>
-          {essayInsight && essayStats.mostBehind.pct < 0.8 && (
-            <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2">
-              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" />
-              <p className="text-[11px] leading-snug text-amber-900">{essayInsight}</p>
-            </div>
-          )}
-          {essayStats.mostBehind.pct >= 0.8 && (
-            <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2">
-              <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" />
-              <p className="text-[11px] leading-snug text-emerald-900">{essayInsight}</p>
+          {essayInsight && (
+            <div className={cn(
+              "mt-2 flex items-start gap-2 rounded-lg border px-2.5 py-2",
+              essayStats.mostBehind.pct < 0.8 ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"
+            )}>
+              {essayStats.mostBehind.pct < 0.8 ? (
+                <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" />
+              ) : (
+                <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" />
+              )}
+              <p className={cn("text-[11px] leading-snug", essayStats.mostBehind.pct < 0.8 ? "text-amber-900" : "text-emerald-900")}>
+                {essayInsight}
+              </p>
             </div>
           )}
         </Panel>
