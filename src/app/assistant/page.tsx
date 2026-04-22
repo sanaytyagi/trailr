@@ -226,13 +226,25 @@ function ChatView({
   const streaming = status === "streaming" || status === "submitted";
   const hasSentAnything = messages.some((m) => m.role === "user");
 
-  // Auto-scroll to bottom when messages change or during streaming.
+  // Scroll to bottom on initial load.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
+
+  const prevMessageCountRef = useRef(messages.length);
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
-    if (nearBottom) {
+    const prev = prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+    if (messages.length > prev) {
+      // New message added — always scroll to bottom.
       el.scrollTop = el.scrollHeight;
+    } else if (streaming) {
+      // During streaming, scroll only if already near bottom.
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+      if (nearBottom) el.scrollTop = el.scrollHeight;
     }
   }, [messages, streaming]);
 
@@ -260,6 +272,8 @@ function ChatView({
   const showChips = !hasSentAnything && !streaming;
   const showTypingIndicator = status === "submitted";
   const lastMessage = messages[messages.length - 1];
+  const streamingMessageId =
+    status === "streaming" && lastMessage?.role === "assistant" ? lastMessage.id : null;
   const showSearching =
     streaming &&
     lastMessage?.role === "assistant" &&
@@ -302,7 +316,7 @@ function ChatView({
             </div>
           )}
           {messages.map((m) => (
-            <MessageBubble key={m.id} message={m} />
+            <MessageBubble key={m.id} message={m} isStreamingTarget={m.id === streamingMessageId} />
           ))}
           {showTypingIndicator && <TypingIndicatorBubble />}
           {showSearching && (
@@ -414,9 +428,41 @@ function TypingIndicatorBubble() {
   );
 }
 
-function MessageBubble({ message }: { message: UIMessage }) {
+function useTypingEffect(target: string, active: boolean): string {
+  const [displayed, setDisplayed] = useState(active ? "" : target);
+  const displayedRef = useRef(active ? "" : target);
+  const rafRef = useRef<number | undefined>();
+
+  useEffect(() => {
+    if (!active) {
+      cancelAnimationFrame(rafRef.current ?? 0);
+      displayedRef.current = target;
+      setDisplayed(target);
+      return;
+    }
+
+    const drain = () => {
+      const pending = target.slice(displayedRef.current.length);
+      if (!pending) return;
+      const next = displayedRef.current + pending.slice(0, 3);
+      displayedRef.current = next;
+      setDisplayed(next);
+      if (next.length < target.length) {
+        rafRef.current = requestAnimationFrame(drain);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(drain);
+    return () => cancelAnimationFrame(rafRef.current ?? 0);
+  }, [target, active]);
+
+  return displayed;
+}
+
+function MessageBubble({ message, isStreamingTarget }: { message: UIMessage; isStreamingTarget: boolean }) {
   const isUser = message.role === "user";
   const text = messageText(message);
+  const displayedText = useTypingEffect(text, isStreamingTarget);
 
   return (
     <div className={cn("flex w-full", isUser ? "justify-end" : "items-start gap-2")}>
@@ -444,7 +490,7 @@ function MessageBubble({ message }: { message: UIMessage }) {
                 ),
               }}
             >
-              {text}
+              {displayedText}
             </ReactMarkdown>
           </div>
         )}
