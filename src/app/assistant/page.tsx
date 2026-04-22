@@ -124,7 +124,19 @@ export default function AssistantPage() {
           setInitialReady(true);
           return;
         }
-        const { message } = (await res.json()) as { message: string };
+        const { message } = (await res.json()) as { message: string | null };
+        if (!message) {
+          // Messages already exist server-side — reload real history.
+          const { data: freshHistory } = await (supabase as any)
+            .from("assistant_messages")
+            .select("id, role, content")
+            .order("created_at", { ascending: true })
+            .limit(20);
+          if (cancelled) return;
+          setInitialMessages(((freshHistory ?? []) as DBMessage[]).map(toUIMessage));
+          setInitialReady(true);
+          return;
+        }
         setInitialMessages([
           {
             id: `opening-${Date.now()}`,
@@ -166,14 +178,18 @@ export default function AssistantPage() {
     try {
       const res = await fetch("/api/assistant/opening", { method: "POST" });
       if (res.ok) {
-        const { message } = (await res.json()) as { message: string };
-        setInitialMessages([
-          {
-            id: `opening-${Date.now()}`,
-            role: "assistant",
-            parts: [{ type: "text", text: message }],
-          },
-        ]);
+        const { message } = (await res.json()) as { message: string | null };
+        if (message) {
+          setInitialMessages([
+            {
+              id: `opening-${Date.now()}`,
+              role: "assistant",
+              parts: [{ type: "text", text: message }],
+            },
+          ]);
+        } else {
+          setInitialMessages([]);
+        }
       } else {
         setInitialMessages([]);
       }
