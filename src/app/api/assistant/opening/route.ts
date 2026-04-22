@@ -45,8 +45,8 @@ export async function POST() {
       .order("created_at", { ascending: true })
       .limit(1) as { data: Array<{ role: "user" | "assistant"; content: string }> | null };
 
-    if (existing && existing.length > 0 && existing[0].role === "assistant") {
-      return NextResponse.json({ message: existing[0].content });
+    if (existing && existing.length > 0) {
+      return NextResponse.json({ message: null });
     }
 
     // Fetch student context.
@@ -151,7 +151,7 @@ export async function POST() {
         })()
       : "No quiz data — student hasn't used List Builder yet.";
 
-    const openingPrompt = `You are Trailr's AI college admissions assistant. Generate a warm but substantive opening message for a student who just opened their assistant for the first time.
+    const openingPrompt = `You are Trailr's AI college admissions assistant. Generate a warm but substantive opening message for a student returning to their assistant.
 
 TODAY: ${today}
 
@@ -167,33 +167,31 @@ Unread counselor comments: ${unreadCommentCount}
 Student preferences (from List Builder quiz):
 ${quizContext}
 
-YOUR TASK:
-Write a personalized opening message that does TWO things:
-1. Lead with the SINGLE most urgent or time-sensitive item from their data. Priority order:
-   a. Any deadline within 14 days that isn't submitted — name the school and exact days remaining.
-   b. Pending decisions from recently-submitted schools — name them.
-   c. Deferrals or waitlists needing a response — name the schools.
-   d. Unread counselor comments — say how many and what to do.
-   e. List structure issue (all reaches, no safeties) — be specific.
-   f. Most pressing in-progress essay — name the school and prompt snippet.
-   g. If nothing urgent, give a specific snapshot of where they stand.
+ANGLE SELECTION — pick the SINGLE most relevant angle from this list based on the student's current data, then lead with it:
+1. URGENT DEADLINE: A deadline within 14 days that isn't yet submitted — name the school and exact days remaining.
+2. RECENT DECISION: A decision just received (accepted/deferred/waitlisted/rejected) and what it means strategically for the rest of their list.
+3. ESSAY BEHIND: An essay that is critically behind relative to its word limit and the school's deadline — name the school and how far behind.
+4. DECISION PATTERN: A pattern emerging across multiple decisions this cycle (e.g., multiple deferrals, strong acceptance streak) and what it signals.
+5. STRATEGIC OBSERVATION: A proactive observation about their list structure, round strategy, or a risk you see — something specific to their actual schools.
+6. REFLECTION PROMPT: A pointed question about a specific school or decision they are actively facing — something that sparks genuine reflection, not a preference question.
 
-2. Then briefly acknowledge 1–2 of their strongest preferences from the quiz (major, career path, key priorities) so they know you understand their goals — not just their deadlines.
+Choose whichever angle has the most concrete, specific data to anchor it. If multiple apply, pick the one with the highest stakes right now.
 
-FORMAT RULES:
+HARD RULES:
+- NEVER ask the student what they want to focus on, what their preferences are, or what they'd like help with. You already know their situation — lead with it.
+- NEVER use the same opening angle or sentence structure as any message listed in RECENT OPENING MESSAGES above.
+- Do NOT open with "Hi!", "Welcome!", "Great to see you!", or any generic greeting.
+- Do NOT reference being an AI or say "as your AI assistant."
 - 3–5 sentences. No bullet points. No headers.
-- Start with the specific urgent situation, not "Hi!" or "Welcome!" or "Great to see you!"
 - Use **bold** for school names and deadlines.
-- Sound like a knowledgeable human advisor who has read their file — not a chatbot intro.
-- Do not say "as your AI assistant" or reference being an AI.
-- End with one direct, specific question or prompt to get them talking.
-- If quiz data is available, reference their major or career goals naturally in the message.`;
+- Sound like a human advisor who has read their file and has something specific to say.
+- End with one direct, specific question that gets them talking about the angle you led with.`;
 
     const { text } = await generateText({
       model: openai("gpt-4o"),
       prompt: openingPrompt,
       maxOutputTokens: 300,
-      temperature: 0.4,
+      temperature: 0.8,
     });
 
     const message = text.trim();
