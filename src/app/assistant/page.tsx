@@ -16,6 +16,7 @@ import {
   PromptInputActions,
   PromptInputAction,
 } from "@/components/ui/prompt-input";
+import { AssistantSidebar } from "@/components/assistant-sidebar";
 
 type DBMessage = { id: string; role: "user" | "assistant"; content: string };
 
@@ -58,6 +59,11 @@ export default function AssistantPage() {
   const [firstCollege, setFirstCollege] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const initializingRef = useRef(false);
+  const setChatInputRef = useRef<(value: string) => void>(() => {});
+
+  const handlePrefill = (text: string) => {
+    setChatInputRef.current(text);
+  };
 
   // Auth + role gating
   useEffect(() => {
@@ -178,13 +184,17 @@ export default function AssistantPage() {
   };
 
   return (
-    <ChatView
-      key={initialMessages.map((m) => m.id).join("|") || "empty"}
-      initialMessages={initialMessages}
-      firstCollege={firstCollege}
-      initError={initError}
-      onReset={handleReset}
-    />
+    <div className="flex h-[calc(100vh-4rem)]">
+      <ChatView
+        key={initialMessages.map((m) => m.id).join("|") || "empty"}
+        initialMessages={initialMessages}
+        firstCollege={firstCollege}
+        initError={initError}
+        onReset={handleReset}
+        setInputRef={setChatInputRef}
+      />
+      <AssistantSidebar userId={profile.id} onPrefillChat={handlePrefill} />
+    </div>
   );
 }
 
@@ -193,11 +203,13 @@ function ChatView({
   firstCollege,
   initError,
   onReset,
+  setInputRef,
 }: {
   initialMessages: UIMessage[];
   firstCollege: string | null;
   initError: string | null;
   onReset: () => void | Promise<void>;
+  setInputRef: React.MutableRefObject<(value: string) => void>;
 }) {
   const transport = useMemo(
     () => new DefaultChatTransport<UIMessage>({ api: "/api/assistant" }),
@@ -223,6 +235,11 @@ function ChatView({
       el.scrollTop = el.scrollHeight;
     }
   }, [messages, streaming]);
+
+  // Expose setInput to the parent via ref so the sidebar can prefill the chat input.
+  useEffect(() => {
+    setInputRef.current = setInput;
+  }, [setInputRef]);
 
   function submit() {
     const trimmed = input.trim();
@@ -250,7 +267,7 @@ function ChatView({
     !messageText(lastMessage).trim();
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
+    <div className="flex h-full flex-1 min-w-0 flex-col">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border bg-card px-6 py-3.5">
         <div className="flex items-center gap-3">

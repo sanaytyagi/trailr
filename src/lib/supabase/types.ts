@@ -318,6 +318,28 @@ export interface Database {
         };
         Relationships: [];
       };
+      assistant_digests: {
+        Row: {
+          id: string;
+          user_id: string;
+          content: string;
+          generated_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          content: string;
+          generated_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          content?: string;
+          generated_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
