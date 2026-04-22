@@ -1,10 +1,10 @@
-import { cn } from "@/lib/utils";
 import {
+  cn,
   getDeadlineStatus,
   formatDeadlineShort,
   getDaysUntilDeadline,
+  type DeadlineStatus,
 } from "@/lib/utils";
-import type { DeadlineStatus } from "@/types";
 
 interface DeadlineBadgeProps {
   label: string;

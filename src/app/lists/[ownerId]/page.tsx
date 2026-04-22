@@ -49,12 +49,14 @@ export default function SharedListPage({ params: paramsPromise }: PageProps) {
       }
 
       // Check if user has access to this list (via list_shares)
-      const { data: shares } = await supabase
-        .from("list_shares")
-        .select("owner_name")
-        .eq("owner_id", params.ownerId)
-        .eq("shared_with_email", user.email)
-        .single();
+      const { data: shares } = user.email
+        ? await supabase
+            .from("list_shares")
+            .select("owner_name")
+            .eq("owner_id", params.ownerId)
+            .eq("shared_with_email", user.email)
+            .single()
+        : { data: null };
 
       if (!shares) {
         setLoading(false);

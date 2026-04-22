@@ -34,6 +34,7 @@ function buildSystemPrompt(ctx: {
     status: string;
   }>;
   listBuilder: Array<{ name: string; tier: string; reason: string }>;
+  quizAnswers: Record<string, unknown> | null;
   counselorConnected: boolean;
   counselorNotes: Array<{ college_name: string | null; note: string }>;
 }) {
@@ -68,6 +69,40 @@ function buildSystemPrompt(ctx: {
         .join("\n")
     : "(student hasn't generated a list via List Builder yet)";
 
+  const quizText = ctx.quizAnswers
+    ? (() => {
+        const q = ctx.quizAnswers as Record<string, unknown>;
+        const testInfo = Array.isArray(q.testTypes) && (q.testTypes as string[]).length > 0
+          ? (q.testTypes as string[]).map((t: string) =>
+              t === "SAT" ? `SAT ${q.satScore ?? "n/a"}` : `ACT ${q.actScore ?? "n/a"}`
+            ).join(", ")
+          : "not yet tested";
+        return [
+          `State: ${q.state || "not provided"}`,
+          `GPA: ${q.gpa}/4.0`,
+          `Test scores: ${testInfo}`,
+          `Intended major: ${q.major || "undecided"}`,
+          `Major ranking importance: ${q.majorImportance}/5`,
+          `Preferred teaching style: ${q.preferenceResearch}`,
+          `Annual budget: ${q.budget}`,
+          `Applying for financial aid (FAFSA): ${q.fafsa ? "Yes" : "No"}`,
+          `Open to loans: ${q.loans}`,
+          `Preferred campus setting: ${q.setting}`,
+          `Preferred school size(s): ${Array.isArray(q.sizes) ? (q.sizes as string[]).join(", ") : q.sizes}`,
+          `School type preference: ${q.schoolType}`,
+          `Career services / co-op importance: ${q.coopImportance}/5`,
+          `Career culture importance: ${q.careerCultureImportance}/5`,
+          q.careerCultureDescription ? `Career culture description: ${q.careerCultureDescription}` : null,
+          `Grad school plans: ${q.gradSchool}${Array.isArray(q.gradSchoolTypes) && (q.gradSchoolTypes as string[]).length > 0 ? ` (${(q.gradSchoolTypes as string[]).join(", ")})` : ""}`,
+          `Target careers/industries: ${q.careers || "not specified"}`,
+          `Alumni network importance: ${q.alumniNetworkImportance}/5`,
+          `Campus diversity importance: ${q.campusDiversityImportance}/5`,
+          `Campus life importance: ${q.campusLifeImportance}/5`,
+          q.otherPriorities ? `Other priorities: ${q.otherPriorities}` : null,
+        ].filter(Boolean).join("\n");
+      })()
+    : "(student hasn't completed the List Builder quiz yet — no preference data available)";
+
   const counselorNotesText = ctx.counselorConnected
     ? ctx.counselorNotes.length
       ? ctx.counselorNotes
@@ -92,6 +127,9 @@ ${essaysText}
 List Builder — AI-generated shortlist with tiers and reasons:
 ${listBuilderText}
 
+Student preferences from List Builder quiz:
+${quizText}
+
 Counselor notes on the student's colleges:
 ${counselorNotesText}
 
@@ -103,7 +141,8 @@ HOW TO RESPOND:
 - Defer to the counselor on major strategic decisions (final college list, ED vs EA strategy, whether to appeal a decision, etc.) when one is connected. Offer your own perspective, then recommend they confirm with their counselor.
 - NEVER guarantee admissions outcomes. Talk in terms of fit, competitiveness, and probability — never "you'll get in" or "you won't get in".
 - Be encouraging but honest. If their list is reach-heavy, say so plainly; if an essay draft isn't working, point out specifically why. Don't flatter, don't catastrophize.
-- Format responses in markdown: use bullet points for lists, **bold** for emphasis, and short paragraphs. Keep responses focused — don't dump everything you know, answer the question they actually asked.
+- Format responses in markdown: use bullet points for lists and short paragraphs. Keep responses focused — don't dump everything you know, answer the question they actually asked.
+- Use **bold** sparingly — only for the single most critical piece of information in the entire response, such as a deadline date, a decision outcome, or the most important action item. Never bold every school name, every section header, or every key term. Plain prose with occasional selective bold is the target; if in doubt, don't bold it.
 - If context is missing (e.g., they ask about "my Stanford essay" and there isn't one tracked), ask a clarifying question instead of guessing.`;
 }
 
@@ -202,11 +241,18 @@ export async function POST(req: NextRequest) {
     });
 
     const listBuilderRaw = (listRes.data?.colleges ?? []) as unknown;
-    const listBuilder = Array.isArray(listBuilderRaw)
-      ? (listBuilderRaw as Array<{ name?: string; tier?: string; reason?: string }>)
-          .filter((c) => c && typeof c.name === "string")
-          .map((c) => ({ name: c.name!, tier: c.tier ?? "?", reason: c.reason ?? "" }))
-      : [];
+    let listBuilderEntries: unknown[] = [];
+    let quizAnswers: Record<string, unknown> | null = null;
+    if (Array.isArray(listBuilderRaw)) {
+      listBuilderEntries = listBuilderRaw;
+    } else if (listBuilderRaw && typeof listBuilderRaw === "object") {
+      const obj = listBuilderRaw as Record<string, unknown>;
+      if (Array.isArray(obj.list)) listBuilderEntries = obj.list;
+      if (obj.quiz_answers && typeof obj.quiz_answers === "object") quizAnswers = obj.quiz_answers as Record<string, unknown>;
+    }
+    const listBuilder = (listBuilderEntries as Array<{ name?: string; tier?: string; reason?: string }>)
+      .filter((c) => c && typeof c.name === "string")
+      .map((c) => ({ name: c.name!, tier: c.tier ?? "?", reason: c.reason ?? "" }));
 
     const counselorNotes = (notesRes.data ?? []).map((row: any) => ({
       college_name: row.colleges?.name ?? null,
@@ -222,6 +268,7 @@ export async function POST(req: NextRequest) {
       colleges,
       essays,
       listBuilder,
+      quizAnswers,
       counselorConnected: !!profile.counselor_id,
       counselorNotes,
     });

@@ -88,7 +88,15 @@ export async function POST() {
       colleges: { name: string } | null;
     }>;
     const listRaw = (listRes.data?.colleges ?? []) as unknown;
-    const listEntries: ListBuilderEntry[] = Array.isArray(listRaw) ? (listRaw as ListBuilderEntry[]) : [];
+    let listEntries: ListBuilderEntry[] = [];
+    let quizAnswers: Record<string, unknown> | null = null;
+    if (Array.isArray(listRaw)) {
+      listEntries = listRaw as ListBuilderEntry[];
+    } else if (listRaw && typeof listRaw === "object") {
+      const obj = listRaw as Record<string, unknown>;
+      if (Array.isArray(obj.list)) listEntries = obj.list as ListBuilderEntry[];
+      if (obj.quiz_answers && typeof obj.quiz_answers === "object") quizAnswers = obj.quiz_answers as Record<string, unknown>;
+    }
     const unreadCommentCount = ((commentsRes.data ?? []) as Array<unknown>).length;
     const today = new Date().toISOString().slice(0, 10);
 
@@ -121,7 +129,29 @@ export async function POST() {
           .join("\n")
       : "none";
 
-    const openingPrompt = `You are Trailr's AI college admissions assistant. Generate a single proactive opening message for a student who just opened their assistant for the first time.
+    const quizContext = quizAnswers
+      ? (() => {
+          const q = quizAnswers;
+          const testInfo = Array.isArray(q.testTypes) && (q.testTypes as string[]).length > 0
+            ? (q.testTypes as string[]).map((t: string) =>
+                t === "SAT" ? `SAT ${q.satScore ?? "n/a"}` : `ACT ${q.actScore ?? "n/a"}`
+              ).join(", ")
+            : "not yet tested";
+          return [
+            `GPA: ${q.gpa}/4.0, Tests: ${testInfo}`,
+            `Intended major: ${q.major || "undecided"}`,
+            `Target careers: ${q.careers || "not specified"}`,
+            `Grad school: ${q.gradSchool}${Array.isArray(q.gradSchoolTypes) && (q.gradSchoolTypes as string[]).length > 0 ? ` (${(q.gradSchoolTypes as string[]).join(", ")})` : ""}`,
+            `Preferences: ${q.setting} setting, ${Array.isArray(q.sizes) ? (q.sizes as string[]).join("/") : q.sizes} school, ${q.schoolType} institution`,
+            `Budget: ${q.budget}, FAFSA: ${q.fafsa ? "Yes" : "No"}, Loans: ${q.loans}`,
+            `Key priorities: major ranking ${q.majorImportance}/5, career services ${q.coopImportance}/5, alumni network ${q.alumniNetworkImportance}/5`,
+            q.otherPriorities ? `Other priorities: ${q.otherPriorities}` : null,
+            q.careerCultureDescription ? `Career culture: ${q.careerCultureDescription}` : null,
+          ].filter(Boolean).join("\n");
+        })()
+      : "No quiz data — student hasn't used List Builder yet.";
+
+    const openingPrompt = `You are Trailr's AI college admissions assistant. Generate a warm but substantive opening message for a student who just opened their assistant for the first time.
 
 TODAY: ${today}
 
@@ -134,28 +164,35 @@ ${essaysContext}
 
 Unread counselor comments: ${unreadCommentCount}
 
+Student preferences (from List Builder quiz):
+${quizContext}
+
 YOUR TASK:
-Scan the student's data and identify the SINGLE most urgent or notable thing right now. Lead with that specifically. Priority order:
-1. Any deadline within 14 days that isn't submitted — name the school and exact days remaining.
-2. Any pending decisions (decision=pending, status=submitted) from schools that released decisions recently — name the schools.
-3. Multiple deferrals or waitlists that need a response — name the schools.
-4. Unread counselor comments — say how many and what to do next.
-5. A list structure issue (e.g. all reaches, no safeties) — be specific about the imbalance.
-6. The most pressing essay not yet in "final" status — name the school and prompt.
-7. If nothing is urgent, give a brief specific snapshot of where they stand (name real schools, not generic counts).
+Write a personalized opening message that does TWO things:
+1. Lead with the SINGLE most urgent or time-sensitive item from their data. Priority order:
+   a. Any deadline within 14 days that isn't submitted — name the school and exact days remaining.
+   b. Pending decisions from recently-submitted schools — name them.
+   c. Deferrals or waitlists needing a response — name the schools.
+   d. Unread counselor comments — say how many and what to do.
+   e. List structure issue (all reaches, no safeties) — be specific.
+   f. Most pressing in-progress essay — name the school and prompt snippet.
+   g. If nothing urgent, give a specific snapshot of where they stand.
+
+2. Then briefly acknowledge 1–2 of their strongest preferences from the quiz (major, career path, key priorities) so they know you understand their goals — not just their deadlines.
 
 FORMAT RULES:
-- 2–3 sentences maximum. No bullet points. No headers.
-- Start with the specific situation, not "Hi!" or "Welcome!" or "Great to see you!"
+- 3–5 sentences. No bullet points. No headers.
+- Start with the specific urgent situation, not "Hi!" or "Welcome!" or "Great to see you!"
 - Use **bold** for school names and deadlines.
-- Sound like a knowledgeable human advisor checking in, not a chatbot intro message.
+- Sound like a knowledgeable human advisor who has read their file — not a chatbot intro.
 - Do not say "as your AI assistant" or reference being an AI.
-- End with one direct, specific question or prompt to get them talking.`;
+- End with one direct, specific question or prompt to get them talking.
+- If quiz data is available, reference their major or career goals naturally in the message.`;
 
     const { text } = await generateText({
       model: openai("gpt-4o"),
       prompt: openingPrompt,
-      maxOutputTokens: 150,
+      maxOutputTokens: 300,
       temperature: 0.4,
     });
 

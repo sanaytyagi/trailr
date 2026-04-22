@@ -195,10 +195,12 @@ export function useTrackedColleges() {
         console.error("removeCollege:", error.message);
         // Resync state
         const { data: currentUser } = await supabase.auth.getUser();
+        const userId = currentUser.user?.id;
+        if (!userId) return;
         const { data } = await supabase
           .from("user_colleges")
           .select("*, college:colleges(*)")
-          .eq("user_id", currentUser.user?.id)
+          .eq("user_id", userId)
           .order("added_at", { ascending: true });
         if (data) {
           setTrackedColleges(

@@ -3,6 +3,7 @@ import { DM_Sans, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Header } from "@/components/header";
+import { Agentation } from "agentation";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -37,6 +38,7 @@ export default function RootLayout({
           <Header />
           {children}
           <Toaster position="bottom-right" richColors />
+          {process.env.NODE_ENV === "development" && <Agentation />}
         </TooltipProvider>
       </body>
     </html>

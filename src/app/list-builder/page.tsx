@@ -28,6 +28,7 @@ export default function ListBuilderPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [savedList, setSavedList] = useState<GeneratedCollege[] | null>(null);
+  const [savedQuizAnswers, setSavedQuizAnswers] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +66,13 @@ export default function ListBuilderPage() {
         .single();
 
       if (data?.colleges) {
-        setSavedList(data.colleges);
+        const raw = data.colleges;
+        if (Array.isArray(raw)) {
+          setSavedList(raw);
+        } else if (raw && typeof raw === "object" && Array.isArray((raw as any).list)) {
+          setSavedList((raw as any).list);
+          setSavedQuizAnswers((raw as any).quiz_answers ?? null);
+        }
       }
       setLoading(false);
     }
@@ -121,6 +128,7 @@ export default function ListBuilderPage() {
 
       const { colleges } = responseData;
       setSavedList(colleges);
+      setSavedQuizAnswers(answers);
 
       // Save to Supabase
       await (supabase as any)
@@ -128,7 +136,7 @@ export default function ListBuilderPage() {
         .upsert(
           {
             user_id: user.id,
-            colleges,
+            colleges: { list: colleges, quiz_answers: answers },
             updated_at: new Date().toISOString(),
           },
           { onConflict: "user_id" }
@@ -149,7 +157,7 @@ export default function ListBuilderPage() {
     await (supabase as any)
       .from("user_lists")
       .upsert(
-        { user_id: user.id, colleges: updated, updated_at: new Date().toISOString() },
+        { user_id: user.id, colleges: { list: updated, quiz_answers: savedQuizAnswers }, updated_at: new Date().toISOString() },
         { onConflict: "user_id" }
       );
   };
@@ -191,7 +199,7 @@ export default function ListBuilderPage() {
     await (supabase as any)
       .from("user_lists")
       .upsert(
-        { user_id: user.id, colleges: updated, updated_at: new Date().toISOString() },
+        { user_id: user.id, colleges: { list: updated, quiz_answers: savedQuizAnswers }, updated_at: new Date().toISOString() },
         { onConflict: "user_id" }
       );
   };

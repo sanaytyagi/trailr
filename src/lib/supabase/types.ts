@@ -47,6 +47,7 @@ export interface Database {
           college_type?: string | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       user_colleges: {
         Row: {
@@ -88,6 +89,7 @@ export interface Database {
           sort_order?: number | null;
           updated_at?: string;
         };
+        Relationships: [];
       };
       user_lists: {
         Row: {
@@ -208,7 +210,7 @@ export interface Database {
           metadata?: Json | null;
           created_at?: string;
         };
-        Update: never;
+        Update: Record<string, never>;
         Relationships: [];
       };
       essays: {
@@ -316,6 +318,18 @@ export interface Database {
         };
         Relationships: [];
       };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      [_ in never]: never;
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
     };
   };
 }

@@ -35,6 +35,8 @@ interface FormData {
 }
 
 interface FormErrors {
+  firstName?: string;
+  lastName?: string;
   name?: string;
   email?: string;
   password?: string;

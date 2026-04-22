@@ -3,12 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import { ArrowUp, Globe, Sparkles, RotateCcw } from "lucide-react";
+import { ArrowUp, Globe, Sparkles, RotateCcw, Square } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isToolUIPart, type UIMessage } from "ai";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/use-profile";
+import { Button } from "@/components/ui/button";
+import {
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputActions,
+  PromptInputAction,
+} from "@/components/ui/prompt-input";
 
 type DBMessage = { id: string; role: "user" | "assistant"; content: string };
 
@@ -50,6 +57,7 @@ export default function AssistantPage() {
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
   const [firstCollege, setFirstCollege] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
+  const initializingRef = useRef(false);
 
   // Auth + role gating
   useEffect(() => {
@@ -64,13 +72,15 @@ export default function AssistantPage() {
     }
   }, [profile, profileLoading, router]);
 
-  // Load history + opening + first college (only once we know we're a student)
+  // Load history + opening + first college
   useEffect(() => {
     if (profileLoading || !profile || profile.role !== "student") return;
 
     let cancelled = false;
 
     async function init() {
+      if (initializingRef.current) return;
+      initializingRef.current = true;
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const db = supabase as any;
@@ -101,7 +111,6 @@ export default function AssistantPage() {
           return;
         }
 
-        // No history — fetch opening message from server (which also persists it).
         const res = await fetch("/api/assistant/opening", { method: "POST" });
         if (cancelled) return;
         if (!res.ok) {
@@ -123,6 +132,8 @@ export default function AssistantPage() {
         console.error("Failed to init assistant:", err);
         setInitError(err instanceof Error ? err.message : "Failed to load assistant");
         setInitialReady(true);
+      } finally {
+        initializingRef.current = false;
       }
     }
 
@@ -140,13 +151,39 @@ export default function AssistantPage() {
     );
   }
 
+  const handleReset = async () => {
+    initializingRef.current = false;
+    setInitialReady(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any;
+    await db.from("assistant_messages").delete().eq("user_id", profile.id);
+    try {
+      const res = await fetch("/api/assistant/opening", { method: "POST" });
+      if (res.ok) {
+        const { message } = (await res.json()) as { message: string };
+        setInitialMessages([
+          {
+            id: `opening-${Date.now()}`,
+            role: "assistant",
+            parts: [{ type: "text", text: message }],
+          },
+        ]);
+      } else {
+        setInitialMessages([]);
+      }
+    } catch {
+      setInitialMessages([]);
+    }
+    setInitialReady(true);
+  };
+
   return (
     <ChatView
       key={initialMessages.map((m) => m.id).join("|") || "empty"}
       initialMessages={initialMessages}
       firstCollege={firstCollege}
       initError={initError}
-      onReset={() => setInitialMessages([])}
+      onReset={handleReset}
     />
   );
 }
@@ -160,57 +197,42 @@ function ChatView({
   initialMessages: UIMessage[];
   firstCollege: string | null;
   initError: string | null;
-  onReset: () => void;
+  onReset: () => void | Promise<void>;
 }) {
   const transport = useMemo(
     () => new DefaultChatTransport<UIMessage>({ api: "/api/assistant" }),
     [],
   );
 
-  const { messages, sendMessage, status, setMessages, error } = useChat({
+  const { messages, sendMessage, stop, status, setMessages, error } = useChat({
     messages: initialMessages,
     transport,
   });
 
   const [input, setInput] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const streaming = status === "streaming" || status === "submitted";
   const hasSentAnything = messages.some((m) => m.role === "user");
-
-  // Auto-grow textarea up to 4 lines.
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const lineHeight = 24;
-    const maxHeight = lineHeight * 4 + 16;
-    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
-  }, [input]);
 
   // Auto-scroll to bottom when messages change or during streaming.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    // Only pull to bottom if user is already near the bottom.
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
     if (nearBottom) {
       el.scrollTop = el.scrollHeight;
     }
   }, [messages, streaming]);
 
-  function submit(text: string) {
-    const trimmed = text.trim();
+  function submit() {
+    const trimmed = input.trim();
     if (!trimmed || streaming) return;
     setInput("");
     sendMessage({ text: trimmed });
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      submit(input);
-    }
+  function handleStop() {
+    stop();
   }
 
   function handleNewConversation() {
@@ -219,6 +241,7 @@ function ChatView({
   }
 
   const showChips = !hasSentAnything && !streaming;
+  const showTypingIndicator = status === "submitted";
   const lastMessage = messages[messages.length - 1];
   const showSearching =
     streaming &&
@@ -255,6 +278,7 @@ function ChatView({
           {messages.map((m) => (
             <MessageBubble key={m.id} message={m} />
           ))}
+          {showTypingIndicator && <TypingIndicatorBubble />}
           {showSearching && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
               <Globe className="h-4 w-4" />
@@ -274,42 +298,61 @@ function ChatView({
         </div>
       </div>
 
-      {/* Input + chips */}
+      {/* Input */}
       <div className="border-t border-border bg-background">
         <div className="mx-auto max-w-3xl px-4 py-3">
           {showChips && (
             <div className="mb-3 flex flex-wrap gap-2">
-              <Chip onClick={() => submit(SUGGESTED_PROMPTS.prioritize)} label={SUGGESTED_PROMPTS.prioritize} />
+              <Chip onClick={() => { setInput(SUGGESTED_PROMPTS.prioritize); }} label={SUGGESTED_PROMPTS.prioritize} />
               {firstCollege && (
                 <Chip
-                  onClick={() => submit(`Tell me about ${firstCollege}`)}
+                  onClick={() => { setInput(`Tell me about ${firstCollege}`); }}
                   label={`Tell me about ${firstCollege}`}
                 />
               )}
-              <Chip onClick={() => submit(SUGGESTED_PROMPTS.brainstorm)} label={SUGGESTED_PROMPTS.brainstorm} />
-              <Chip onClick={() => submit(SUGGESTED_PROMPTS.earlyAction)} label={SUGGESTED_PROMPTS.earlyAction} />
+              <Chip onClick={() => { setInput(SUGGESTED_PROMPTS.brainstorm); }} label={SUGGESTED_PROMPTS.brainstorm} />
+              <Chip onClick={() => { setInput(SUGGESTED_PROMPTS.earlyAction); }} label={SUGGESTED_PROMPTS.earlyAction} />
             </div>
           )}
-          <div className="flex items-end gap-2 rounded-2xl border border-border bg-card px-3 py-2 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={streaming}
+          {streaming && (
+            <div className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-pulse [animation-delay:0ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-pulse [animation-delay:200ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-pulse [animation-delay:400ms]" />
+              <span>AI is responding…</span>
+            </div>
+          )}
+          <PromptInput
+            value={input}
+            onValueChange={setInput}
+            isLoading={streaming}
+            onSubmit={submit}
+            className="w-full"
+          >
+            <PromptInputTextarea
               placeholder={streaming ? "Waiting for response…" : "Ask anything about your applications…"}
-              className="flex-1 resize-none bg-transparent text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             />
-            <button
-              onClick={() => submit(input)}
-              disabled={streaming || !input.trim()}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Send message"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </button>
-          </div>
+            <PromptInputActions className="justify-end pt-1">
+              <PromptInputAction
+                tooltip={streaming ? "Stop generation" : "Send message"}
+                side="top"
+              >
+                <Button
+                  variant="default"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={streaming ? handleStop : submit}
+                  disabled={!streaming && !input.trim()}
+                >
+                  {streaming ? (
+                    <Square className="size-4 fill-current" />
+                  ) : (
+                    <ArrowUp className="size-4" />
+                  )}
+                </Button>
+              </PromptInputAction>
+            </PromptInputActions>
+          </PromptInput>
         </div>
       </div>
     </div>
@@ -327,25 +370,55 @@ function Chip({ label, onClick }: { label: string; onClick: () => void }) {
   );
 }
 
+function TypingIndicatorBubble() {
+  return (
+    <div className="flex w-full items-start gap-2">
+      <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
+      </div>
+      <div className="max-w-2xl rounded-2xl border border-border/40 bg-muted/60 px-4 py-3">
+        <div className="flex h-5 items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0ms]" />
+          <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:150ms]" />
+          <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:300ms]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MessageBubble({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";
   const text = messageText(message);
 
   return (
-    <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("flex w-full", isUser ? "justify-end" : "items-start gap-2")}>
+      {!isUser && (
+        <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+        </div>
+      )}
       <div
         className={cn(
-          "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-6",
+          "rounded-2xl px-4 py-3 text-sm",
           isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted/40 text-foreground",
+            ? "max-w-[85%] bg-primary text-primary-foreground leading-6"
+            : "max-w-2xl border border-border/40 bg-muted/60 text-foreground leading-relaxed",
         )}
       >
         {isUser ? (
           <div className="whitespace-pre-wrap">{text}</div>
         ) : (
-          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-headings:mt-3 prose-headings:mb-1 prose-pre:bg-background prose-pre:text-foreground">
-            <ReactMarkdown>{text}</ReactMarkdown>
+          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-3 prose-ul:my-3 prose-ol:my-3 prose-headings:mt-4 prose-headings:mb-2 prose-pre:bg-background prose-pre:text-foreground prose-strong:font-semibold prose-strong:text-foreground/90">
+            <ReactMarkdown
+              components={{
+                li: ({ children }) => (
+                  <li className="border-l-2 border-muted py-0.5 pl-3 my-1.5">{children}</li>
+                ),
+              }}
+            >
+              {text}
+            </ReactMarkdown>
           </div>
         )}
       </div>

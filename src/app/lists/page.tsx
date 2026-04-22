@@ -72,10 +72,12 @@ export default function ListsPage() {
       }
 
       // Fetch shares where user is the recipient
-      const { data: shares } = await supabase
-        .from("list_shares")
-        .select("id, owner_id, owner_email, owner_name, shared_with_email")
-        .eq("shared_with_email", authUser.email);
+      const { data: shares } = authUser.email
+        ? await supabase
+            .from("list_shares")
+            .select("id, owner_id, owner_email, owner_name, shared_with_email")
+            .eq("shared_with_email", authUser.email)
+        : { data: [] };
 
       if (shares && shares.length > 0) {
         // For each share, fetch owner's college stats

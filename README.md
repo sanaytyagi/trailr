@@ -1,5 +1,13 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Claude Code Setup
+
+This project uses [gstack](https://github.com/garrytan/gstack) for AI-assisted development. After cloning, run once to set it up locally:
+
+```bash
+git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup
+```
+
 ## Getting Started
 
 First, run the development server:
