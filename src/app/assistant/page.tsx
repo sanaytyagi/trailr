@@ -272,8 +272,6 @@ function ChatView({
   const showChips = !hasSentAnything && !streaming;
   const showTypingIndicator = status === "submitted";
   const lastMessage = messages[messages.length - 1];
-  const streamingMessageId =
-    status === "streaming" && lastMessage?.role === "assistant" ? lastMessage.id : null;
   const showSearching =
     streaming &&
     lastMessage?.role === "assistant" &&
@@ -316,7 +314,7 @@ function ChatView({
             </div>
           )}
           {messages.map((m) => (
-            <MessageBubble key={m.id} message={m} isStreamingTarget={m.id === streamingMessageId} />
+            <MessageBubble key={m.id} message={m} />
           ))}
           {showTypingIndicator && <TypingIndicatorBubble />}
           {showSearching && (
@@ -428,41 +426,9 @@ function TypingIndicatorBubble() {
   );
 }
 
-function useTypingEffect(target: string, active: boolean): string {
-  const [displayed, setDisplayed] = useState(active ? "" : target);
-  const displayedRef = useRef(active ? "" : target);
-  const rafRef = useRef<number | undefined>();
-
-  useEffect(() => {
-    if (!active) {
-      cancelAnimationFrame(rafRef.current ?? 0);
-      displayedRef.current = target;
-      setDisplayed(target);
-      return;
-    }
-
-    const drain = () => {
-      const pending = target.slice(displayedRef.current.length);
-      if (!pending) return;
-      const next = displayedRef.current + pending.slice(0, 3);
-      displayedRef.current = next;
-      setDisplayed(next);
-      if (next.length < target.length) {
-        rafRef.current = requestAnimationFrame(drain);
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(drain);
-    return () => cancelAnimationFrame(rafRef.current ?? 0);
-  }, [target, active]);
-
-  return displayed;
-}
-
-function MessageBubble({ message, isStreamingTarget }: { message: UIMessage; isStreamingTarget: boolean }) {
+function MessageBubble({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";
   const text = messageText(message);
-  const displayedText = useTypingEffect(text, isStreamingTarget);
 
   return (
     <div className={cn("flex w-full", isUser ? "justify-end" : "items-start gap-2")}>
@@ -490,7 +456,7 @@ function MessageBubble({ message, isStreamingTarget }: { message: UIMessage; isS
                 ),
               }}
             >
-              {displayedText}
+              {text}
             </ReactMarkdown>
           </div>
         )}
