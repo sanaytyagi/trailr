@@ -252,23 +252,23 @@ function ChatView({
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
       {/* Header */}
-      <div className="flex items-start justify-between border-b border-border bg-card px-6 py-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
-            <Sparkles className="h-5 w-5 text-primary" />
-            AI Assistant
-          </h1>
-          <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
-            AI-generated advice — always verify important information and consult your counselor for major decisions.
-          </p>
+      <div className="flex items-center justify-between border-b border-border bg-card px-6 py-3.5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <Sparkles className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold tracking-tight text-foreground">AI Counselor</h1>
+            <p className="text-xs text-muted-foreground">Personalized college guidance based on your applications</p>
+          </div>
         </div>
         <button
           onClick={handleNewConversation}
           disabled={streaming || messages.length === 0}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <RotateCcw className="h-3.5 w-3.5" />
-          New conversation
+          <RotateCcw className="h-3 w-3" />
+          New chat
         </button>
       </div>
 
