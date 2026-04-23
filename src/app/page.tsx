@@ -1535,19 +1535,12 @@ export default function HomePage() {
             <p className="text-sm text-muted-foreground mb-10 max-w-md mx-auto leading-relaxed">
               Students track applications and write essays. Counselors monitor progress and leave feedback. Everyone stays on the same page.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex items-center justify-center">
               <Link
                 href="/auth?mode=signup"
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
               >
-                Start Tracking Free
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/auth?mode=signup&role=counselor"
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-8 py-3.5 text-sm font-semibold text-foreground hover:bg-muted/60 transition-colors shadow-sm"
-              >
-                I'm a Counselor
+                Get Started Free
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

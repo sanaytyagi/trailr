@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, BookText, Loader2, MessageSquare, Search, ChevronRight, ArrowLeft, Minus } from "lucide-react";
+import { Plus, BookText, Loader2, MessageSquare, Search, ChevronRight, ChevronLeft, ArrowLeft, Minus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useTrackedColleges } from "@/hooks/use-tracked-colleges";
 import { useProfile } from "@/hooks/use-profile";
@@ -373,6 +373,7 @@ function EssaysPageInner() {
   const [addOpen, setAddOpen] = useState(false);
   const [lockedCollegeId, setLockedCollegeId] = useState<string | null>(null);
   const [selectedCollegeId, setSelectedCollegeId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     if (searchParams.get("add") === "true") setAddOpen(true);
@@ -474,61 +475,76 @@ function EssaysPageInner() {
     <div className="flex min-h-[calc(100vh-4rem)]">
 
       {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-      <aside className="w-64 shrink-0 border-r border-border bg-card overflow-y-auto sticky top-16 h-[calc(100vh-4rem)]">
-        {/* Header */}
-        <div className="px-4 py-4 border-b border-border">
-          <h1 className="text-sm font-semibold text-foreground">My Essays</h1>
-          {!showLoader && essays.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {essays.length} essay{essays.length !== 1 ? "s" : ""} · {collegesWithEssays.length} school{collegesWithEssays.length !== 1 ? "s" : ""}
-            </p>
-          )}
-        </div>
+      <div className={cn(
+        "relative shrink-0 sticky top-16 h-[calc(100vh-4rem)] transition-all duration-200",
+        sidebarOpen ? "w-64" : "w-0"
+      )}>
+        <aside className="h-full border-r border-border bg-card overflow-hidden">
+          {/* Header */}
+          <div className="px-4 py-4 border-b border-border">
+            <h1 className="text-sm font-semibold text-foreground">My Essays</h1>
+            {!showLoader && essays.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {essays.length} essay{essays.length !== 1 ? "s" : ""} · {collegesWithEssays.length} school{collegesWithEssays.length !== 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
 
-        {/* College list */}
-        {showLoader ? (
-          <div className="p-3 space-y-2">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-14 rounded-lg bg-muted animate-pulse" />
-            ))}
+          {/* College list */}
+          <div className="overflow-y-auto h-[calc(100%-57px)]">
+            {showLoader ? (
+              <div className="p-3 space-y-2">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-14 rounded-lg bg-muted animate-pulse" />
+                ))}
+              </div>
+            ) : collegesWithEssays.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <p className="text-xs text-muted-foreground">No essays yet</p>
+              </div>
+            ) : (
+              <div>
+                {collegesWithEssays.map((college) => {
+                  const essayList = groupedByCollege.get(college.id) ?? [];
+                  const isActive = selectedCollegeId === college.id;
+                  return (
+                    <button
+                      key={college.id}
+                      onClick={() => setSelectedCollegeId(college.id)}
+                      className={cn(
+                        "w-full text-left px-4 py-3 border-l-2 transition-colors",
+                        isActive ? "border-primary bg-primary/8" : "border-transparent hover:bg-muted/50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={cn("text-sm font-medium truncate", isActive ? "text-primary" : "text-foreground")}>
+                          {college.name}
+                        </span>
+                        <span className="text-xs bg-muted rounded-full px-1.5 py-0.5 ml-2 shrink-0 tabular-nums">
+                          {essayList.length}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {essayList.map((e) => (
+                          <span key={e.id} className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDotColor(e))} />
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        ) : collegesWithEssays.length === 0 ? (
-          <div className="px-4 py-8 text-center">
-            <p className="text-xs text-muted-foreground">No essays yet</p>
-          </div>
-        ) : (
-          <div>
-            {collegesWithEssays.map((college) => {
-              const essayList = groupedByCollege.get(college.id) ?? [];
-              const isActive = selectedCollegeId === college.id;
-              return (
-                <button
-                  key={college.id}
-                  onClick={() => setSelectedCollegeId(college.id)}
-                  className={cn(
-                    "w-full text-left px-4 py-3 border-l-2 transition-colors",
-                    isActive ? "border-primary bg-primary/8" : "border-transparent hover:bg-muted/50"
-                  )}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className={cn("text-sm font-medium truncate", isActive ? "text-primary" : "text-foreground")}>
-                      {college.name}
-                    </span>
-                    <span className="text-xs bg-muted rounded-full px-1.5 py-0.5 ml-2 shrink-0 tabular-nums">
-                      {essayList.length}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {essayList.map((e) => (
-                      <span key={e.id} className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDotColor(e))} />
-                    ))}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </aside>
+        </aside>
+
+        {/* Floating tab — left edge always at the sidebar/content boundary */}
+        <button
+          onClick={() => setSidebarOpen((o) => !o)}
+          className="absolute -right-8 top-1/2 -translate-y-1/2 z-20 flex h-14 w-8 items-center justify-center rounded-r-xl border-y border-r border-border bg-card shadow-lg text-foreground hover:bg-muted hover:shadow-xl transition-all"
+        >
+          {sidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
+      </div>
 
       {/* ── Right panel ──────────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 px-8 py-8">

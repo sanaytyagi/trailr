@@ -7,8 +7,9 @@ import {
   ArrowLeft, Loader2, CheckCircle2, X,
   Undo2, Redo2, MessageSquare, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Bold, Italic, Underline,
+  Bold, Italic, Underline, Settings, Plus, Minus, Search,
 } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
 import { useCounselorNotifications } from "@/hooks/use-counselor-notifications";
@@ -44,6 +45,13 @@ interface Segment {
   text: string;
   commentId: string | null;
   colorIndex: number;
+}
+
+interface CollegeOption {
+  id: string;
+  name: string;
+  location: string | null;
+  website_url: string | null;
 }
 
 // ── Color palette ──────────────────────────────────────────────────────────────
@@ -141,6 +149,18 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [viewMode, setViewMode] = useState<"owner" | "counselor" | null>(null);
 
+  // College (tracked so back nav always points to current college)
+  const [collegeId, setCollegeId] = useState<string>("");
+  const [trackedColleges, setTrackedColleges] = useState<CollegeOption[]>([]);
+
+  // Settings modal
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsPrompt, setSettingsPrompt] = useState("");
+  const [settingsWordLimit, setSettingsWordLimit] = useState(650);
+  const [settingsCollegeId, setSettingsCollegeId] = useState("");
+  const [settingsSearch, setSettingsSearch] = useState("");
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
   // Prompt collapsible (Change 1)
   const [promptCollapsed, setPromptCollapsed] = useState(false);
 
@@ -215,6 +235,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
 
       setEssay(essayData as Essay);
       setBody(essayData.body);
+      setCollegeId(essayData.college_id);
 
       const { data: collegeData } = await (supabase as any)
         .from("colleges")
@@ -223,6 +244,17 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         .single();
       setCollegeName((collegeData as { name: string; website_url: string | null } | null)?.name ?? "");
       setCollegeWebsiteUrl((collegeData as { name: string; website_url: string | null } | null)?.website_url ?? null);
+
+      // Fetch tracked colleges for settings
+      const { data: trackedData } = await (supabase as any)
+        .from("user_colleges")
+        .select("colleges!inner(id, name, location, website_url)")
+        .eq("user_id", essayData.user_id);
+      if (trackedData) {
+        setTrackedColleges(
+          (trackedData as { colleges: CollegeOption }[]).map((r) => r.colleges).filter(Boolean)
+        );
+      }
 
       // Load sibling essays for navigation (Change 3)
       const { data: siblingsData } = await (supabase as any)
@@ -394,6 +426,42 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
     essayTextRef.current
       ?.querySelector(`[data-comment="${commentId}"]`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // ── Settings ─────────────────────────────────────────────────────────────────
+
+  function openSettings() {
+    if (!essay) return;
+    setSettingsPrompt(essay.prompt);
+    setSettingsWordLimit(essay.word_limit);
+    setSettingsCollegeId(essay.college_id);
+    setSettingsSearch("");
+    setSettingsOpen(true);
+  }
+
+  async function saveSettings() {
+    if (!essay) return;
+    setSettingsSaving(true);
+    await (supabase as any)
+      .from("essays")
+      .update({ prompt: settingsPrompt, word_limit: settingsWordLimit, college_id: settingsCollegeId })
+      .eq("id", essay.id);
+
+    if (settingsCollegeId !== essay.college_id) {
+      // Fetch new college info
+      const { data: newCollege } = await (supabase as any)
+        .from("colleges")
+        .select("name, website_url")
+        .eq("id", settingsCollegeId)
+        .single();
+      setCollegeName((newCollege as { name: string; website_url: string | null } | null)?.name ?? "");
+      setCollegeWebsiteUrl((newCollege as { name: string; website_url: string | null } | null)?.website_url ?? null);
+      setCollegeId(settingsCollegeId);
+    }
+
+    setEssay((prev) => prev ? { ...prev, prompt: settingsPrompt, word_limit: settingsWordLimit, college_id: settingsCollegeId } : prev);
+    setSettingsSaving(false);
+    setSettingsOpen(false);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -634,7 +702,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         {/* Top bar */}
         <div className="flex items-center gap-3 mb-5">
           <button
-            onClick={() => router.push("/essays")}
+            onClick={() => router.push(`/essays?college=${collegeId}`)}
             className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -646,6 +714,14 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
               {collegeName}
             </span>
           )}
+          <button
+            onClick={openSettings}
+            title="Edit essay settings"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm transition-colors shrink-0"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            Edit Settings
+          </button>
           <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 shrink-0">
             <MessageSquare className="h-3 w-3" />
             {activeComments.length} comment{activeComments.length !== 1 ? "s" : ""}
@@ -725,6 +801,74 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
           </div>
         </div>
 
+        {/* Settings modal (review mode) */}
+        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <DialogContent showCloseButton={false} className="p-0 gap-0 max-w-lg overflow-hidden rounded-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <p className="text-sm font-semibold text-foreground">Edit Essay Settings</p>
+              <button onClick={() => setSettingsOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-5 px-5 py-5 max-h-[70vh] overflow-y-auto">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Essay Prompt</label>
+                <textarea value={settingsPrompt} onChange={(e) => setSettingsPrompt(e.target.value)} placeholder="Paste the essay prompt here…" rows={4}
+                  className="rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Word Limit</label>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setSettingsWordLimit((w) => Math.max(50, w - 50))}
+                    className="h-8 w-8 rounded-lg border border-input bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <input type="number" value={settingsWordLimit} step={50} min={50}
+                    onChange={(e) => setSettingsWordLimit(Math.max(50, Math.round(parseInt(e.target.value) / 50) * 50 || 50))}
+                    className="h-8 w-20 rounded-lg border border-input bg-background px-3 text-sm text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-ring" />
+                  <button type="button" onClick={() => setSettingsWordLimit((w) => w + 50)}
+                    className="h-8 w-8 rounded-lg border border-input bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              {trackedColleges.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">College</label>
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+                      <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <input value={settingsSearch} onChange={(e) => setSettingsSearch(e.target.value)} placeholder="Search schools…"
+                        className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
+                    </div>
+                    <div className="max-h-44 overflow-y-auto">
+                      {trackedColleges.filter((c) => c.name.toLowerCase().includes(settingsSearch.toLowerCase())).map((c) => (
+                        <button key={c.id} type="button" onClick={() => setSettingsCollegeId(c.id)}
+                          className={cn("w-full text-left flex items-center gap-3 px-3 py-2.5 transition-colors", settingsCollegeId === c.id ? "bg-primary/8" : "hover:bg-muted/40")}>
+                          <CollegeLogo name={c.name} website_url={c.website_url} size={28} />
+                          <div className="flex-1 min-w-0">
+                            <p className={cn("text-sm font-medium truncate", settingsCollegeId === c.id ? "text-primary" : "text-foreground")}>{c.name}</p>
+                            {c.location && <p className="text-xs text-muted-foreground truncate">{c.location}</p>}
+                          </div>
+                          {settingsCollegeId === c.id && <Check className="h-4 w-4 text-primary shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
+              <button type="button" onClick={() => setSettingsOpen(false)}
+                className="h-9 rounded-lg px-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+              <button type="button" onClick={saveSettings} disabled={settingsSaving || !settingsPrompt.trim()}
+                className="h-9 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                {settingsSaving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
       </main>
     );
   }
@@ -737,7 +881,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
       {/* Top bar */}
       <div className="flex items-center gap-3 mb-5">
         <button
-          onClick={() => router.push("/essays")}
+          onClick={() => router.push(`/essays?college=${collegeId}`)}
           className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors shrink-0"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -750,6 +894,15 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
             {collegeName}
           </span>
         )}
+
+        <button
+          onClick={openSettings}
+          title="Edit essay settings"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm transition-colors shrink-0"
+        >
+          <Settings className="h-3.5 w-3.5" />
+          Edit Settings
+        </button>
 
         {/* Change 3: essay navigation */}
         {siblingEssays.length > 1 && siblingIndex !== -1 && (
@@ -834,6 +987,126 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         <CountFooter />
 
       </div>
+
+      {/* ── Settings modal ─────────────────────────────────────────────── */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent showCloseButton={false} className="p-0 gap-0 max-w-lg overflow-hidden rounded-2xl">
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <p className="text-sm font-semibold text-foreground">Edit Essay Settings</p>
+            <button onClick={() => setSettingsOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-5 px-5 py-5 max-h-[70vh] overflow-y-auto">
+
+            {/* Prompt */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Essay Prompt</label>
+              <textarea
+                value={settingsPrompt}
+                onChange={(e) => setSettingsPrompt(e.target.value)}
+                placeholder="Paste the essay prompt here…"
+                rows={4}
+                className="rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            {/* Word limit */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Word Limit</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSettingsWordLimit((w) => Math.max(50, w - 50))}
+                  className="h-8 w-8 rounded-lg border border-input bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <input
+                  type="number"
+                  value={settingsWordLimit}
+                  onChange={(e) => setSettingsWordLimit(Math.max(50, Math.round(parseInt(e.target.value) / 50) * 50 || 50))}
+                  step={50}
+                  min={50}
+                  className="h-8 w-20 rounded-lg border border-input bg-background px-3 text-sm text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSettingsWordLimit((w) => w + 50)}
+                  className="h-8 w-8 rounded-lg border border-input bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* College */}
+            {trackedColleges.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">College</label>
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+                    <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <input
+                      value={settingsSearch}
+                      onChange={(e) => setSettingsSearch(e.target.value)}
+                      placeholder="Search schools…"
+                      className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                    />
+                  </div>
+                  <div className="max-h-44 overflow-y-auto">
+                    {trackedColleges
+                      .filter((c) => c.name.toLowerCase().includes(settingsSearch.toLowerCase()))
+                      .map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setSettingsCollegeId(c.id)}
+                          className={cn(
+                            "w-full text-left flex items-center gap-3 px-3 py-2.5 transition-colors",
+                            settingsCollegeId === c.id ? "bg-primary/8" : "hover:bg-muted/40"
+                          )}
+                        >
+                          <CollegeLogo name={c.name} website_url={c.website_url} size={28} />
+                          <div className="flex-1 min-w-0">
+                            <p className={cn("text-sm font-medium truncate", settingsCollegeId === c.id ? "text-primary" : "text-foreground")}>
+                              {c.name}
+                            </p>
+                            {c.location && <p className="text-xs text-muted-foreground truncate">{c.location}</p>}
+                          </div>
+                          {settingsCollegeId === c.id && <Check className="h-4 w-4 text-primary shrink-0" />}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(false)}
+              className="h-9 rounded-lg px-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={saveSettings}
+              disabled={settingsSaving || !settingsPrompt.trim()}
+              className="h-9 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {settingsSaving ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
+
+        </DialogContent>
+      </Dialog>
 
     </main>
   );
