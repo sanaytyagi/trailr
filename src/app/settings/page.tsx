@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { PasswordStrengthIndicator } from "@/components/ui/premium-auth";
+import { Calendar, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
-export default function SettingsPage() {
+type CalendarStatus = "loading" | "connected" | "disconnected";
+
+function SettingsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [supabase] = useState(() => createClient());
   const [user, setUser] = useState<User | null>(null);
 
@@ -24,12 +29,45 @@ export default function SettingsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Calendar integration
+  const [calendarStatus, setCalendarStatus] = useState<CalendarStatus>("loading");
+  const [disconnecting, setDisconnecting] = useState(false);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { router.push("/auth"); return; }
       setUser(user);
     });
   }, [supabase, router]);
+
+  // Handle OAuth callback result
+  useEffect(() => {
+    const result = searchParams.get("calendar");
+    if (!result) return;
+    if (result === "connected") toast.success("Google Calendar connected", { description: "Your deadlines will now sync automatically." });
+    else if (result === "denied") toast.info("Google Calendar access denied", { description: "You can connect anytime from this page." });
+    else if (result === "error") toast.error("Couldn't connect Google Calendar", { description: "Something went wrong. Please try again." });
+    router.replace("/settings");
+  }, [searchParams, router]);
+
+  // Fetch calendar connection status
+  useEffect(() => {
+    if (!user) return;
+    fetch("/api/calendar/google/status")
+      .then((r) => r.json())
+      .then((d: { connected: boolean }) => setCalendarStatus(d.connected ? "connected" : "disconnected"))
+      .catch(() => setCalendarStatus("disconnected"));
+  }, [user]);
+
+  async function handleCalendarDisconnect() {
+    setDisconnecting(true);
+    try {
+      const res = await fetch("/api/calendar/google/disconnect", { method: "POST" });
+      if (res.ok) { setCalendarStatus("disconnected"); toast.success("Google Calendar disconnected"); }
+      else toast.error("Couldn't disconnect. Please try again.");
+    } catch { toast.error("Couldn't disconnect. Please try again."); }
+    finally { setDisconnecting(false); }
+  }
 
   function validatePassword(pw: string): string | null {
     if (pw.length < 8)              return "Password must be at least 8 characters.";
@@ -78,7 +116,7 @@ export default function SettingsPage() {
   if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background" suppressHydrationWarning>
       <div className="mx-auto max-w-2xl px-4 py-12">
         <h1 className="text-2xl font-bold text-foreground mb-8">Settings</h1>
 
@@ -151,6 +189,59 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* ── Integrations ── */}
+        <section className="mb-6">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+            Integrations
+          </h2>
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
+            <div className="px-6 py-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <Calendar className="h-4 w-4 text-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Google Calendar</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {calendarStatus === "loading" ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    ) : calendarStatus === "connected" ? (
+                      <>
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                        <span className="text-xs text-emerald-600 font-medium">Connected — deadlines syncing</span>
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-3 w-3 text-muted-foreground/50" />
+                        <span className="text-xs text-muted-foreground">Not connected</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0">
+                {calendarStatus === "loading" ? null : calendarStatus === "connected" ? (
+                  <button
+                    onClick={handleCalendarDisconnect}
+                    disabled={disconnecting}
+                    className="h-8 rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                  >
+                    {disconnecting ? "Disconnecting…" : "Disconnect"}
+                  </button>
+                ) : (
+                  <a
+                    href="/api/calendar/google/connect"
+                    className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    Connect
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ── Danger Zone ── */}
         <section>
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
@@ -208,5 +299,13 @@ export default function SettingsPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsPageInner />
+    </Suspense>
   );
 }

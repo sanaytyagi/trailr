@@ -319,7 +319,7 @@ function ChatView({
 
       {/* Scroll area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto bg-muted/20">
-        <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 pt-6 pb-10">
+        <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 pt-6 pb-10">
           {messages.length === 0 && !showTypingIndicator && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
@@ -354,7 +354,7 @@ function ChatView({
 
       {/* Input */}
       <div className="border-t border-border bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
-        <div className="mx-auto max-w-3xl px-4 py-3">
+        <div className="mx-auto max-w-5xl px-4 pt-4 pb-8">
           {showChips && (
             <div className="mb-3 flex flex-wrap gap-2">
               <Chip onClick={() => { setInput(SUGGESTED_PROMPTS.prioritize); }} label={SUGGESTED_PROMPTS.prioritize} />

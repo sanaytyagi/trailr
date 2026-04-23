@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { logActivity } from "@/lib/activity";
+import { toast } from "sonner";
 import type {
   TrackedCollege,
   ApplicationStatus,
@@ -59,6 +60,9 @@ export function useTrackedColleges() {
 
   const [trackedColleges, setTrackedColleges] = useState<TrackedCollege[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [calendarConnected, setCalendarConnected] = useState(false);
+  // Ref so setDeadline callback always sees the current value without re-creating itself
+  const calendarConnectedRef = useRef(false);
 
   // -------------------------------------------------------------------------
   // Load on mount — fetch this user's rows joined with college data.
@@ -89,6 +93,18 @@ export function useTrackedColleges() {
         setTrackedColleges(
           (data as unknown as UserCollegeRow[]).map(rowToTracked)
         );
+      }
+
+      // Check Google Calendar connection status
+      try {
+        const statusRes = await fetch("/api/calendar/google/status");
+        if (statusRes.ok) {
+          const { connected } = await statusRes.json() as { connected: boolean };
+          setCalendarConnected(connected);
+          calendarConnectedRef.current = connected;
+        }
+      } catch {
+        // Non-blocking — calendar status failure doesn't break the tracker
       }
 
       setHydrated(true);
@@ -323,11 +339,15 @@ export function useTrackedColleges() {
 
   const setDeadline = useCallback(
     (collegeId: string, deadline: string | null) => {
+      // Capture college name before the state update for the calendar sync call
+      const collegeName = trackedColleges.find((c) => c.id === collegeId)?.name ?? "";
+
       setTrackedColleges((prev) =>
         prev.map((c) =>
           c.id === collegeId ? { ...c, personal_deadline: deadline } : c
         )
       );
+
       supabase
         .from("user_colleges")
         .update({ personal_deadline: deadline, updated_at: new Date().toISOString() })
@@ -335,8 +355,29 @@ export function useTrackedColleges() {
         .then(({ error }) => {
           if (error) console.error("setDeadline:", error.message);
         });
+
+      // Fire-and-forget calendar sync if connected
+      if (calendarConnectedRef.current && collegeName) {
+        fetch("/api/calendar/google/sync-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ college_id: collegeId, college_name: collegeName, deadline }),
+        })
+          .then((res) => res.json())
+          .then((data: { disconnected?: boolean }) => {
+            if (data.disconnected) {
+              setCalendarConnected(false);
+              calendarConnectedRef.current = false;
+              toast.warning("Google Calendar disconnected", {
+                description: "Your Google Calendar access was revoked. Reconnect in Settings.",
+                duration: 8000,
+              });
+            }
+          })
+          .catch(() => {}); // Silent fail — calendar sync is best-effort
+      }
     },
-    [supabase]
+    [supabase, trackedColleges]
   );
 
   const setAdmissionsCategory = useCallback(
@@ -360,6 +401,11 @@ export function useTrackedColleges() {
   return {
     trackedColleges,
     hydrated,
+    calendarConnected,
+    setCalendarConnected: (v: boolean) => {
+      setCalendarConnected(v);
+      calendarConnectedRef.current = v;
+    },
     addCollege,
     removeCollege,
     isTracked,
