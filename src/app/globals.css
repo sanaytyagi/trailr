@@ -61,12 +61,15 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html,
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
     /* Prevent stray horizontal scroll from absolute-positioned decorations
        or fixed-width hero mockups overflowing on small viewports. */
     overflow-x: clip;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
