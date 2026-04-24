@@ -259,10 +259,10 @@ export function Header() {
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <button
-                className="flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex h-11 w-11 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label="Open menu"
               >
-                <MenuIcon className="h-4 w-4" />
+                <MenuIcon className="h-5 w-5" />
               </button>
             </SheetTrigger>
             <SheetContent side="right" showClose>

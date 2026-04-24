@@ -175,7 +175,7 @@ function MockRow({
       <td className="px-4 py-3.5"><span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${statusColor}`}>{status}</span></td>
       <td className="px-4 py-3.5"><span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${roundColor}`}>{round}</span></td>
       <td className="px-4 py-3.5"><span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${decisionColor}`}>{decision}</span></td>
-      <td className="px-4 py-3.5 text-xs text-muted-foreground">{deadline}</td>
+      <td className="px-4 py-3.5 text-xs text-muted-foreground tabular-nums">{deadline}</td>
       <td className="pl-2 pr-4 py-3.5">
         <button className="text-muted-foreground/30">
           <Trash2 className="h-3.5 w-3.5" />
@@ -933,7 +933,7 @@ function CounselorPreview() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="flex items-center gap-2.5">
-                    <h2 className="text-base font-bold text-foreground">My Students</h2>
+                    <div className="text-base font-bold text-foreground">My Students</div>
                     <span className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-[11px]">
                       <span className="text-muted-foreground">Invite code</span>
                       <span className="font-mono font-semibold tracking-widest text-foreground">TR-4829</span>
@@ -1107,7 +1107,7 @@ function CounselorPreview() {
                   Back
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-foreground leading-tight">Alex Rivera</h2>
+                  <div className="text-lg font-bold text-foreground leading-tight">Alex Rivera</div>
                   <p className="text-xs text-muted-foreground">alex.r@email.com</p>
                 </div>
               </div>
@@ -1324,10 +1324,7 @@ export default function HomePage() {
           </Reveal>
 
           <Reveal delay={0.14}>
-            <p
-              className="text-xl sm:text-2xl max-w-2xl mx-auto mb-10 leading-relaxed"
-              style={{ color: "#4a5568" }}
-            >
+            <p className="text-xl sm:text-2xl max-w-2xl mx-auto mb-10 leading-relaxed text-muted-foreground">
               Track every application, write your essays, and stay in sync with your counselor — all in one place.
             </p>
           </Reveal>
