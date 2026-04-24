@@ -9,6 +9,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CollegeLogo } from "@/components/college-logo";
+import { SignInRequired } from "@/components/sign-in-required";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -365,7 +366,7 @@ function EssaysPageInner() {
   const searchParams = useSearchParams();
   const [supabase] = useState(() => createClient());
   const { trackedColleges, hydrated } = useTrackedColleges();
-  const { profile } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
 
   const [essays, setEssays] = useState<Essay[]>([]);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
@@ -470,6 +471,12 @@ function EssaysPageInner() {
   }
 
   const showLoader = !hydrated || loading;
+
+  // Anon users land here via /essays direct link — show the unified empty state
+  // instead of the sidebar's infinite skeleton pulse.
+  if (!profileLoading && !profile) {
+    return <SignInRequired description="Sign in to draft and manage your college essays." />;
+  }
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)]">
