@@ -5,7 +5,7 @@ import Footer from "@/components/footer";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { motion, useInView, AnimatePresence } from "framer-motion";
+import { motion, useInView, useReducedMotion, AnimatePresence } from "framer-motion";
 import {
   CalendarDays,
   LayoutList,
@@ -69,6 +69,14 @@ function Reveal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-60px" });
+  const reduceMotion = useReducedMotion();
+
+  // Respect prefers-reduced-motion: render content immediately, no animation.
+  // Also guarantees SSR output is visible if hydration or the intersection
+  // observer never runs (crawlers, JS disabled, low-powered clients).
+  if (reduceMotion) {
+    return <div className={className}>{children}</div>;
+  }
 
   if (stagger) {
     return (
