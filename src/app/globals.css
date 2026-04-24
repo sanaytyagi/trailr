@@ -64,6 +64,9 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    /* Prevent stray horizontal scroll from absolute-positioned decorations
+       or fixed-width hero mockups overflowing on small viewports. */
+    overflow-x: clip;
   }
 }
 
