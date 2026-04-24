@@ -1318,7 +1318,7 @@ export default function HomePage() {
       >
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 pt-16 pb-16 text-center">
           <Reveal delay={0}>
-            <h1 className="text-6xl sm:text-8xl font-bold tracking-tight text-foreground mb-6 leading-[1.05] whitespace-nowrap">
+            <h1 className="text-5xl sm:text-8xl font-bold tracking-tight text-foreground mb-6 leading-[1.05] sm:whitespace-nowrap text-balance">
               Ditch the Spreadsheet.
             </h1>
           </Reveal>
