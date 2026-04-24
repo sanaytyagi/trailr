@@ -8,6 +8,7 @@ import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { ShareModal } from "@/components/lists/ShareModal";
 import { Button } from "@/components/ui/button";
+import { SignInRequired } from "@/components/sign-in-required";
 import { cn } from "@/lib/utils";
 
 interface MyListStats {
@@ -123,19 +124,7 @@ export default function ListsPage() {
   }
 
   if (!user) {
-    return (
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="text-center py-20">
-          <h1 className="text-2xl font-bold mb-2">Sign In Required</h1>
-          <p className="text-muted-foreground mb-6">
-            Sign in to view and share college lists.
-          </p>
-          <Link href="/auth?mode=signin">
-            <Button>Sign In</Button>
-          </Link>
-        </div>
-      </main>
-    );
+    return <SignInRequired description="Sign in to view and share college lists." />;
   }
 
   return (

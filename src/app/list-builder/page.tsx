@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CollegeQuiz } from "@/components/list-builder/CollegeQuiz";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SignInRequired } from "@/components/sign-in-required";
 import { cn } from "@/lib/utils";
 import { formatAcceptanceRate } from "@/lib/utils";
 
@@ -237,11 +238,10 @@ export default function ListBuilderPage() {
 
   if (!user && !loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] px-6 text-center">
-        <h1 className="text-2xl font-bold mb-2">Sign In Required</h1>
-        <p className="text-muted-foreground mb-6">Create an account to build your personalized college list.</p>
-        <Button onClick={() => router.push("/auth?mode=signin")}>Sign In</Button>
-      </div>
+      <SignInRequired
+        description="Create an account to build your personalized college list."
+        mode="signup"
+      />
     );
   }
 
