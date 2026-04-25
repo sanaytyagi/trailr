@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, BookText, Loader2, MessageSquare, Search, ChevronRight, ChevronLeft, ArrowLeft, Minus } from "lucide-react";
+import { Plus, BookText, Loader2, MessageSquare, Search, ChevronRight, ChevronLeft, ArrowLeft, Minus, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTrackedColleges } from "@/hooks/use-tracked-colleges";
 import { useProfile } from "@/hooks/use-profile";
@@ -593,13 +594,22 @@ function EssaysPageInner() {
                 />
                 <h2 className="text-xl font-bold text-foreground">{selectedCollege.name}</h2>
               </div>
-              <button
-                onClick={() => handleAddEssay(selectedCollege.id)}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 h-10 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
-              >
-                <Plus className="h-4 w-4" />
-                Add Essay
-              </button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/colleges/${selectedCollege.id}/brief`}
+                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 h-10 text-sm font-medium text-foreground hover:bg-muted transition-colors whitespace-nowrap"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Research Brief
+                </Link>
+                <button
+                  onClick={() => handleAddEssay(selectedCollege.id)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 h-10 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Essay
+                </button>
+              </div>
             </div>
 
             {/* Essays list */}

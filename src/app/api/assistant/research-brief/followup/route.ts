@@ -1,0 +1,148 @@
+import { NextRequest, NextResponse } from "next/server";
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { createClient } from "@/lib/supabase/server";
+import { followupItemsSchema, type Dossier } from "@/lib/research-brief/schema";
+import { buildFollowUpSystemPrompt } from "@/lib/research-brief/prompt";
+
+export const maxDuration = 60;
+
+function stripCodeFences(s: string): string {
+  const trimmed = s.trim();
+  const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  return fenceMatch ? fenceMatch[1].trim() : trimmed;
+}
+
+export async function POST(req: NextRequest) {
+  if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json(
+      { error: "OpenAI API key not configured" },
+      { status: 500 }
+    );
+  }
+
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  let body: { brief_id?: string; prompt?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { brief_id: briefId, prompt } = body;
+  if (!briefId || !prompt?.trim()) {
+    return NextResponse.json(
+      { error: "Missing brief_id or prompt" },
+      { status: 400 }
+    );
+  }
+
+  // Load the brief (verify ownership + ready status)
+  const { data: brief } = await db
+    .from("research_briefs")
+    .select("id, user_id, college_id, content, status")
+    .eq("id", briefId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!brief) {
+    return NextResponse.json({ error: "Brief not found" }, { status: 404 });
+  }
+  if (brief.status !== "ready") {
+    return NextResponse.json(
+      { error: "Brief is not ready" },
+      { status: 409 }
+    );
+  }
+
+  // Load college name
+  const { data: college } = await db
+    .from("colleges")
+    .select("name")
+    .eq("id", brief.college_id)
+    .single();
+
+  // Load student profile for context
+  const { data: listRow } = await db
+    .from("user_lists")
+    .select("colleges")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const listBlob = (listRow?.colleges ?? {}) as any;
+  const quiz =
+    listBlob && typeof listBlob === "object" && !Array.isArray(listBlob)
+      ? ((listBlob.quiz_answers as Record<string, unknown> | undefined) ?? {})
+      : {};
+
+  const systemPrompt = buildFollowUpSystemPrompt(
+    college?.name ?? "this college",
+    JSON.stringify(brief.content as Dossier, null, 2),
+    {
+      major: typeof quiz.major === "string" ? quiz.major : null,
+      interests: Array.isArray(quiz.interests) ? (quiz.interests as string[]) : [],
+    }
+  );
+
+  try {
+    const result = await generateText({
+      model: openai.responses("gpt-4o"),
+      system: systemPrompt,
+      messages: [{ role: "user", content: prompt.trim() }],
+      tools: {
+        web_search_preview: openai.tools.webSearchPreview({}),
+      },
+    });
+
+    const cleaned = stripCodeFences(result.text);
+    let items;
+    try {
+      const parsed = JSON.parse(cleaned);
+      const validation = followupItemsSchema.safeParse(parsed);
+      if (!validation.success) {
+        throw new Error("Response did not match expected schema");
+      }
+      items = validation.data;
+    } catch {
+      return NextResponse.json(
+        { error: "Model returned an unexpected format. Try rephrasing your request." },
+        { status: 422 }
+      );
+    }
+
+    const { data: saved, error: insertError } = await db
+      .from("research_brief_followups")
+      .insert({
+        brief_id: briefId,
+        user_id: user.id,
+        prompt: prompt.trim(),
+        items,
+      })
+      .select("id")
+      .single();
+
+    if (insertError) {
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ id: saved.id, items, prompt: prompt.trim() });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json(
+      { error: `Follow-up research failed: ${message}` },
+      { status: 500 }
+    );
+  }
+}
