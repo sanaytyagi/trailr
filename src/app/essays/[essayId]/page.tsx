@@ -7,8 +7,9 @@ import {
   ArrowLeft, Loader2, CheckCircle2, X,
   Undo2, Redo2, MessageSquare, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Bold, Italic, Underline, Settings, Plus, Minus, Search,
+  Bold, Italic, Underline, Settings, Plus, Minus, Search, Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
@@ -714,6 +715,13 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
               {collegeName}
             </span>
           )}
+          <Link
+            href={`/colleges/${collegeId}/brief`}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm transition-colors shrink-0"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Research Brief
+          </Link>
           <button
             onClick={openSettings}
             title="Edit essay settings"
@@ -894,6 +902,14 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
             {collegeName}
           </span>
         )}
+
+        <Link
+          href={`/colleges/${collegeId}/brief`}
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm transition-colors shrink-0"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Research Brief
+        </Link>
 
         <button
           onClick={openSettings}
