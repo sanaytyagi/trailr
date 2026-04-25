@@ -142,7 +142,9 @@ export default function ListsPage() {
         {myStats ? (
           <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">{user.email}</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                {user.user_metadata?.full_name || user.user_metadata?.name || user.email}
+              </h3>
 
               {myStats.total === 0 ? (
                 <p className="text-sm text-muted-foreground">
@@ -246,12 +248,18 @@ export default function ListsPage() {
                     Shared by {sharedList.owner_name}
                   </p>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 my-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 my-4">
                     <div className="rounded-lg bg-muted/50 p-2 text-center">
                       <div className="text-lg font-bold text-foreground">
                         {sharedList.stats.total}
                       </div>
                       <div className="text-xs text-muted-foreground">Total</div>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-2 text-center">
+                      <div className="text-lg font-bold text-[hsl(205,85%,45%)]">
+                        {sharedList.stats.submitted}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Submitted</div>
                     </div>
                     <div className="rounded-lg bg-muted/50 p-2 text-center">
                       <div className="text-lg font-bold text-[hsl(142,60%,35%)]">
@@ -264,6 +272,12 @@ export default function ListsPage() {
                         {sharedList.stats.waitlisted}
                       </div>
                       <div className="text-xs text-muted-foreground">Waitlisted</div>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-2 text-center">
+                      <div className="text-lg font-bold text-[hsl(0,65%,45%)]">
+                        {sharedList.stats.rejected}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Rejected</div>
                     </div>
                   </div>
 

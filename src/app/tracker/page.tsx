@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, CheckCircle2, XCircle, Link2, UserCheck, MessageSquare } from "lucide-react";
+import { Plus, X, CheckCircle2, XCircle, Link2, UserCheck, MessageSquare, Share2 } from "lucide-react";
 import type { College } from "@/types";
 import { CollegeSearch, type CollegeSearchHandle } from "@/components/college-search";
 import { CollegeGrid } from "@/components/college-grid";
@@ -734,7 +734,16 @@ export default function TrackerPage() {
               {/* Progress bar */}
               <div className="mb-6 rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground">Application Progress</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-foreground">Application Progress</span>
+                    <button
+                      onClick={() => router.push("/lists")}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                      <Share2 className="h-3 w-3" />
+                      Share List
+                    </button>
+                  </div>
                   <span className="text-sm text-muted-foreground tabular-nums">
                     {stats.submitted} of {stats.total} submitted
                   </span>

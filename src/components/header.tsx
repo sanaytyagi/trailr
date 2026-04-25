@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, Share2, Users, CalendarDays, BookText, ListTree, Sparkles } from "lucide-react";
+import { TableIcon, MenuIcon, LogOut, Settings, ChevronDown, Users, CalendarDays, BookText, ListTree, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
@@ -145,19 +145,6 @@ export function Header() {
               >
                 <BookText className="h-3.5 w-3.5" />
                 Essays
-              </Link>
-
-              <Link
-                href={authHref("/lists")}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  pathname === "/lists"
-                    ? "bg-muted text-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <Share2 className="h-3.5 w-3.5" />
-                Lists
               </Link>
 
               <Link
@@ -332,20 +319,6 @@ export function Header() {
                     >
                       <BookText className="h-4 w-4" />
                       Essays
-                    </Link>
-
-                    <Link
-                      href={authHref("/lists")}
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                        pathname === "/lists"
-                          ? "bg-muted text-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      <Share2 className="h-4 w-4" />
-                      Lists
                     </Link>
 
                     <Link
