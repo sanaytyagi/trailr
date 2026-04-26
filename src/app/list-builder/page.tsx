@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 import { CollegeQuiz } from "@/components/list-builder/CollegeQuiz";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { SignInRequired } from "@/components/sign-in-required";
 import { cn } from "@/lib/utils";
 import { formatAcceptanceRate } from "@/lib/utils";
 
@@ -107,7 +106,7 @@ export default function ListBuilderPage() {
 
   const handleQuizComplete = async (answers: any) => {
     if (!user) {
-      router.push("/auth?mode=signin");
+      router.push("/auth?mode=login");
       return;
     }
 
@@ -237,12 +236,8 @@ export default function ListBuilderPage() {
   };
 
   if (!user && !loading) {
-    return (
-      <SignInRequired
-        description="Create an account to build your personalized college list."
-        mode="signup"
-      />
-    );
+    if (typeof window !== "undefined") router.replace("/auth?mode=login");
+    return null;
   }
 
   if (loading) {

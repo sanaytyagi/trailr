@@ -12,6 +12,16 @@ function AuthPageInner() {
   const initialMode = searchParams.get("mode") === "signup" ? "signup" : "login";
   const [supabase] = useState(() => createClient());
 
+  function handleModeChange(mode: "login" | "signup" | "reset") {
+    // Keep the URL in sync so back/forward and bookmarks work; reset mode
+    // is transient and shouldn't show in the URL.
+    const next = new URLSearchParams(searchParams.toString());
+    if (mode === "reset") next.delete("mode");
+    else next.set("mode", mode);
+    const qs = next.toString();
+    router.replace(qs ? `/auth?${qs}` : "/auth", { scroll: false });
+  }
+
   // Redirect already-signed-in users.
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -50,7 +60,7 @@ function AuthPageInner() {
 
         {/* Auth card */}
         <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-          <AuthForm key={initialMode} onSuccess={handleSuccess} initialMode={initialMode} />
+          <AuthForm onSuccess={handleSuccess} initialMode={initialMode} onModeChange={handleModeChange} />
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">

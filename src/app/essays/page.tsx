@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, BookText, Loader2, MessageSquare, Search, ChevronRight, ChevronLeft, ArrowLeft, Minus, Sparkles } from "lucide-react";
+import { Plus, BookText, Loader2, MessageSquare, Search, ChevronRight, ChevronLeft, ArrowLeft, Minus, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTrackedColleges } from "@/hooks/use-tracked-colleges";
@@ -10,7 +10,6 @@ import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CollegeLogo } from "@/components/college-logo";
-import { SignInRequired } from "@/components/sign-in-required";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -54,6 +53,109 @@ function wordCountClass(words: number, limit: number): string {
   if (words > limit)       return "text-red-600 font-semibold";
   if (words >= limit - 50) return "text-amber-600 font-semibold";
   return "text-muted-foreground";
+}
+
+// ── School Picker Modal ───────────────────────────────────────────────────────
+
+interface SchoolPickerModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  colleges: CollegeOption[];
+  essayCountsByCollege: Record<string, number>;
+  onSelected: (college: CollegeOption) => void;
+}
+
+function SchoolPickerModal({ open, onOpenChange, colleges, essayCountsByCollege, onSelected }: SchoolPickerModalProps) {
+  const [search, setSearch] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(
+    () => colleges.filter((c) => c.name.toLowerCase().includes(search.toLowerCase())),
+    [colleges, search]
+  );
+
+  useEffect(() => {
+    if (open) { setSearch(""); setActiveIndex(0); setTimeout(() => searchRef.current?.focus(), 50); }
+  }, [open]);
+
+  useEffect(() => { setActiveIndex(0); }, [search]);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const item = list.children[activeIndex] as HTMLElement | undefined;
+    item?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex]);
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIndex((i) => Math.min(i + 1, filtered.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIndex((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter" && filtered[activeIndex]) { onSelected(filtered[activeIndex]); onOpenChange(false); }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false} className="p-0 gap-0 max-w-lg sm:max-w-lg overflow-hidden rounded-2xl">
+        <div onKeyDown={handleKeyDown}>
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search your schools…"
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+            />
+            <kbd className="hidden sm:inline-flex h-5 items-center rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">esc</kbd>
+          </div>
+          <div className="py-2">
+            {colleges.length > 0 && (
+              <p className="px-4 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Your Schools</p>
+            )}
+            <div ref={listRef} className="max-h-72 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-muted-foreground">No schools match &ldquo;{search}&rdquo;</p>
+              ) : (
+                filtered.map((college, i) => {
+                  const essayCount = essayCountsByCollege[college.id] ?? 0;
+                  const isActive = i === activeIndex;
+                  return (
+                    <button
+                      key={college.id}
+                      onClick={() => { onSelected(college); onOpenChange(false); }}
+                      onMouseEnter={() => setActiveIndex(i)}
+                      className={cn("w-full flex items-center gap-3 px-4 py-3 transition-colors text-left", isActive ? "bg-primary/8" : "hover:bg-muted/40")}
+                    >
+                      <CollegeLogo name={college.name} website_url={college.website_url} logo_url={college.logo_url} size={36} />
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-sm font-medium truncate", isActive ? "text-primary" : "text-foreground")}>{college.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {college.location ?? ""}
+                          {college.location ? " · " : ""}
+                          {essayCount > 0 ? `${essayCount} essay${essayCount !== 1 ? "s" : ""} added` : "no essays yet"}
+                        </p>
+                      </div>
+                      <ChevronRight className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground/40")} />
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            {colleges.length === 0 && (
+              <button onClick={() => onOpenChange(false)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left">
+                <div className="h-9 w-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center shrink-0">
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">Add a school to your tracker first</p>
+              </button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // ── Add Essay Modal ───────────────────────────────────────────────────────────
@@ -373,6 +475,7 @@ function EssaysPageInner() {
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const [schoolPickerOpen, setSchoolPickerOpen] = useState(false);
   const [lockedCollegeId, setLockedCollegeId] = useState<string | null>(null);
   const [selectedCollegeId, setSelectedCollegeId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -425,10 +528,14 @@ function EssaysPageInner() {
     return map;
   }, [essays]);
 
-  const collegesWithEssays = useMemo(
-    () => trackedColleges.filter((c) => groupedByCollege.has(c.id)),
-    [trackedColleges, groupedByCollege]
-  );
+  const collegesWithEssays = useMemo(() => {
+    const withEssays = trackedColleges.filter((c) => groupedByCollege.has(c.id));
+    if (selectedCollegeId && !withEssays.some((c) => c.id === selectedCollegeId)) {
+      const sel = trackedColleges.find((c) => c.id === selectedCollegeId);
+      if (sel) return [...withEssays, sel];
+    }
+    return withEssays;
+  }, [trackedColleges, groupedByCollege, selectedCollegeId]);
 
   const collegeOptions = useMemo<CollegeOption[]>(
     () => trackedColleges.map((c) => ({ id: c.id, name: c.name, location: c.location, website_url: c.website_url, logo_url: c.logo_url })),
@@ -471,12 +578,31 @@ function EssaysPageInner() {
     router.push(`/essays/${essayId}`);
   }
 
+  async function handleDeleteEssay(essayId: string, collegeId: string) {
+    await supabase.from("essays").delete().eq("id", essayId);
+    setEssays((prev) => {
+      const next = prev.filter((e) => e.id !== essayId);
+      const remainingForCollege = next.filter((e) => e.college_id === collegeId);
+      if (remainingForCollege.length === 0) {
+        setSelectedCollegeId((cur) => {
+          if (cur !== collegeId) return cur;
+          const nextColleges = trackedColleges.filter((c) =>
+            next.some((e) => e.college_id === c.id)
+          );
+          return nextColleges[0]?.id ?? null;
+        });
+      }
+      return next;
+    });
+  }
+
   const showLoader = !hydrated || loading;
 
-  // Anon users land here via /essays direct link — show the unified empty state
-  // instead of the sidebar's infinite skeleton pulse.
+  // Anon users land here via /essays direct link — redirect to the auth page,
+  // matching the gating pattern used by /tracker, /list-builder, /assistant.
   if (!profileLoading && !profile) {
-    return <SignInRequired description="Sign in to draft and manage your college essays." />;
+    if (typeof window !== "undefined") router.replace("/auth?mode=login");
+    return null;
   }
 
   return (
@@ -490,7 +616,19 @@ function EssaysPageInner() {
         <aside className="h-full border-r border-border bg-card overflow-hidden">
           {/* Header */}
           <div className="px-4 py-4 border-b border-border">
-            <h1 className="text-sm font-semibold text-foreground">My Essays</h1>
+            <div className="flex items-center justify-between">
+              <h1 className="text-sm font-semibold text-foreground">My Essays</h1>
+              {!showLoader && collegeOptions.length > 0 && (
+                <button
+                  onClick={() => setSchoolPickerOpen(true)}
+                  title="Go to a school's essay section"
+                  className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <Plus className="h-3 w-3" />
+                  Add
+                </button>
+              )}
+            </div>
             {!showLoader && essays.length > 0 && (
               <p className="text-xs text-muted-foreground mt-0.5">
                 {essays.length} essay{essays.length !== 1 ? "s" : ""} · {collegesWithEssays.length} school{collegesWithEssays.length !== 1 ? "s" : ""}
@@ -628,29 +766,40 @@ function EssaysPageInner() {
                     const unresolvedCount = commentCounts[essay.id] ?? 0;
 
                     return (
-                      <button
+                      <div
                         key={essay.id}
-                        onClick={() => router.push(`/essays/${essay.id}`)}
-                        className="w-full text-left px-5 py-4 hover:bg-muted/20 transition-colors group"
+                        className="relative flex items-stretch group"
                       >
-                        <p className="text-sm text-foreground line-clamp-2 leading-snug mb-2.5">
-                          {essay.prompt || <span className="text-muted-foreground italic">No prompt</span>}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <p className={cn("text-[11px] tabular-nums flex-1 min-w-0", wordCountClass(words, essay.word_limit))}>
-                            {words} / {essay.word_limit} words
+                        <button
+                          onClick={() => router.push(`/essays/${essay.id}`)}
+                          className="flex-1 text-left px-5 py-4 hover:bg-muted/20 transition-colors"
+                        >
+                          <p className="text-sm text-foreground line-clamp-2 leading-snug mb-2.5 pr-8">
+                            {essay.prompt || <span className="text-muted-foreground italic">No prompt</span>}
                           </p>
-                          {unresolvedCount > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                              <MessageSquare className="h-3 w-3" />
-                              {unresolvedCount}
+                          <div className="flex items-center gap-2">
+                            <p className={cn("text-[11px] tabular-nums flex-1 min-w-0", wordCountClass(words, essay.word_limit))}>
+                              {words} / {essay.word_limit} words
+                            </p>
+                            {unresolvedCount > 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                                <MessageSquare className="h-3 w-3" />
+                                {unresolvedCount}
+                              </span>
+                            )}
+                            <span className={cn("shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-0.5", status.className)}>
+                              {status.label}
                             </span>
-                          )}
-                          <span className={cn("shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-0.5", status.className)}>
-                            {status.label}
-                          </span>
-                        </div>
-                      </button>
+                          </div>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteEssay(essay.id, essay.college_id); }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                          aria-label="Delete essay"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -659,6 +808,14 @@ function EssaysPageInner() {
           </div>
         ) : null}
       </div>
+
+      <SchoolPickerModal
+        open={schoolPickerOpen}
+        onOpenChange={setSchoolPickerOpen}
+        colleges={collegeOptions}
+        essayCountsByCollege={essayCountsByCollege}
+        onSelected={(college) => setSelectedCollegeId(college.id)}
+      />
 
       <AddEssayModal
         open={addOpen}
