@@ -66,6 +66,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: briefCount } = await supabase
+    .from("api_rate_limits")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("endpoint", "research-brief")
+    .gte("created_at", oneDayAgo);
+
+  if ((briefCount ?? 0) >= 25) {
+    return NextResponse.json(
+      { error: "You've reached the daily limit for research briefs. Try again tomorrow." },
+      { status: 429 }
+    );
+  }
+
   let body: { college_id?: string; interview_answers?: Record<string, string> };
   try {
     body = await req.json();
@@ -225,6 +240,8 @@ export async function POST(req: NextRequest) {
       .eq("id", briefId);
 
     if (updateError) throw new Error(updateError.message);
+
+    await supabase.from("api_rate_limits").insert({ user_id: user.id, endpoint: "research-brief" });
 
     return NextResponse.json({
       id: briefId,

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState, useCallback, useRef } from "react";
+import { use, useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2, RefreshCw, ExternalLink, AlertCircle, SendHorizontal } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -218,10 +218,10 @@ export default function CollegeBriefPage({
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
         <Link
-          href="/tracker"
+          href={`/essays?college=${collegeId}`}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to tracker
+          <ArrowLeft className="h-4 w-4" /> Back to essays
         </Link>
         {state.kind === "has_brief" && state.brief.status === "ready" && (
           <button
@@ -474,27 +474,39 @@ function FollowUpInput({
   loading: boolean;
   error: string | null;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }, [value]);
 
   return (
-    <div className="mt-10 pt-8 border-t border-border space-y-3">
+    <div className="sticky bottom-0 bg-background mt-10 pt-6 pb-4 border-t border-border space-y-3 shadow-[0_-8px_16px_-4px_hsl(var(--background))]">
       <div>
         <h2 className="text-base font-semibold">Want more research?</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
           Ask for more specific findings to add to your brief.
         </p>
       </div>
-      <div className="flex gap-2">
-        <input
-          ref={inputRef}
+      <div className="flex gap-2 items-end">
+        <textarea
+          ref={textareaRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !loading && value.trim()) onSubmit();
+            if (e.key === "Enter" && !e.shiftKey && !loading && value.trim()) {
+              e.preventDefault();
+              onSubmit();
+            }
           }}
           placeholder='e.g. "Find me three professors doing AI research"'
+          maxLength={1000}
           disabled={loading}
-          className="flex-1 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring transition-shadow disabled:opacity-50"
+          rows={1}
+          className="flex-1 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring transition-shadow disabled:opacity-50 resize-none overflow-y-auto"
         />
         <button
           onClick={onSubmit}
@@ -509,6 +521,9 @@ function FollowUpInput({
           {loading ? "Searching..." : "Ask"}
         </button>
       </div>
+      <p className={`text-xs text-right ${value.length >= 900 ? "text-destructive" : "text-muted-foreground"}`}>
+        {value.length}/1000
+      </p>
       {loading && (
         <p className="text-xs text-muted-foreground">
           Searching the web for specific results...

@@ -180,6 +180,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count: msgCount } = await supabase
+      .from("api_rate_limits")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("endpoint", "assistant")
+      .gte("created_at", oneDayAgo);
+
+    if ((msgCount ?? 0) >= 100) {
+      return NextResponse.json(
+        { error: "You've reached the daily message limit. Try again tomorrow." },
+        { status: 429 }
+      );
+    }
+
     const { data: profile } = await db
       .from("profiles")
       .select("id, full_name, role, counselor_id")
@@ -199,6 +214,9 @@ export async function POST(req: NextRequest) {
     const latestText = extractText(latest);
     if (!latestText.trim()) {
       return NextResponse.json({ error: "Empty user message" }, { status: 400 });
+    }
+    if (latestText.length > 4000) {
+      return NextResponse.json({ error: "Message too long (max 4000 characters)." }, { status: 400 });
     }
 
     // Fetch all context in parallel
@@ -303,9 +321,6 @@ export async function POST(req: NextRequest) {
       { role: "user", content: latestText },
     ];
 
-    console.log("SYSTEM PROMPT:", systemPrompt);
-    console.log("CONTEXT DATA:", { colleges, essays, listBuilder, counselorNotes });
-
     const result = streamText({
       model: openai.responses("gpt-4o"),
       system: systemPrompt,
@@ -315,16 +330,11 @@ export async function POST(req: NextRequest) {
       },
       onFinish: async ({ text }) => {
         try {
-          await db.from("assistant_messages").insert({
-            user_id: user.id,
-            role: "user",
-            content: latestText,
-          });
-          await db.from("assistant_messages").insert({
-            user_id: user.id,
-            role: "assistant",
-            content: text,
-          });
+          await Promise.all([
+            db.from("assistant_messages").insert({ user_id: user.id, role: "user", content: latestText }),
+            db.from("assistant_messages").insert({ user_id: user.id, role: "assistant", content: text }),
+            supabase.from("api_rate_limits").insert({ user_id: user.id, endpoint: "assistant" }),
+          ]);
         } catch (err) {
           console.error("Failed to persist assistant messages:", err);
         }

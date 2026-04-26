@@ -385,8 +385,12 @@ function ChatView({
           >
             <PromptInputTextarea
               placeholder={streaming ? "Waiting for response…" : "Ask anything about your applications…"}
+              maxLength={4000}
             />
-            <PromptInputActions className="justify-end pt-1">
+            <PromptInputActions className="justify-between pt-1">
+              <span className={`text-xs px-1 ${input.length >= 3600 ? "text-destructive" : "text-muted-foreground"}`}>
+                {input.length > 0 ? `${input.length}/4000` : ""}
+              </span>
               <PromptInputAction
                 tooltip={streaming ? "Stop generation" : "Send message"}
                 side="top"

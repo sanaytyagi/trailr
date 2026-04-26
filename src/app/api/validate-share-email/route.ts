@@ -1,5 +1,4 @@
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -32,22 +31,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
-  // Use admin client to look up if the email is a registered user
-  const adminClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+  // Query GoTrue admin endpoint for a specific email — avoids loading all users into memory
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email.toLowerCase())}`,
+    {
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+      },
+    }
   );
 
-  const { data, error } = await adminClient.auth.admin.listUsers();
-
-  if (error) {
+  if (!res.ok) {
     return NextResponse.json({ error: "Failed to validate email" }, { status: 500 });
   }
 
-  const exists = data.users.some(
-    (u) => u.email?.toLowerCase() === email.toLowerCase()
-  );
+  const json = await res.json();
+  const exists = Array.isArray(json.users) && json.users.length > 0;
 
   return NextResponse.json({ exists });
 }
