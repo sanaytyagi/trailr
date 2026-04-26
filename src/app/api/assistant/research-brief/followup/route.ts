@@ -33,6 +33,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: followupCount } = await supabase
+    .from("api_rate_limits")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("endpoint", "research-brief-followup")
+    .gte("created_at", oneDayAgo);
+
+  if ((followupCount ?? 0) >= 50) {
+    return NextResponse.json(
+      { error: "You've reached the daily limit for follow-up questions. Try again tomorrow." },
+      { status: 429 }
+    );
+  }
+
   let body: { brief_id?: string; prompt?: string };
   try {
     body = await req.json();
@@ -46,6 +61,9 @@ export async function POST(req: NextRequest) {
       { error: "Missing brief_id or prompt" },
       { status: 400 }
     );
+  }
+  if (prompt.length > 1000) {
+    return NextResponse.json({ error: "Prompt too long (max 1000 characters)." }, { status: 400 });
   }
 
   // Load the brief (verify ownership + ready status)
@@ -145,6 +163,8 @@ export async function POST(req: NextRequest) {
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
+
+    await supabase.from("api_rate_limits").insert({ user_id: user.id, endpoint: "research-brief-followup" });
 
     return NextResponse.json({ id: saved.id, items, prompt: prompt.trim() });
   } catch (err) {

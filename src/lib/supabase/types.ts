@@ -340,6 +340,25 @@ export interface Database {
         };
         Relationships: [];
       };
+      api_rate_limits: {
+        Row: {
+          id: string;
+          user_id: string;
+          endpoint: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          endpoint: string;
+          created_at?: string;
+        };
+        Update: {
+          endpoint?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

@@ -94,11 +94,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from("api_rate_limits")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("endpoint", "generate-list")
+    .gte("created_at", oneDayAgo);
+
+  if ((count ?? 0) >= 5) {
+    return NextResponse.json(
+      { error: "You've reached the daily limit for list generation. Try again tomorrow." },
+      { status: 429 }
+    );
+  }
+
   try {
     const { answers } = await req.json() as { answers: QuizAnswers };
-
-    // Fetch all colleges from Supabase
-    const supabase = await createClient();
     const { data: colleges, error: collegesError } = await supabase
       .from("colleges")
       .select("*");
@@ -286,6 +304,8 @@ ${JSON.stringify(collegesSlim, null, 2)}`;
         { status: 500 }
       );
     }
+
+    await supabase.from("api_rate_limits").insert({ user_id: user.id, endpoint: "generate-list" });
 
     return NextResponse.json({ colleges: validatedList });
   } catch (error) {
