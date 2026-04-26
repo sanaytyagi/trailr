@@ -34,10 +34,12 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Protect /tracker and /settings — unauthenticated users go to /auth.
-  if (!user && (pathname.startsWith("/tracker") || pathname.startsWith("/settings"))) {
+  // Protect authenticated app routes — unauthenticated users go to /auth.
+  const PROTECTED = ["/tracker", "/settings", "/essays", "/list-builder", "/assistant"];
+  if (!user && PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth";
+    url.searchParams.set("mode", "login");
     return NextResponse.redirect(url);
   }
 
@@ -52,5 +54,12 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/tracker/:path*", "/settings/:path*", "/auth"],
+  matcher: [
+    "/tracker/:path*",
+    "/settings/:path*",
+    "/essays/:path*",
+    "/list-builder/:path*",
+    "/assistant/:path*",
+    "/auth",
+  ],
 };

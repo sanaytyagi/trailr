@@ -263,8 +263,14 @@ export default function TrackerPage() {
     calendarConnected,
   } = useTrackedColleges();
 
-  const { profile, refetch: refetchProfile } = useProfile();
+  const { profile, loading: profileLoading, refetch: refetchProfile } = useProfile();
   const router = useRouter();
+
+  // Anon users get redirected to /auth — matches the gating pattern used by
+  // /essays, /list-builder, /assistant.
+  useEffect(() => {
+    if (!profileLoading && !profile) router.replace("/auth?mode=login");
+  }, [profile, profileLoading, router]);
   const { notifications, count: unreadCount, markAllRead } = useCounselorNotifications(profile ?? null);
   const [notifDismissed, setNotifDismissed] = useState(false);
   const [calendarBannerDismissed, setCalendarBannerDismissed] = useState(() => {

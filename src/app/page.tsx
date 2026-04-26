@@ -70,11 +70,14 @@ function Reveal({
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-60px" });
   const reduceMotion = useReducedMotion();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
-  // Respect prefers-reduced-motion: render content immediately, no animation.
-  // Also guarantees SSR output is visible if hydration or the intersection
-  // observer never runs (crawlers, JS disabled, low-powered clients).
-  if (reduceMotion) {
+  // Render content visible by default — no opacity:0 on SSR, no opacity:0
+  // for prefers-reduced-motion, no opacity:0 if JS never runs (crawlers,
+  // screenshot tools, low-powered clients). The reveal animation only kicks
+  // in after hydration.
+  if (reduceMotion || !mounted) {
     return <div className={className}>{children}</div>;
   }
 
@@ -649,7 +652,7 @@ function MockEssayPanel() {
         </div>
 
         {/* Two-column layout — matches the actual review mode */}
-        <div className="flex gap-4 items-start">
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start">
 
           {/* Essay card */}
           <div className="flex-1 min-w-0 rounded-xl border border-border bg-card overflow-hidden shadow-sm">
@@ -686,7 +689,7 @@ function MockEssayPanel() {
           </div>
 
           {/* Comment sidebar — matches the actual sidebar style */}
-          <div className="w-64 shrink-0 flex flex-col gap-3">
+          <div className="w-full md:w-64 md:shrink-0 flex flex-col gap-3">
 
             {/* Comment 1 — yellow */}
             <div

@@ -110,6 +110,15 @@ export async function POST(req: NextRequest) {
     let items;
     try {
       const parsed = JSON.parse(cleaned);
+
+      // Guardrail sentinel — model flagged the query as off-topic
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && parsed.__error__ === "off_topic") {
+        return NextResponse.json(
+          { error: parsed.message ?? "That question is outside the scope of college research. Try asking about programs, professors, clubs, or anything specific to this school." },
+          { status: 400 }
+        );
+      }
+
       const validation = followupItemsSchema.safeParse(parsed);
       if (!validation.success) {
         throw new Error("Response did not match expected schema");

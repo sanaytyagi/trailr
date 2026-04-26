@@ -22,6 +22,7 @@ interface AuthFormProps {
   onSuccess?: () => void;
   className?: string;
   initialMode?: AuthMode;
+  onModeChange?: (mode: AuthMode) => void;
 }
 
 interface FormData {
@@ -109,7 +110,7 @@ export function PasswordStrengthIndicator({ password }: { password: string }) {
   );
 }
 
-export function AuthForm({ onSuccess, className, initialMode = 'login' }: AuthFormProps) {
+export function AuthForm({ onSuccess, className, initialMode = 'login', onModeChange }: AuthFormProps) {
   const [supabase] = useState(() => createClient());
   const [authMode, setAuthMode] = useState<AuthMode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
@@ -191,6 +192,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login' }: AuthFo
 
   function switchMode(next: AuthMode) {
     setAuthMode(next);
+    onModeChange?.(next);
     setErrors({});
     setSuccessMessage('');
     setTouched({});
@@ -275,7 +277,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login' }: AuthFo
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -345,7 +347,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login' }: AuthFo
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in-50 slide-in-from-right-5">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 animate-in fade-in-50 slide-in-from-right-5">
         {/* Name — signup only */}
         {authMode === 'signup' && (
           <div className="flex gap-3">
