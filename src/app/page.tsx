@@ -5,7 +5,7 @@ import Footer from "@/components/footer";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { motion, useInView, useReducedMotion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarDays,
   LayoutList,
@@ -29,92 +29,26 @@ import {
 
 // ── Motion variants ───────────────────────────────────────────────────────────
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 18, filter: "blur(4px)" },
-  visible: {
-    opacity: 1,
-    y: 0,
-    filter: "blur(0px)",
-    transition: { duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number] },
-  },
-};
-
-const staggerContainer = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
-};
-
-const staggerItem = {
-  hidden: { opacity: 0, y: 14, filter: "blur(3px)" },
-  visible: {
-    opacity: 1,
-    y: 0,
-    filter: "blur(0px)",
-    transition: { duration: 0.45, ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number] },
-  },
-};
-
-// ── Scroll reveal wrapper ─────────────────────────────────────────────────────
+// ── Scroll reveal wrappers ────────────────────────────────────────────────────
+// Content must always be visible. Prior versions used IntersectionObserver to
+// gate opacity:0 → 1 on scroll, but the observer didn't fire reliably for
+// sections below the fold (or under a hydration race), leaving the hero and
+// most of the page invisible. Both wrappers are now plain passthroughs.
 
 function Reveal({
   children,
   className,
-  delay = 0,
-  stagger = false,
 }: {
   children: React.ReactNode;
   className?: string;
   delay?: number;
   stagger?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
-  const reduceMotion = useReducedMotion();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  // Render content visible by default — no opacity:0 on SSR, no opacity:0
-  // for prefers-reduced-motion, no opacity:0 if JS never runs (crawlers,
-  // screenshot tools, low-powered clients). The reveal animation only kicks
-  // in after hydration.
-  if (reduceMotion || !mounted) {
-    return <div className={className}>{children}</div>;
-  }
-
-  if (stagger) {
-    return (
-      <motion.div
-        ref={ref}
-        variants={staggerContainer}
-        initial="hidden"
-        animate={inView ? "visible" : "hidden"}
-        className={className}
-      >
-        {children}
-      </motion.div>
-    );
-  }
-
-  return (
-    <motion.div
-      ref={ref}
-      variants={fadeUp}
-      initial="hidden"
-      animate={inView ? "visible" : "hidden"}
-      transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number], delay }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className={className}>{children}</div>;
 }
 
 function StaggerItem({ children, className }: { children: React.ReactNode; className?: string }) {
-  return (
-    <motion.div variants={staggerItem} className={className}>
-      {children}
-    </motion.div>
-  );
+  return <div className={className}>{children}</div>;
 }
 
 // ── Feature card ──────────────────────────────────────────────────────────────
