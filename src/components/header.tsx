@@ -66,7 +66,7 @@ export function Header() {
   const userInitial = ((user?.user_metadata?.name || user?.email || "U") as string)[0].toUpperCase();
   const userDisplayName = user?.user_metadata?.name || user?.email || "";
 
-  // Redirect unauthenticated users to sign-in for protected routes
+const navHref = (path: string) => user ? path : "/auth?mode=signup";
   const authHref = (path: string) => user ? path : "/auth?mode=login";
 
   return (
@@ -92,7 +92,7 @@ export function Header() {
               <Link
                 href="/counselor"
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname === "/counselor" || pathname.startsWith("/counselor/")
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -104,7 +104,7 @@ export function Header() {
               <Link
                 href="/counselor/deadlines"
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname === "/counselor/deadlines"
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -117,9 +117,9 @@ export function Header() {
           ) : (
             <>
               <Link
-                href={authHref("/tracker")}
+                href={navHref("/tracker")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname === "/tracker"
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -135,9 +135,9 @@ export function Header() {
               </Link>
 
               <Link
-                href={authHref("/essays")}
+                href={navHref("/essays")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname === "/essays" || pathname.startsWith("/essays/")
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -148,9 +148,9 @@ export function Header() {
               </Link>
 
               <Link
-                href={authHref("/list-builder")}
+                href={navHref("/list-builder")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname === "/list-builder"
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -161,9 +161,9 @@ export function Header() {
               </Link>
 
               <Link
-                href={authHref("/assistant")}
+                href={navHref("/assistant")}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname === "/assistant"
                     ? "bg-muted text-foreground"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -222,7 +222,7 @@ export function Header() {
               <Link
                 href="/auth?mode=login"
                 className={cn(
-                  "inline-flex items-center rounded-md px-3 py-2 text-sm font-medium",
+                  "inline-flex items-center rounded-md px-3 py-2.5 text-sm font-medium",
                   "text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 )}
               >
@@ -289,7 +289,7 @@ export function Header() {
                 ) : (
                   <>
                     <Link
-                      href={authHref("/tracker")}
+                      href={navHref("/tracker")}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -308,7 +308,7 @@ export function Header() {
                     </Link>
 
                     <Link
-                      href={authHref("/essays")}
+                      href={navHref("/essays")}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -322,7 +322,7 @@ export function Header() {
                     </Link>
 
                     <Link
-                      href={authHref("/list-builder")}
+                      href={navHref("/list-builder")}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -336,7 +336,7 @@ export function Header() {
                     </Link>
 
                     <Link
-                      href={authHref("/assistant")}
+                      href={navHref("/assistant")}
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
