@@ -25,6 +25,9 @@ import {
   Check,
   Activity,
   Trash2,
+  Sparkles,
+  ExternalLink,
+  X,
 } from "lucide-react";
 
 // ── Motion variants ───────────────────────────────────────────────────────────
@@ -457,6 +460,60 @@ function DashboardPreview() {
   );
 }
 
+// ── Mock assistant panel ──────────────────────────────────────────────────────
+
+const ASSISTANT_MESSAGES = [
+  { role: "user",      text: "Which of my Reach schools should I prioritize for Early Action?" },
+  { role: "assistant", text: "Based on your list, Harvard and MIT both offer Restrictive Early Action: you can only apply EA to one of them. Harvard's RAEA acceptance rate was ~7.4% vs MIT's 4.7%.\n\nIf research is central to your application, MIT may align better. Harvard gives more weight to leadership and community impact. One thing to note: MIT's RAEA is Non-Restrictive for public schools, so you could still apply EA to any public university alongside it." },
+  { role: "user",      text: "Help me brainstorm a stronger 'Why Northwestern' angle for Medill." },
+  { role: "assistant", text: "Strong start with your current draft. A few angles to sharpen it:\n\n• Name the Journalism Residency city or outlet you'd target; readers respond to specificity.\n• If you're pairing journalism with another field, mention the dual-degree option explicitly.\n• Reference a faculty member's published work you've actually read.\n\nYour opening, 'Northwestern's Medill School,' is a solid anchor. The next move is making it personal: what story have you already reported that proves you belong in that newsroom?" },
+];
+
+function MockAssistantPanel() {
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden w-full max-w-3xl mx-auto">
+      <div className="border-b border-border bg-card px-5 py-3 flex items-center gap-2.5">
+        <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
+        <div className="h-2.5 w-2.5 rounded-full bg-[hsl(38,85%,55%)]/60" />
+        <div className="h-2.5 w-2.5 rounded-full bg-[hsl(142,60%,45%)]/60" />
+      </div>
+      <div className="p-5 flex flex-col gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            <span className="text-xs font-semibold text-foreground">Trailr Assistant</span>
+          </div>
+          <span className="text-xs text-muted-foreground">Personalized to your college list</span>
+        </div>
+        {ASSISTANT_MESSAGES.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+            {msg.role === "assistant" ? (
+              <div className="flex items-start gap-2.5 max-w-[90%]">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 mt-0.5">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div className="rounded-2xl rounded-tl-sm bg-muted/50 border border-border px-4 py-3">
+                  <p className="text-xs text-foreground leading-relaxed whitespace-pre-line">{msg.text}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-3 max-w-[70%]">
+                <p className="text-xs text-primary-foreground leading-relaxed">{msg.text}</p>
+              </div>
+            )}
+          </div>
+        ))}
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 mt-1">
+          <span className="text-xs text-muted-foreground flex-1">Ask anything about your applications...</span>
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+            <ArrowRight className="h-3.5 w-3.5 text-primary" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Mock calendar ─────────────────────────────────────────────────────────────
 
 const JAN_FIRST_DAY = 4;
@@ -612,7 +669,7 @@ function MockEssayPanel() {
               <mark style={{ backgroundColor: ESSAY_COLORS[1].bg, borderBottom: `2px solid ${ESSAY_COLORS[1].border}`, borderRadius: "2px" }}>
                 the combination of rigorous academic theory and hands-on reporting
               </mark>
-              {" is what I need to grow as a journalist. Medill's dual-degree programs and proximity to Chicago give me exactly that — a city where every neighborhood is a story waiting to be told. Northwestern is the only place I can pursue journalism at this level while staying close to a world-class urban beat."}
+              {" is what I need to grow as a journalist. Medill's dual-degree programs and proximity to Chicago give me exactly that: a city where every neighborhood is a story waiting to be told. Northwestern is the only place I can pursue journalism at this level while staying close to a world-class urban beat."}
             </div>
 
             {/* Word count footer */}
@@ -661,7 +718,7 @@ function MockEssayPanel() {
                 &ldquo;the combination of rigorous academic theory and hands-on reporting&rdquo;
               </p>
               <p className="text-xs text-foreground leading-snug mb-2.5">
-                This is a bit vague — try naming a specific Medill program like the Journalism Residency or a professor whose work inspires you.
+                This is a bit vague. Try naming a specific Medill program like the Journalism Residency or a professor whose work inspires you.
               </p>
               <button className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
                 <Check className="h-3.5 w-3.5" />
@@ -704,7 +761,7 @@ const MOCK_STAT_CHIPS = [
   { key: "rejected"      as const, label: "Rejected",   color: "hsl(0,65%,42%)",      bg: "hsl(0,65%,96%)"     },
 ];
 
-// Alex's college list — matches the actual student detail table
+// Alex's college list — 5 colleges: 4 submitted (1 accepted, 1 waitlisted, 0 rejected), 1 in progress
 const ALEX_COLLEGES = [
   { name: "Harvard",    category: { label: "Reach",      color: "hsl(0,65%,42%)",   bg: "hsl(0,65%,96%)",   border: "hsl(0,65%,80%)" },
     status:   { label: "Submitted",   color: "hsl(205,85%,50%)", bg: "hsl(205,85%,96%)" },
@@ -719,7 +776,7 @@ const ALEX_COLLEGES = [
     status:   { label: "In Progress", color: "hsl(38,85%,35%)",  bg: "hsl(38,85%,95%)"  },
     decision: null,
     deadline: "Jan 2, 2026",   deadlineStatus: { label: "5d left", color: "hsl(38,85%,35%)" }, urgencyDot: "hsl(38,85%,50%)",
-    counselorNote: "Needs to finish Why Stanford — deadline is very soon." },
+    counselorNote: "Needs to finish Why Stanford. Deadline is very soon." },
   { name: "UCLA",       category: { label: "Reach",      color: "hsl(0,65%,42%)",   bg: "hsl(0,65%,96%)",   border: "hsl(0,65%,80%)" },
     status:   { label: "Submitted",   color: "hsl(205,85%,50%)", bg: "hsl(205,85%,96%)" },
     decision: { label: "Waitlisted",  color: "hsl(38,85%,35%)",  bg: "hsl(38,85%,95%)"  },
@@ -740,17 +797,19 @@ const ALEX_ESSAY_GROUPS = [
     ],
   },
   {
-    college: "Northwestern University",
+    college: "MIT",
     essays: [
-      { prompt: "Why Northwestern? What aspects of the Northwestern curriculum or community make it a good fit for you?",
-        words: 178, wordLimit: 250, status: "Drafting" as const },
+      { prompt: "We know you lead a busy life, full of activities, many of which are required of you. Tell us about something you do simply for the pleasure of it.",
+        words: 250, wordLimit: 250, status: "Complete" as const },
+      { prompt: "How has the world you come from shaped who you are today?",
+        words: 225, wordLimit: 250, status: "Complete" as const },
     ],
   },
   {
     college: "Stanford University",
     essays: [
       { prompt: "The Stanford community is deeply curious and driven to learn in and out of the classroom. Reflect on an idea or experience that makes you genuinely excited about learning.",
-        words: 0, wordLimit: 250, status: "Not Started" as const },
+        words: 147, wordLimit: 250, status: "Drafting" as const },
       { prompt: "Virtually all of Stanford's undergraduates live on campus. Write a note to your future roommate that reveals something about you.",
         words: 0, wordLimit: 250, status: "Not Started" as const },
     ],
@@ -763,7 +822,7 @@ function CounselorPreview() {
   const [scene, setScene]   = useState<"list" | "detail">("list");
   const [tab, setTab]       = useState<"colleges" | "essays">("colleges");
   const [backHovered, setBackHovered]   = useState(false);
-  const [cursorPos, setCursorPos]       = useState({ x: 46, y: 220 });
+  const [cursorPos, setCursorPos]       = useState({ x: 64, y: 244 });
   const [cursorClicking, setCursorClicking] = useState(false);
 
   const containerRef   = useRef<HTMLDivElement>(null);
@@ -1003,7 +1062,7 @@ function CounselorPreview() {
                               <span className="font-semibold text-foreground">Alex Rivera</span>{" "}
                               <span className="text-muted-foreground">received a decision for</span>{" "}
                               <span className="font-medium text-foreground">Harvard</span>
-                              <span className="ml-1 text-[10px] font-bold text-emerald-700"> — Accepted</span>
+                              <span className="ml-1 text-[10px] font-bold text-emerald-700">: Accepted</span>
                             </p>
                             <p className="text-[9px] text-muted-foreground mt-0.5">Jan 15, 5:30 PM</p>
                           </div>
@@ -1074,9 +1133,9 @@ function CounselorPreview() {
                       {/* Stats strip */}
                       <div className="flex items-center gap-8 px-5 py-3 border-b border-border bg-muted/20 flex-wrap">
                         {[
-                          { label: "Colleges",  value: 10, color: undefined           },
-                          { label: "Submitted", value: 7,  color: "hsl(205,85%,45%)" },
-                          { label: "Accepted",  value: 2,  color: "hsl(142,60%,35%)" },
+                          { label: "Colleges",  value: 5,  color: undefined           },
+                          { label: "Submitted", value: 4,  color: "hsl(205,85%,45%)" },
+                          { label: "Accepted",  value: 1,  color: "hsl(142,60%,35%)" },
                           { label: "Waitlisted",value: 1,  color: "hsl(38,85%,35%)"  },
                           { label: "Rejected",  value: 0,  color: "hsl(0,65%,45%)"   },
                         ].map(({ label, value, color }) => (
@@ -1091,10 +1150,10 @@ function CounselorPreview() {
                       <div className="px-5 py-2.5 border-b border-border">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-medium text-foreground">Application Progress</span>
-                          <span className="text-xs text-muted-foreground tabular-nums">7 of 10 submitted</span>
+                          <span className="text-xs text-muted-foreground tabular-nums">4 of 5 submitted</span>
                         </div>
                         <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full bg-primary" style={{ width: "70%" }} />
+                          <div className="h-full rounded-full bg-primary" style={{ width: "80%" }} />
                         </div>
                       </div>
 
@@ -1255,15 +1314,26 @@ export default function HomePage() {
       >
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 pt-16 pb-16 text-center">
           <Reveal delay={0}>
-            <h1 className="text-5xl sm:text-8xl font-bold tracking-tight text-foreground mb-6 leading-[1.05] sm:whitespace-nowrap text-balance">
-              Ditch the Spreadsheet.
+            <p className="text-base sm:text-lg font-medium text-muted-foreground mb-4">
+              Ditch the spreadsheet.
+            </p>
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-foreground mb-4 leading-[1.05] text-balance">
+              College Apps, Smarter
             </h1>
           </Reveal>
 
           <Reveal delay={0.14}>
-            <p className="text-xl sm:text-2xl max-w-2xl mx-auto mb-10 leading-relaxed text-muted-foreground">
-              Track every application, write your essays, and stay in sync with your counselor — all in one place.
+            <p className="text-lg sm:text-xl max-w-2xl mx-auto mb-6 leading-relaxed text-muted-foreground">
+              Application dates, essays, counselor feedback and updates, all in one place
             </p>
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <a href="#tracker" className="inline-flex items-center rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
+                I&apos;m a student
+              </a>
+              <a href="#counselors" className="inline-flex items-center rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
+                I&apos;m a counselor
+              </a>
+            </div>
           </Reveal>
 
           <Reveal delay={0.2}>
@@ -1272,90 +1342,238 @@ export default function HomePage() {
                 href="/auth?mode=signup"
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
               >
-                Start Tracking Free
+                Start for Free
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <p className="text-sm text-muted-foreground/70">Free · No credit card required</p>
+              <p className="text-sm text-muted-foreground/70">Free for students. Always.</p>
             </div>
           </Reveal>
         </div>
       </section>
 
       {/* ── Dashboard preview ── */}
-      <section id="preview" className="border-t border-border py-12">
+      <section id="tracker" className="border-t border-border py-12">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
-          <Reveal>
+          <Reveal className="pointer-events-none select-none">
             <DashboardPreview />
           </Reveal>
         </div>
       </section>
 
-      {/* ── Features ── */}
-      <section className="border-t border-border bg-muted/30 py-20">
+      {/* ── List Builder section ── */}
+      <section id="list-builder" className="border-t border-border py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
-          <Reveal className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Features</p>
-            <h2 className="text-4xl font-bold text-foreground">Everything you need, in one platform</h2>
-          </Reveal>
+          <div className="flex flex-col lg:flex-row items-center gap-12">
+            <Reveal className="flex-1 min-w-0">
+              <div className="max-w-lg">
+                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">List Builder</p>
+                <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+                  Build the right list, fast.
+                </h2>
+                <p className="text-base text-muted-foreground leading-relaxed mb-8">
+                  Search any college, drop it into your list, and set its category in seconds. Acceptance rates pull in automatically so you can see your spread at a glance.
+                </p>
+                <ul className="space-y-3">
+                  {[
+                    "Categorize schools as Reach, Match, or Safety",
+                    "Acceptance rates pulled automatically for every school",
+                    "AI-generated description of why each school fits you",
+                    "Dismiss schools that no longer interest you with one click",
+                  ].map((pt) => (
+                    <li key={pt} className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
 
-          <Reveal stagger className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-stretch mb-6">
-            <StaggerItem className="h-full">
-              <FeatureCard
-                icon={LayoutList}
-                title="Build your college list"
-                description="Add any school, set categories like Reach or Safety, and keep your full list organized in one place."
-                accent="bg-primary/10 text-primary"
-              />
-            </StaggerItem>
-            <StaggerItem className="h-full">
-              <FeatureCard
-                icon={FileText}
-                title="Essay workspace"
-                description="Write and track all your college essays with per-school prompts, word count, and draft status."
-                accent="bg-[hsl(262,60%,92%)] text-[hsl(262,60%,40%)]"
-              />
-            </StaggerItem>
-            <StaggerItem className="h-full">
-              <FeatureCard
-                icon={Share2}
-                title="Share your list"
-                description="Share your college list with your counselor or family with a single link — no account required to view."
-                accent="bg-[hsl(200,70%,92%)] text-[hsl(200,65%,35%)]"
-              />
-            </StaggerItem>
-          </Reveal>
+            {/* Mockup: college list view */}
+            <Reveal delay={0.1} className="shrink-0 w-full lg:w-auto lg:max-w-md pointer-events-none select-none">
+              <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+                <div className="border-b border-border bg-card px-5 py-3 flex items-center gap-2.5">
+                  <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-[hsl(38,85%,55%)]/60" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-[hsl(142,60%,45%)]/60" />
+                </div>
+                <div className="p-4 flex flex-col gap-3 bg-background">
+                  {/* Page header row */}
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-bold text-foreground leading-tight">Your Personalized College List</h3>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button className="rounded-lg border border-border bg-card px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
+                        Start Over
+                      </button>
+                      <button className="rounded-lg bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground flex items-center gap-1">
+                        <Plus className="h-2.5 w-2.5" />
+                        Add to Tracker
+                      </button>
+                    </div>
+                  </div>
+                  {/* Search bar */}
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+                    <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-xs text-muted-foreground">Add a college to your list...</span>
+                  </div>
+                  {/* Reach Schools */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Reach Schools</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { name: "California Institute of Technology", blurb: "Your background in quantum computing aligns with Caltech's core physics research clusters." },
+                        { name: "Stanford University", blurb: "d.school's design-thinking curriculum pairs perfectly with your product and engineering goals." },
+                        { name: "MIT", blurb: "CSAIL's open-research culture matches your interest in published undergraduate ML work." },
+                        { name: "Brown University", blurb: "Open Curriculum lets you build a self-designed CS and cognitive science concentration." },
+                      ].map((school) => (
+                        <div key={school.name} className="relative rounded-xl border border-border bg-card p-3 flex flex-col gap-1.5">
+                          <button className="absolute top-2 right-2 h-4 w-4 rounded-full flex items-center justify-center text-muted-foreground">
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                          <p className="text-[11px] font-bold text-foreground pr-4 leading-tight">{school.name}</p>
+                          <span className="inline-flex w-fit items-center rounded-md border px-1.5 py-0.5 text-[9px] font-semibold text-[hsl(0,65%,42%)] bg-[hsl(0,65%,96%)] border-[hsl(0,65%,80%)]">
+                            Reach
+                          </span>
+                          <p className="text-[9px] text-muted-foreground leading-relaxed">{school.blurb}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
 
-          <Reveal stagger className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-stretch">
-            <StaggerItem className="h-full">
-              <FeatureCard
-                icon={TrendingUp}
-                title="Track application status"
-                description="Mark each school Not Started, In Progress, or Submitted as you work through your applications."
-                accent="bg-[hsl(215,75%,92%)] text-[hsl(215,75%,40%)]"
-              />
-            </StaggerItem>
-            <StaggerItem className="h-full">
-              <FeatureCard
-                icon={Users}
-                title="Counselor dashboard"
-                description="Counselors get a live view of every student's list, essay progress, deadlines, and application status."
-                accent="bg-[hsl(142,60%,90%)] text-[hsl(142,60%,30%)]"
-              />
-            </StaggerItem>
-            <StaggerItem className="h-full">
-              <FeatureCard
-                icon={CheckCircle2}
-                title="Track decisions and outcomes"
-                description="Log acceptances, rejections, waitlists, and deferrals the moment they arrive."
-                accent="bg-[hsl(38,85%,92%)] text-[hsl(38,85%,35%)]"
-              />
-            </StaggerItem>
+      {/* ── Research Brief section ── */}
+      <section id="research-brief" className="border-t border-border bg-muted/30 py-20">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row-reverse items-center gap-12">
+            <Reveal className="flex-1 min-w-0">
+              <div className="max-w-lg">
+                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Research Brief</p>
+                <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+                  &ldquo;Why Us?&rdquo; Not a problem.
+                </h2>
+                <p className="text-base text-muted-foreground leading-relaxed mb-8">
+                  One click generates a personalized research brief for every school on your list: matching programs, faculty to know, and a clear angle for your Why Us essay.
+                </p>
+                <ul className="space-y-3">
+                  {[
+                    "Programs that match your stated academic interests",
+                    "Faculty members doing work you actually care about",
+                    "A specific 'Why Us' angle tailored to your background",
+                    "Ask follow-up questions to go deeper on any finding",
+                  ].map((pt) => (
+                    <li key={pt} className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
+
+            {/* Mockup: research brief view */}
+            <Reveal delay={0.1} className="shrink-0 w-full lg:w-auto lg:max-w-md pointer-events-none select-none">
+              <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+                <div className="border-b border-border bg-card px-5 py-3 flex items-center gap-2.5">
+                  <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-[hsl(38,85%,55%)]/60" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-[hsl(142,60%,45%)]/60" />
+                </div>
+                <div className="p-4 flex flex-col gap-4 bg-background">
+                  {/* School header */}
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground leading-tight">Massachusetts Institute of Technology</h3>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Research brief · Cambridge, MA</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-2">
+                      Your focus on large-scale ML infrastructure maps directly to MIT&apos;s CSAIL, where undergraduates regularly co-author published research. The open lab culture means you can pitch ideas to faculty from day one.
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1.5">Generated 4/26/2026</p>
+                  </div>
+                  {/* Programs */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Programs that match your interests</p>
+                    <div className="space-y-2.5">
+                      {[
+                        { name: "Course 6-3: Computer Science and Engineering", desc: "Covers systems, AI, and theory with direct pathways into CSAIL research groups." },
+                        { name: "Course 6-9: Computation and Cognition", desc: "Bridges ML and cognitive science, ideal for your interest in human-AI interaction." },
+                      ].map((prog) => (
+                        <div key={prog.name}>
+                          <a href="#" className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary underline underline-offset-2">
+                            {prog.name}
+                            <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                          </a>
+                          <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">{prog.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Faculty */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Faculty to know</p>
+                    <div className="space-y-1.5">
+                      {[
+                        { name: "Prof. Daniela Rus, CSAIL Director", desc: "Robotics and AI systems; open to undergraduate collaborators." },
+                        { name: "Prof. Aleksander Madry, RML Group", desc: "Robustness in ML models; publishes with undergrads regularly." },
+                      ].map((f) => (
+                        <div key={f.name}>
+                          <a href="#" className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary underline underline-offset-2">
+                            {f.name}
+                            <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                          </a>
+                          <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">{f.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Ask follow-up */}
+                  <div className="rounded-xl border border-border bg-muted/20 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-foreground mb-0.5">Want more research?</p>
+                    <p className="text-[10px] text-muted-foreground mb-2">Ask for specific findings to add to your brief</p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        readOnly
+                        value=""
+                        placeholder="e.g. 'Find me three professors doing AI research'"
+                        className="flex-1 min-w-0 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] text-muted-foreground placeholder:text-muted-foreground/50 outline-none"
+                      />
+                      <button className="rounded-lg bg-primary px-2.5 py-1.5 text-[10px] font-semibold text-primary-foreground flex items-center gap-1">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        Ask
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground/50 mt-1">0/1000</p>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Assistant section ── */}
+      <section id="assistant" className="border-t border-border py-20">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
+          <Reveal className="text-center mb-10">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Assistant</p>
+            <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+              Your AI college advisor, on demand.
+            </h2>
+            <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+              Ask anything about schools, strategies, or essays. Get personalized answers based on your actual list and profile. No generic advice.
+            </p>
+          </Reveal>
+          <Reveal delay={0.1} className="pointer-events-none select-none">
+            <MockAssistantPanel />
           </Reveal>
         </div>
       </section>
 
       {/* ── Essay section ── */}
-      <section className="border-t border-border py-20">
+      <section id="essays" className="border-t border-border bg-muted/30 py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <Reveal className="text-center mb-10">
             <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Essays</p>
@@ -1363,17 +1581,17 @@ export default function HomePage() {
               Write your essays. Get feedback that actually helps.
             </h2>
             <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-              Every college essay lives in one place with its prompt and word count. Your counselor can highlight specific passages and leave comments — you resolve them as you revise.
+              Every college essay lives in one place with its prompt and word count. Your counselor can highlight specific passages and leave comments, and you resolve them as you revise.
             </p>
           </Reveal>
-          <Reveal delay={0.1}>
+          <Reveal delay={0.1} className="pointer-events-none select-none">
             <MockEssayPanel />
           </Reveal>
         </div>
       </section>
 
       {/* ── Calendar section ── */}
-      <section className="border-t border-border bg-muted/30 py-20">
+      <section className="border-t border-border py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-10">
             <Reveal className="flex-1 min-w-0">
@@ -1383,7 +1601,7 @@ export default function HomePage() {
                   Never miss a deadline
                 </h2>
                 <p className="text-base text-muted-foreground leading-relaxed mb-8">
-                  Every school gets its own deadline on a built-in calendar. Track EA, ED, and RD windows so you always know what's coming — and so does your counselor.
+                  Every school gets its own deadline on a built-in calendar. Track EA, ED, and RD windows so you always know what's coming, and so does your counselor.
                 </p>
                 <ul className="space-y-3">
                   {[
@@ -1401,7 +1619,7 @@ export default function HomePage() {
               </div>
             </Reveal>
 
-            <Reveal delay={0.1} className="shrink-0">
+            <Reveal delay={0.1} className="shrink-0 pointer-events-none select-none">
               <MockCalendar />
             </Reveal>
           </div>
@@ -1409,18 +1627,18 @@ export default function HomePage() {
       </section>
 
       {/* ── Counselor section ── */}
-      <section className="border-t border-border py-20">
+      <section id="counselors" className="border-t border-border bg-muted/30 py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
-          <Reveal className="text-center mb-10">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Counselors</p>
+          <Reveal className="mb-10">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">For Counselors</p>
             <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
-              A real-time window into every student's journey
+              A real-time window into every student&apos;s journey.
             </h2>
-            <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            <p className="text-base text-muted-foreground leading-relaxed max-w-2xl">
               Counselors get a dedicated dashboard to monitor all their students at once: application progress, urgent deadlines, recent activity, and more. No more chasing updates over email.
             </p>
           </Reveal>
-          <Reveal delay={0.1}>
+          <Reveal delay={0.1} className="pointer-events-none select-none">
             <CounselorPreview />
           </Reveal>
         </div>
@@ -1460,7 +1678,7 @@ export default function HomePage() {
               <Step
                 n={4}
                 title="Monitor decisions"
-                description="Record outcomes as they arrive and see your full results — acceptances, waitlists, and more."
+                description="Record outcomes as they arrive and see your full results: acceptances, waitlists, and more."
               />
             </StaggerItem>
           </Reveal>
@@ -1474,10 +1692,13 @@ export default function HomePage() {
             <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
               Your application season, organized.
             </h2>
-            <p className="text-sm text-muted-foreground mb-10 max-w-md mx-auto leading-relaxed">
+            <p className="text-base text-muted-foreground mb-3 max-w-lg mx-auto leading-relaxed">
               Students track applications and write essays. Counselors monitor progress and leave feedback. Everyone stays on the same page.
             </p>
-            <div className="flex items-center justify-center">
+            <p className="text-sm font-semibold text-foreground mb-8">
+              Free for students. Free for counselors. No credit card required.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href="/auth?mode=signup"
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
@@ -1485,6 +1706,12 @@ export default function HomePage() {
                 Get Started Free
                 <ArrowRight className="h-4 w-4" />
               </Link>
+              <a
+                href="#tracker"
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-8 py-3.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
+              >
+                See how it works
+              </a>
             </div>
           </Reveal>
         </div>
