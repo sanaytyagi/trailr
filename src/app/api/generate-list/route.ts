@@ -1,33 +1,20 @@
 import OpenAI from "openai";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { parseJsonBody } from "@/lib/parse-json-body";
+import {
+  generateListRequestSchema,
+  type QuizAnswers,
+} from "@/lib/schemas/quiz-answers";
+import {
+  checkRateLimit,
+  recordRateLimitHit,
+  rateLimitedResponse,
+} from "@/lib/rate-limit";
 
-interface QuizAnswers {
-  state: string;
-  gpa: number;
-  testTypes: ("SAT" | "ACT")[];
-  satScore: number | null;
-  actScore: number | null;
-  major: string;
-  majorImportance: number;
-  preferenceResearch: "Research-focused" | "Teaching-focused";
-  budget: string;
-  fafsa: boolean;
-  loans: "Yes" | "No" | "Prefer to minimize";
-  setting: "Urban" | "Suburban" | "Rural";
-  sizes: ("Small" | "Medium" | "Large")[];
-  schoolType: "Public" | "Private" | "No preference";
-  coopImportance: number;
-  careerCultureImportance: number;
-  careerCultureDescription: string;
-  gradSchool: "Yes" | "Maybe" | "No";
-  gradSchoolTypes: string[];
-  careers: string;
-  alumniNetworkImportance: number;
-  campusDiversityImportance: number;
-  campusLifeImportance: number;
-  otherPriorities: string;
-}
+const ENDPOINT = "generate-list";
+const WINDOW = 24 * 60 * 60;
+const MAX = 5;
 
 interface GeneratedCollege {
   college_id: string;
@@ -100,23 +87,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count } = await supabase
-    .from("api_rate_limits")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("endpoint", "generate-list")
-    .gte("created_at", oneDayAgo);
-
-  if ((count ?? 0) >= 5) {
-    return NextResponse.json(
-      { error: "You've reached the daily limit for list generation. Try again tomorrow." },
-      { status: 429 }
+  const limit = await checkRateLimit(supabase, {
+    endpoint: ENDPOINT,
+    userId: user.id,
+    windowSeconds: WINDOW,
+    max: MAX,
+  });
+  if (!limit.ok) {
+    return rateLimitedResponse(
+      limit,
+      "You've reached the daily limit for list generation. Try again tomorrow."
     );
   }
 
+  const parsed = await parseJsonBody(req, 100 * 1024);
+  if (!parsed.ok) return parsed.response;
+
+  const validation = generateListRequestSchema.safeParse(parsed.data);
+  if (!validation.success) {
+    return NextResponse.json(
+      { error: validation.error.issues[0]?.message ?? "Invalid quiz answers" },
+      { status: 400 }
+    );
+  }
+  const answers: QuizAnswers = validation.data.answers;
+
   try {
-    const { answers } = await req.json() as { answers: QuizAnswers };
     const { data: colleges, error: collegesError } = await supabase
       .from("colleges")
       .select("*");
@@ -305,7 +301,7 @@ ${JSON.stringify(collegesSlim, null, 2)}`;
       );
     }
 
-    await supabase.from("api_rate_limits").insert({ user_id: user.id, endpoint: "generate-list" });
+    await recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id });
 
     return NextResponse.json({ colleges: validatedList });
   } catch (error) {

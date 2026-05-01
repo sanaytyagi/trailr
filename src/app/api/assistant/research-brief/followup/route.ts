@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { createClient } from "@/lib/supabase/server";
+import { parseJsonBody } from "@/lib/parse-json-body";
+import {
+  checkRateLimit,
+  recordRateLimitHit,
+  rateLimitedResponse,
+} from "@/lib/rate-limit";
 import { followupItemsSchema, type Dossier } from "@/lib/research-brief/schema";
 import { buildFollowUpSystemPrompt } from "@/lib/research-brief/prompt";
 
 export const maxDuration = 60;
+const ENDPOINT = "research-brief-followup";
+const WINDOW = 24 * 60 * 60;
+const MAX = 50;
 
 function stripCodeFences(s: string): string {
   const trimmed = s.trim();
@@ -33,27 +42,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count: followupCount } = await supabase
-    .from("api_rate_limits")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("endpoint", "research-brief-followup")
-    .gte("created_at", oneDayAgo);
-
-  if ((followupCount ?? 0) >= 50) {
-    return NextResponse.json(
-      { error: "You've reached the daily limit for follow-up questions. Try again tomorrow." },
-      { status: 429 }
+  const limit = await checkRateLimit(supabase, {
+    endpoint: ENDPOINT,
+    userId: user.id,
+    windowSeconds: WINDOW,
+    max: MAX,
+  });
+  if (!limit.ok) {
+    return rateLimitedResponse(
+      limit,
+      "You've reached the daily limit for follow-up questions. Try again tomorrow."
     );
   }
 
-  let body: { brief_id?: string; prompt?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody<{ brief_id?: string; prompt?: string }>(req, 8 * 1024);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.data;
 
   const { brief_id: briefId, prompt } = body;
   if (!briefId || !prompt?.trim()) {
@@ -164,7 +168,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    await supabase.from("api_rate_limits").insert({ user_id: user.id, endpoint: "research-brief-followup" });
+    await recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id });
 
     return NextResponse.json({ id: saved.id, items, prompt: prompt.trim() });
   } catch (err) {
