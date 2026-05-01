@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { useState, useCallback } from 'react';
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 import {
   Mail,
   Lock,
@@ -111,7 +110,6 @@ export function PasswordStrengthIndicator({ password }: { password: string }) {
 }
 
 export function AuthForm({ onSuccess, className, initialMode = 'login', onModeChange }: AuthFormProps) {
-  const [supabase] = useState(() => createClient());
   const [authMode, setAuthMode] = useState<AuthMode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -216,31 +214,46 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
 
     try {
       if (authMode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
+        const res = await fetch('/api/auth/signin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
         });
-        if (error) {
-          setErrors({ general: error.message });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setErrors({ general: json.error ?? 'Sign-in failed. Please try again.' });
         } else {
           onSuccess?.();
         }
       } else if (authMode === 'signup') {
-        const { error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: { data: { name: `${formData.firstName} ${formData.lastName}`.trim() } },
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+            full_name: `${formData.firstName} ${formData.lastName}`.trim(),
+          }),
         });
-        if (error) {
-          setErrors({ general: error.message });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setErrors({ general: json.error ?? 'Signup failed. Please try again.' });
         } else {
           onSuccess?.();
         }
       } else {
         // password reset
-        const { error } = await supabase.auth.resetPasswordForEmail(formData.email);
-        if (error) {
-          setErrors({ general: error.message });
+        const res = await fetch('/api/auth/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setErrors({ general: json.error ?? 'Reset failed. Please try again.' });
         } else {
           setSuccessMessage('Password reset email sent! Check your inbox.');
           setTimeout(() => switchMode('login'), 3000);

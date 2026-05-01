@@ -2,15 +2,38 @@ import { type NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { exchangeCode } from "@/lib/google-calendar";
+import {
+  checkRateLimit,
+  recordRateLimitHit,
+  getRateLimitAdminClient,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 const PROVIDER = "google_calendar";
 const SETTINGS_URL = "/settings?calendar=";
+const ENDPOINT = "calendar-callback";
+const WINDOW = 60 * 60;
+const MAX = 10;
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const errorParam = searchParams.get("error");
+
+  // Pre-auth IP rate limit (callback may be hit before getUser succeeds).
+  const ipKey = `ip:${getClientIp(req)}`;
+  const admin = getRateLimitAdminClient();
+  const ipLimit = await checkRateLimit(admin, {
+    endpoint: ENDPOINT,
+    key: ipKey,
+    windowSeconds: WINDOW,
+    max: MAX,
+  });
+  if (!ipLimit.ok) {
+    return NextResponse.redirect(new URL(`${SETTINGS_URL}error`, req.url));
+  }
+  await recordRateLimitHit(admin, { endpoint: ENDPOINT, key: ipKey });
 
   if (errorParam) {
     return NextResponse.redirect(new URL(`${SETTINGS_URL}denied`, req.url));

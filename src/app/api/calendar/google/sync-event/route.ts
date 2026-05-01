@@ -6,8 +6,18 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
 } from "@/lib/google-calendar";
+import { parseJsonBody } from "@/lib/parse-json-body";
+import { syncEventSchema } from "@/lib/schemas/sync-event";
+import {
+  checkRateLimit,
+  recordRateLimitHit,
+  rateLimitedResponse,
+} from "@/lib/rate-limit";
 
 const PROVIDER = "google_calendar";
+const ENDPOINT = "calendar-sync-event";
+const WINDOW = 60 * 60;
+const MAX = 60;
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -16,12 +26,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const body = await req.json() as { college_id: string; college_name: string; deadline: string | null };
-  const { college_id, college_name, deadline } = body;
+  const limit = await checkRateLimit(supabase, {
+    endpoint: ENDPOINT,
+    userId: user.id,
+    windowSeconds: WINDOW,
+    max: MAX,
+  });
+  if (!limit.ok) return rateLimitedResponse(limit);
 
-  if (!college_id || !college_name) {
-    return NextResponse.json({ error: "Missing college_id or college_name" }, { status: 400 });
+  const parsed = await parseJsonBody(req, 4 * 1024);
+  if (!parsed.ok) return parsed.response;
+
+  const validation = syncEventSchema.safeParse(parsed.data);
+  if (!validation.success) {
+    return NextResponse.json(
+      { error: validation.error.issues[0]?.message ?? "Invalid request body" },
+      { status: 400 }
+    );
   }
+  const { college_id, college_name, deadline } = validation.data;
 
   const accessToken = await getValidAccessToken(user.id);
   if (!accessToken) {
@@ -48,11 +71,13 @@ export async function POST(req: NextRequest) {
         await db.from("calendar_events").delete()
           .eq("user_id", user.id).eq("college_id", college_id).eq("provider", PROVIDER);
       }
+      await recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id });
       return NextResponse.json({ ok: true, action: "deleted" });
     }
 
     if (existing?.event_id) {
       await updateCalendarEvent(accessToken, existing.event_id, college_name, deadline);
+      await recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id });
       return NextResponse.json({ ok: true, action: "updated" });
     }
 
@@ -63,6 +88,7 @@ export async function POST(req: NextRequest) {
       provider: PROVIDER,
       event_id: eventId,
     });
+    await recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id });
     return NextResponse.json({ ok: true, action: "created" });
 
   } catch (err) {

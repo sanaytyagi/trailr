@@ -1314,9 +1314,6 @@ export default function HomePage() {
       >
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 pt-16 pb-16 text-center">
           <Reveal delay={0}>
-            <p className="text-base sm:text-lg font-medium text-muted-foreground mb-4">
-              Ditch the spreadsheet.
-            </p>
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-foreground mb-4 leading-[1.05] text-balance">
               College Apps, Smarter
             </h1>
@@ -1366,7 +1363,6 @@ export default function HomePage() {
           <div className="flex flex-col lg:flex-row items-center gap-12">
             <Reveal className="flex-1 min-w-0">
               <div className="max-w-lg">
-                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">List Builder</p>
                 <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
                   Build the right list, fast.
                 </h2>
@@ -1452,7 +1448,6 @@ export default function HomePage() {
           <div className="flex flex-col lg:flex-row-reverse items-center gap-12">
             <Reveal className="flex-1 min-w-0">
               <div className="max-w-lg">
-                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Research Brief</p>
                 <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
                   &ldquo;Why Us?&rdquo; Not a problem.
                 </h2>
@@ -1558,12 +1553,11 @@ export default function HomePage() {
       <section id="assistant" className="border-t border-border py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <Reveal className="text-center mb-10">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Assistant</p>
             <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
-              Your AI college advisor, on demand.
+              Ask anything about your applications.
             </h2>
             <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-              Ask anything about schools, strategies, or essays. Get personalized answers based on your actual list and profile. No generic advice.
+              Get answers based on your actual list and profile — which schools to prioritize, how to angle an essay, what to research before you apply.
             </p>
           </Reveal>
           <Reveal delay={0.1} className="pointer-events-none select-none">
@@ -1576,7 +1570,6 @@ export default function HomePage() {
       <section id="essays" className="border-t border-border bg-muted/30 py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <Reveal className="text-center mb-10">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Essays</p>
             <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
               Write your essays. Get feedback that actually helps.
             </h2>
@@ -1596,7 +1589,6 @@ export default function HomePage() {
           <div className="flex flex-col lg:flex-row items-center gap-10">
             <Reveal className="flex-1 min-w-0">
               <div className="max-w-lg">
-                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Deadlines</p>
                 <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
                   Never miss a deadline
                 </h2>
@@ -1630,12 +1622,11 @@ export default function HomePage() {
       <section id="counselors" className="border-t border-border bg-muted/30 py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <Reveal className="mb-10">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">For Counselors</p>
             <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
-              A real-time window into every student&apos;s journey.
+              See every student&apos;s progress at a glance.
             </h2>
             <p className="text-base text-muted-foreground leading-relaxed max-w-2xl">
-              Counselors get a dedicated dashboard to monitor all their students at once: application progress, urgent deadlines, recent activity, and more. No more chasing updates over email.
+              One dashboard shows all your students: where each application stands, which deadlines are coming up, and where someone needs a nudge. No more chasing updates over email.
             </p>
           </Reveal>
           <Reveal delay={0.1} className="pointer-events-none select-none">
@@ -1644,49 +1635,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── How it works ── */}
-      <section className="border-t border-border bg-muted/30 py-20">
-        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
-          <Reveal className="text-center mb-12">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">How It Works</p>
-            <h2 className="text-4xl font-bold text-foreground">Simple by design</h2>
-          </Reveal>
-
-          <Reveal stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
-            <StaggerItem className="h-full">
-              <Step
-                n={1}
-                title="Build your list"
-                description="Search any school and add it to your list in seconds. Categorize as Reach, Match, or Safety."
-              />
-            </StaggerItem>
-            <StaggerItem className="h-full">
-              <Step
-                n={2}
-                title="Write your essays"
-                description="Draft every college essay in one place. Track word count and status for each school."
-              />
-            </StaggerItem>
-            <StaggerItem className="h-full">
-              <Step
-                n={3}
-                title="Connect with your counselor"
-                description="Share your list and essays with your counselor. Get direct comments and feedback in real time."
-              />
-            </StaggerItem>
-            <StaggerItem className="h-full">
-              <Step
-                n={4}
-                title="Monitor decisions"
-                description="Record outcomes as they arrive and see your full results: acceptances, waitlists, and more."
-              />
-            </StaggerItem>
-          </Reveal>
-        </div>
-      </section>
-
       {/* ── CTA ── */}
-      <section className="border-t border-border bg-[hsl(215,60%,97%)] py-24">
+      <section className="border-t border-border bg-muted/30 py-24">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 text-center">
           <Reveal>
             <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
@@ -1698,7 +1648,7 @@ export default function HomePage() {
             <p className="text-sm font-semibold text-foreground mb-8">
               Free for students. Free for counselors. No credit card required.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="flex items-center justify-center">
               <Link
                 href="/auth?mode=signup"
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
@@ -1706,12 +1656,6 @@ export default function HomePage() {
                 Get Started Free
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <a
-                href="#tracker"
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-8 py-3.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors"
-              >
-                See how it works
-              </a>
             </div>
           </Reveal>
         </div>

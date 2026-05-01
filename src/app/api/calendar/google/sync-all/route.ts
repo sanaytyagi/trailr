@@ -1,15 +1,31 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken, createCalendarEvent } from "@/lib/google-calendar";
+import {
+  checkRateLimit,
+  recordRateLimitHit,
+  rateLimitedResponse,
+} from "@/lib/rate-limit";
 
 const PROVIDER = "google_calendar";
+const ENDPOINT = "calendar-sync-all";
+const WINDOW = 60 * 60;
+const MAX = 20;
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+
+  const limit = await checkRateLimit(supabase, {
+    endpoint: ENDPOINT,
+    userId: user.id,
+    windowSeconds: WINDOW,
+    max: MAX,
+  });
+  if (!limit.ok) return rateLimitedResponse(limit);
 
   const accessToken = await getValidAccessToken(user.id);
   if (!accessToken) {
@@ -27,6 +43,7 @@ export async function POST(req: NextRequest) {
     .not("personal_deadline", "is", null);
 
   if (!userColleges?.length) {
+    await recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id });
     return NextResponse.json({ ok: true, created: 0 });
   }
 
@@ -61,6 +78,8 @@ export async function POST(req: NextRequest) {
   if (failed > 0) {
     console.error(`sync-all: ${failed} of ${toSync.length} events failed to create`);
   }
+
+  await recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id });
 
   return NextResponse.json({ ok: true, created });
 }

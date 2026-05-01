@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { streamText, type UIMessage, type ModelMessage } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { createClient } from "@/lib/supabase/server";
+import { parseJsonBody } from "@/lib/parse-json-body";
+import { assistantRequestSchema } from "@/lib/schemas/assistant";
+import {
+  checkRateLimit,
+  recordRateLimitHit,
+  rateLimitedResponse,
+} from "@/lib/rate-limit";
 
 export const maxDuration = 60;
+
+const ENDPOINT = "assistant";
+const WINDOW = 24 * 60 * 60;
+const MAX = 100;
 
 function extractText(msg: UIMessage): string {
   return msg.parts
@@ -180,18 +191,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { count: msgCount } = await supabase
-      .from("api_rate_limits")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("endpoint", "assistant")
-      .gte("created_at", oneDayAgo);
-
-    if ((msgCount ?? 0) >= 100) {
-      return NextResponse.json(
-        { error: "You've reached the daily message limit. Try again tomorrow." },
-        { status: 429 }
+    const limit = await checkRateLimit(supabase, {
+      endpoint: ENDPOINT,
+      userId: user.id,
+      windowSeconds: WINDOW,
+      max: MAX,
+    });
+    if (!limit.ok) {
+      return rateLimitedResponse(
+        limit,
+        "You've reached the daily message limit. Try again tomorrow."
       );
     }
 
@@ -205,8 +214,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Assistant is student-only" }, { status: 403 });
     }
 
-    const body = await req.json() as { messages: UIMessage[] };
-    const clientMessages = body.messages ?? [];
+    const parsed = await parseJsonBody<{ messages: UIMessage[] }>(req, 256 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const validation = assistantRequestSchema.safeParse(parsed.data);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid messages payload" },
+        { status: 400 }
+      );
+    }
+    const clientMessages = parsed.data.messages ?? [];
     const latest = clientMessages[clientMessages.length - 1];
     if (!latest || latest.role !== "user") {
       return NextResponse.json({ error: "Missing user message" }, { status: 400 });
@@ -333,7 +350,7 @@ export async function POST(req: NextRequest) {
           await Promise.all([
             db.from("assistant_messages").insert({ user_id: user.id, role: "user", content: latestText }),
             db.from("assistant_messages").insert({ user_id: user.id, role: "assistant", content: text }),
-            supabase.from("api_rate_limits").insert({ user_id: user.id, endpoint: "assistant" }),
+            recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id }),
           ]);
         } catch (err) {
           console.error("Failed to persist assistant messages:", err);
