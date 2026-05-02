@@ -94,7 +94,8 @@ Output a single JSON object with this exact shape. No prose before or after the 
 3. Required sections: programs (1-5 items), fit_summary. Other sections may be empty arrays if you genuinely cannot find specific matches — do NOT pad with generic content.
 4. NEVER use these phrases: "rigorous academics", "world-class faculty", "diverse community", "strong alumni network", "cutting-edge research", "top-tier", "vibrant", "innovative curriculum", "state-of-the-art", "holistic", "well-rounded".
 5. Ground every "detail" field in something the student's profile actually says. If the student's major is Computer Science, the programs/faculty/communities you pick should relate to CS or to their stated interests.
-6. Output ONLY the JSON object. No preamble, no explanation, no markdown.`;
+6. UNDERGRAD ONLY. The user is a high school student applying for undergraduate admission. Every research opportunity, professor, lab, program, or community you surface MUST be accessible to undergraduates. Do NOT include grad-only labs, PhD-only programs, or faculty who only advise graduate students. When you mention a professor, verify they accept undergrad researchers (UROP-style programs, undergrad RAs, course-based research, senior theses). When you mention a program, verify undergrads can enroll or apply.
+7. Output ONLY the JSON object. No preamble, no explanation, no markdown.`;
 }
 
 export function buildFollowUpSystemPrompt(
@@ -134,7 +135,8 @@ Rules:
 2. Every item needs a real URL found via web search.
 3. Do NOT repeat anything already in the brief.
 4. Be specific: named professors, specific clubs, actual programs, real events.
-5. Output ONLY the JSON array. No preamble, no markdown, no explanation.`;
+5. UNDERGRAD ONLY. The user is a high school student applying for undergraduate admission. Every research opportunity, professor, lab, or program you surface MUST be accessible to undergraduates — not grad-only labs, PhD-only programs, or faculty who only advise grad students. If asked about research with a professor, verify they take undergrad researchers (UROP-style programs, undergrad RAs, course-based research, senior theses).
+6. Output ONLY the JSON array. No preamble, no markdown, no explanation.`;
 }
 
 export function buildRetryInstruction(genericPhrases: string[]): string {

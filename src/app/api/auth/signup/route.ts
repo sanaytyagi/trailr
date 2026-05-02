@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { parseJsonBody } from "@/lib/parse-json-body";
 import { signupSchema } from "@/lib/schemas/auth";
 import {
@@ -14,6 +13,9 @@ const ENDPOINT = "auth-signup";
 const WINDOW = 15 * 60;
 const MAX = 5;
 
+// Rate-limit gate only. The actual signUp runs on the client so the browser's
+// Supabase instance fires onAuthStateChange and the header/UI updates without
+// a hard refresh.
 export async function POST(req: NextRequest) {
   const parsed = await parseJsonBody(req, 4 * 1024);
   if (!parsed.ok) return parsed.response;
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  const { email, password, full_name } = validation.data;
+  const { email } = validation.data;
 
   const ip = getClientIp(req);
   const key = `ip:${ip}|email:${email}`;
@@ -46,22 +48,5 @@ export async function POST(req: NextRequest) {
 
   await recordRateLimitHit(admin, { endpoint: ENDPOINT, key });
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: full_name ? { data: { name: full_name } } : undefined,
-  });
-
-  if (error) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: error.status ?? 400 }
-    );
-  }
-
-  return NextResponse.json({
-    ok: true,
-    user: { id: data.user?.id, email: data.user?.email },
-  });
+  return NextResponse.json({ ok: true });
 }
