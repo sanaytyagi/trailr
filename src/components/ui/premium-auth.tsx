@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useState, useCallback } from 'react';
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import {
   Mail,
   Lock,
@@ -110,6 +111,7 @@ export function PasswordStrengthIndicator({ password }: { password: string }) {
 }
 
 export function AuthForm({ onSuccess, className, initialMode = 'login', onModeChange }: AuthFormProps) {
+  const [supabase] = useState(() => createClient());
   const [authMode, setAuthMode] = useState<AuthMode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -214,6 +216,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
 
     try {
       if (authMode === 'login') {
+        // 1. Hit the API gate so server-side rate-limit increments.
         const res = await fetch('/api/auth/signin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -226,7 +229,17 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
         if (!res.ok) {
           setErrors({ general: json.error ?? 'Sign-in failed. Please try again.' });
         } else {
-          onSuccess?.();
+          // 2. Run the actual sign-in on the client so onAuthStateChange fires
+          //    and the header/UI updates without a hard refresh.
+          const { error } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          });
+          if (error) {
+            setErrors({ general: error.message });
+          } else {
+            onSuccess?.();
+          }
         }
       } else if (authMode === 'signup') {
         const res = await fetch('/api/auth/signup', {
@@ -242,7 +255,17 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
         if (!res.ok) {
           setErrors({ general: json.error ?? 'Signup failed. Please try again.' });
         } else {
-          onSuccess?.();
+          const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+          const { error } = await supabase.auth.signUp({
+            email: formData.email,
+            password: formData.password,
+            options: fullName ? { data: { name: fullName } } : undefined,
+          });
+          if (error) {
+            setErrors({ general: error.message });
+          } else {
+            onSuccess?.();
+          }
         }
       } else {
         // password reset

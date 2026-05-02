@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { parseJsonBody } from "@/lib/parse-json-body";
 import { signinSchema } from "@/lib/schemas/auth";
 import {
@@ -14,6 +13,9 @@ const ENDPOINT = "auth-signin";
 const WINDOW = 15 * 60; // 15 min
 const MAX = 5;
 
+// Rate-limit gate only. The actual sign-in runs on the client so the browser's
+// Supabase instance fires onAuthStateChange and the header/UI updates without
+// a hard refresh.
 export async function POST(req: NextRequest) {
   const parsed = await parseJsonBody(req, 4 * 1024);
   if (!parsed.ok) return parsed.response;
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  const { email, password } = validation.data;
+  const { email } = validation.data;
 
   const ip = getClientIp(req);
   const key = `ip:${ip}|email:${email}`;
@@ -44,25 +46,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Record the attempt BEFORE calling Supabase so brute-force counters tick
-  // even on successful guesses.
+  // Record the attempt so brute-force counters tick on every gate hit.
   await recordRateLimitHit(admin, { endpoint: ENDPOINT, key });
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: error.status ?? 401 }
-    );
-  }
-
-  return NextResponse.json({
-    ok: true,
-    user: { id: data.user?.id, email: data.user?.email },
-  });
+  return NextResponse.json({ ok: true });
 }

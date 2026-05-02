@@ -22,6 +22,7 @@ export function Header() {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [supabase] = useState(() => createClient());
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -30,7 +31,7 @@ export function Header() {
   const { count: unreadCount } = useCounselorNotifications(profile ?? null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+    supabase.auth.getUser().then(({ data: { user } }) => { setUser(user); setUserLoading(false); });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
         setUser(null);
@@ -66,8 +67,8 @@ export function Header() {
   const userInitial = ((user?.user_metadata?.name || user?.email || "U") as string)[0].toUpperCase();
   const userDisplayName = user?.user_metadata?.name || user?.email || "";
 
-const navHref = (path: string) => user ? path : "/auth?mode=signup";
-  const authHref = (path: string) => user ? path : "/auth?mode=login";
+const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=signup";
+  const authHref = (path: string) => (userLoading || user) ? path : "/auth?mode=login";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm">
@@ -175,7 +176,7 @@ const navHref = (path: string) => user ? path : "/auth?mode=signup";
             </>
           )}
 
-          {user ? (
+          {!userLoading && (user ? (
             /* ── Authenticated: compact avatar dropdown ── */
             <div ref={userMenuRef} className="relative ml-1">
               <button
@@ -238,7 +239,7 @@ const navHref = (path: string) => user ? path : "/auth?mode=signup";
                 Get Started
               </Link>
             </>
-          )}
+          ))}
         </div>
 
         {/* Mobile hamburger */}
@@ -351,7 +352,7 @@ const navHref = (path: string) => user ? path : "/auth?mode=signup";
                   </>
                 )}
 
-                {user ? (
+                {!userLoading && (user ? (
                   <>
                     <div className="px-3 py-2 text-sm font-medium text-foreground truncate">{userDisplayName}</div>
                     <Link
@@ -392,7 +393,7 @@ const navHref = (path: string) => user ? path : "/auth?mode=signup";
                       Get Started
                     </Link>
                   </>
-                )}
+                ))}
               </div>
             </SheetContent>
           </Sheet>
