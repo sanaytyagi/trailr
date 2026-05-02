@@ -886,7 +886,7 @@ function CounselorPreview() {
   }, []);
 
   return (
-    <div ref={containerRef} className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden relative w-full" style={{ minHeight: "820px" }}>
+    <div ref={containerRef} className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden relative w-full" style={{ height: "1000px" }}>
 
       {/* Browser chrome */}
       <div className="border-b border-border bg-card px-6 py-4 flex items-center gap-3">
@@ -1622,6 +1622,7 @@ export default function HomePage() {
       <section id="counselors" className="border-t border-border bg-muted/30 py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <Reveal className="mb-10">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">For counselors</p>
             <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
               See every student&apos;s progress at a glance.
             </h2>
