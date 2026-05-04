@@ -13,7 +13,12 @@ export default function Footer() {
           </div>
         </div>
         <nav className="flex items-center gap-6">
-          <Link href="/contact" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Contact</Link>
+          <a
+            href="mailto:sanaytyagi@gmail.com?subject=Feedback for Trailr"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Send Feedback
+          </a>
           <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms of Service</Link>
           <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</Link>
         </nav>
