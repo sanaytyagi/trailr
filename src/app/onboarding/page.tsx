@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { GraduationCap, BookOpen, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
+// Counselor role is hidden pre-launch. Set NEXT_PUBLIC_COUNSELOR_ENABLED=true to restore.
+const COUNSELOR_ENABLED = process.env.NEXT_PUBLIC_COUNSELOR_ENABLED === "true";
+
 function generateInviteCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
@@ -39,9 +42,16 @@ export default function OnboardingPage() {
         return;
       }
 
+      if (!COUNSELOR_ENABLED) {
+        // Counselor role hidden pre-launch: onboard everyone straight to student.
+        handleSelect("student");
+        return;
+      }
+
       setLoading(false);
     }
     check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, router]);
 
   async function handleSelect(role: "student" | "counselor") {
@@ -88,6 +98,7 @@ export default function OnboardingPage() {
       console.error("Failed to create profile:", insertError.message);
       setError("Failed to set up your account. Please try again.");
       setSubmitting(false);
+      setLoading(false);
       return;
     }
 
@@ -126,21 +137,23 @@ export default function OnboardingPage() {
           </div>
         </button>
 
-        <button
-          onClick={() => handleSelect("counselor")}
-          disabled={submitting}
-          className="flex flex-col items-center gap-4 rounded-2xl border-2 border-border bg-card p-8 text-center hover:border-primary hover:bg-primary/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
-        >
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
-            <GraduationCap className="h-8 w-8 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold mb-1">I'm a Counselor</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Monitor your students' progress, view their college lists, and add personalized notes.
-            </p>
-          </div>
-        </button>
+        {COUNSELOR_ENABLED && (
+          <button
+            onClick={() => handleSelect("counselor")}
+            disabled={submitting}
+            className="flex flex-col items-center gap-4 rounded-2xl border-2 border-border bg-card p-8 text-center hover:border-primary hover:bg-primary/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
+          >
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
+              <GraduationCap className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold mb-1">I'm a Counselor</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Monitor your students' progress, view their college lists, and add personalized notes.
+              </p>
+            </div>
+          </button>
+        )}
       </div>
 
       {error && (

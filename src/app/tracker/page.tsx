@@ -18,6 +18,9 @@ import type { TrackedCollege, ApplicationStatus, DecisionResult } from "@/types"
 type DeadlineFilter = "overdue" | "this_week" | "this_month" | "no_date";
 type CardFilter = "all" | "submitted" | "accepted" | "waitlisted" | "rejected";
 
+// Counselor feature is hidden pre-launch. Set NEXT_PUBLIC_COUNSELOR_ENABLED=true to restore.
+const COUNSELOR_ENABLED = process.env.NEXT_PUBLIC_COUNSELOR_ENABLED === "true";
+
 // ── Status / decision badge style maps ───────────────────────────────────────
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
@@ -542,7 +545,7 @@ export default function TrackerPage() {
         {/* Left column */}
         <div className="flex-1 min-w-0">
           {/* Counselor connect banner / chip */}
-          {profile && profile.role === "student" && (
+          {COUNSELOR_ENABLED && profile && profile.role === "student" && (
             profile.counselor_id && !isChanging ? (
               <div className="mb-4 flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-sm">
                 <UserCheck className="h-4 w-4 text-primary shrink-0" />
@@ -631,7 +634,7 @@ export default function TrackerPage() {
           )}
 
           {/* From your counselor */}
-          {profile?.counselor_id && !notifDismissed && shownNotifs.length > 0 && (
+          {COUNSELOR_ENABLED && profile?.counselor_id && !notifDismissed && shownNotifs.length > 0 && (
             <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-primary">From your counselor</span>
