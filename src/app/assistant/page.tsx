@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { ArrowUp, Globe, Sparkles, RotateCcw, Square } from "lucide-react";
@@ -41,6 +41,56 @@ function isActiveToolCall(m: UIMessage): boolean {
     const state = (p as { state?: string }).state;
     return state === "input-streaming" || state === "input-available";
   });
+}
+
+const REDUCED_MOTION =
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Reveals text character-by-character using rAF so the stream feels smooth
+// regardless of how large or irregular the server chunks are.
+function useTypewriter(fullText: string, active: boolean): string {
+  const [revealed, setRevealed] = useState(() => (active && !REDUCED_MOTION ? "" : fullText));
+  const fullTextRef = useRef(fullText);
+  const revealedLenRef = useRef(active && !REDUCED_MOTION ? 0 : fullText.length);
+  const rafRef = useRef<number | null>(null);
+
+  // Keep the latest received text in a ref without restarting the loop.
+  useEffect(() => {
+    fullTextRef.current = fullText;
+    if (!active) {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      revealedLenRef.current = fullText.length;
+      setRevealed(fullText);
+    }
+  }, [fullText, active]);
+
+  const tick = useCallback(() => {
+    const cur = revealedLenRef.current;
+    const target = fullTextRef.current;
+    if (cur < target.length) {
+      const next = Math.min(cur + 3, target.length);
+      revealedLenRef.current = next;
+      setRevealed(target.slice(0, next));
+    }
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  useEffect(() => {
+    if (!active || REDUCED_MOTION) return;
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [active, tick]);
+
+  return revealed;
 }
 
 const SUGGESTED_PROMPTS = {
@@ -248,6 +298,18 @@ function ChatView({
     if (el) el.scrollTop = el.scrollHeight;
   }, []);
 
+  const userScrolledUpRef = useRef(false);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      userScrolledUpRef.current = !nearBottom;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
   const prevMessageCountRef = useRef(messages.length);
   useEffect(() => {
     const el = scrollRef.current;
@@ -255,12 +317,15 @@ function ChatView({
     const prev = prevMessageCountRef.current;
     prevMessageCountRef.current = messages.length;
     if (messages.length > prev) {
-      // New message added — always scroll to bottom.
+      const newest = messages[messages.length - 1];
+      if (newest?.role === "user") {
+        userScrolledUpRef.current = false;
+        el.scrollTop = el.scrollHeight;
+      } else if (!userScrolledUpRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    } else if (streaming && !userScrolledUpRef.current) {
       el.scrollTop = el.scrollHeight;
-    } else if (streaming) {
-      // During streaming, scroll only if already near bottom.
-      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
-      if (nearBottom) el.scrollTop = el.scrollHeight;
     }
   }, [messages, streaming]);
 
@@ -329,8 +394,12 @@ function ChatView({
               <p className="mt-1 max-w-xs text-xs text-muted-foreground">Ask anything about your colleges, essays, or application strategy below.</p>
             </div>
           )}
-          {messages.map((m) => (
-            <MessageBubble key={m.id} message={m} />
+          {messages.map((m, i) => (
+            <MessageBubble
+              key={m.id}
+              message={m}
+              isStreaming={streaming && i === messages.length - 1 && m.role === "assistant"}
+            />
           ))}
           {showTypingIndicator && <TypingIndicatorBubble />}
           {showSearching && (
@@ -446,12 +515,14 @@ function TypingIndicatorBubble() {
   );
 }
 
-function MessageBubble({ message }: { message: UIMessage }) {
+function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreaming?: boolean }) {
   const isUser = message.role === "user";
-  const text = messageText(message);
+  const rawText = messageText(message);
+  const animatedText = useTypewriter(rawText, !isUser && (isStreaming ?? false));
+  const text = isUser ? rawText : animatedText;
 
   return (
-    <div className={cn("flex w-full", isUser ? "justify-end" : "items-start gap-2")}>
+    <div className={cn("flex w-full card-enter", isUser ? "justify-end" : "items-start gap-2")}>
       {!isUser && (
         <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
@@ -478,6 +549,7 @@ function MessageBubble({ message }: { message: UIMessage }) {
             >
               {text}
             </ReactMarkdown>
+            {isStreaming && <span className="streaming-cursor" />}
           </div>
         )}
       </div>
