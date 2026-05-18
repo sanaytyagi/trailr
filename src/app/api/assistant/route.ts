@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { streamText, type UIMessage, type ModelMessage } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { createClient } from "@/lib/supabase/server";
 import { parseJsonBody } from "@/lib/parse-json-body";
 import { assistantRequestSchema } from "@/lib/schemas/assistant";
@@ -178,8 +178,8 @@ HOW TO RESPOND:
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json({ error: "Anthropic API key not configured" }, { status: 500 });
   }
 
   try {
@@ -339,11 +339,18 @@ export async function POST(req: NextRequest) {
     ];
 
     const result = streamText({
-      model: openai.responses("gpt-4o"),
-      system: systemPrompt,
-      messages: modelMessages,
+      model: anthropic("claude-sonnet-4-6"),
+      allowSystemInMessages: true,
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt,
+          providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
+        },
+        ...modelMessages,
+      ],
       tools: {
-        web_search_preview: openai.tools.webSearchPreview({}),
+        web_search: anthropic.tools.webSearch_20250305({}),
       },
       onFinish: async ({ text }) => {
         try {

@@ -67,9 +67,6 @@ export function Header() {
   const userInitial = ((user?.user_metadata?.name || user?.email || "U") as string)[0].toUpperCase();
   const userDisplayName = user?.user_metadata?.name || user?.email || "";
 
-const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=signup";
-  const authHref = (path: string) => (userLoading || user) ? path : "/auth?mode=login";
-
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm">
       <div className="flex h-16 w-full items-center justify-between">
@@ -88,7 +85,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
 
         {/* Desktop nav — right side */}
         <div className="hidden md:flex items-center gap-2 pr-4">
-          {isCounselor ? (
+          {!userLoading && user && (isCounselor ? (
             <>
               <Link
                 href="/counselor"
@@ -118,7 +115,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
           ) : (
             <>
               <Link
-                href={navHref("/tracker")}
+                href="/tracker"
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname === "/tracker"
@@ -136,7 +133,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
               </Link>
 
               <Link
-                href={navHref("/essays")}
+                href="/essays"
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname === "/essays" || pathname.startsWith("/essays/")
@@ -149,7 +146,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
               </Link>
 
               <Link
-                href={navHref("/list-builder")}
+                href="/list-builder"
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname === "/list-builder"
@@ -162,7 +159,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
               </Link>
 
               <Link
-                href={navHref("/assistant")}
+                href="/assistant"
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                   pathname === "/assistant"
@@ -174,7 +171,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
                 Assistant
               </Link>
             </>
-          )}
+          ))}
 
           {!userLoading && (user ? (
             /* ── Authenticated: compact avatar dropdown ── */
@@ -258,7 +255,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
                 <SheetTitle>Navigation</SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-1 px-4 pt-4">
-                {isCounselor ? (
+                {!userLoading && user && (isCounselor ? (
                   <>
                     <Link
                       href="/counselor"
@@ -290,7 +287,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
                 ) : (
                   <>
                     <Link
-                      href={navHref("/tracker")}
+                      href="/tracker"
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -309,7 +306,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
                     </Link>
 
                     <Link
-                      href={navHref("/essays")}
+                      href="/essays"
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -323,7 +320,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
                     </Link>
 
                     <Link
-                      href={navHref("/list-builder")}
+                      href="/list-builder"
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -337,7 +334,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
                     </Link>
 
                     <Link
-                      href={navHref("/assistant")}
+                      href="/assistant"
                       onClick={() => setMobileOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -350,7 +347,7 @@ const navHref = (path: string) => (userLoading || user) ? path : "/auth?mode=sig
                       Assistant
                     </Link>
                   </>
-                )}
+                ))}
 
                 {!userLoading && (user ? (
                   <>
