@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parseJsonBody } from "@/lib/parse-json-body";
@@ -71,12 +71,12 @@ CRITICAL RULES:
   For Reach schools: acknowledge the competitive odds while still making the case for why it's worth applying.
   Vary sentence structure across the list — avoid starting every reason the same way.`;
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: NextRequest) {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
-      { error: "OpenAI API key not configured" },
+      { error: "Anthropic API key not configured" },
       { status: 500 }
     );
   }
@@ -243,23 +243,23 @@ ${JSON.stringify(studentProfile, null, 2)}
 Colleges to choose from:
 ${JSON.stringify(collegesSlim, null, 2)}`;
 
-    // Call OpenAI
-    const message = await openai.chat.completions.create({
-      model: "gpt-4o",
+    // Call Anthropic
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       temperature: 0.3,
+      system: SYSTEM_PROMPT,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user",   content: userContent },
+        { role: "user", content: userContent },
       ],
     });
 
     // Extract and parse the response
-    const responseText = message.choices[0]?.message?.content || "";
+    const responseText = message.content.find((b) => b.type === "text")?.text || "";
 
     if (!responseText) {
       return NextResponse.json(
-        { error: "No response from OpenAI" },
+        { error: "No response from Anthropic" },
         { status: 500 }
       );
     }

@@ -136,7 +136,9 @@ Rules:
 3. Do NOT repeat anything already in the brief.
 4. Be specific: named professors, specific clubs, actual programs, real events.
 5. UNDERGRAD ONLY. The user is a high school student applying for undergraduate admission. Every research opportunity, professor, lab, or program you surface MUST be accessible to undergraduates — not grad-only labs, PhD-only programs, or faculty who only advise grad students. If asked about research with a professor, verify they take undergrad researchers (UROP-style programs, undergrad RAs, course-based research, senior theses).
-6. Output ONLY the JSON array. No preamble, no markdown, no explanation.`;
+6. NEVER question whether the student's request aligns with their profile or major. They know what they want to research. Search for exactly what they asked for.
+7. NEVER ask clarifying questions. Make the most reasonable interpretation of the request and search immediately.
+8. Output ONLY the JSON array. No preamble, no markdown, no explanation, no questions.`;
 }
 
 export function buildRetryInstruction(genericPhrases: string[]): string {

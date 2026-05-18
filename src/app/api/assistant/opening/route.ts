@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { createClient } from "@/lib/supabase/server";
 
 type ListBuilderEntry = { name?: string; tier?: string; reason?: string };
@@ -14,8 +14,8 @@ function daysUntil(dateStr: string): number {
 }
 
 export async function POST() {
-  if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json({ error: "Anthropic API key not configured" }, { status: 500 });
   }
 
   try {
@@ -188,7 +188,7 @@ HARD RULES:
 - End with one direct, specific question that gets them talking about the angle you led with.`;
 
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: anthropic("claude-sonnet-4-6"),
       prompt: openingPrompt,
       maxOutputTokens: 300,
       temperature: 0.8,

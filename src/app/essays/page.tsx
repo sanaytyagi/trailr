@@ -471,6 +471,10 @@ function EssaysPageInner() {
   const { trackedColleges, hydrated } = useTrackedColleges();
   const { profile, loading: profileLoading } = useProfile();
 
+  useEffect(() => {
+    if (!profileLoading && !profile) router.replace("/auth?mode=login");
+  }, [profile, profileLoading, router]);
+
   const [essays, setEssays] = useState<Essay[]>([]);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -598,12 +602,7 @@ function EssaysPageInner() {
 
   const showLoader = !hydrated || loading;
 
-  // Anon users land here via /essays direct link — redirect to the auth page,
-  // matching the gating pattern used by /tracker, /list-builder, /assistant.
-  if (!profileLoading && !profile) {
-    if (typeof window !== "undefined") router.replace("/auth?mode=login");
-    return null;
-  }
+  if (!profileLoading && !profile) return null;
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)]">

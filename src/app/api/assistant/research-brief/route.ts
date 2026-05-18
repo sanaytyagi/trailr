@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { generateText, stepCountIs } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { createClient } from "@/lib/supabase/server";
 import { parseJsonBody } from "@/lib/parse-json-body";
 import {
@@ -21,7 +21,7 @@ import {
 } from "@/lib/research-brief/prompt";
 
 export const maxDuration = 120;
-const MODEL_VERSION = "gpt-4o-2024-web-search";
+const MODEL_VERSION = "claude-sonnet-4-6-web-search";
 const ENDPOINT = "research-brief";
 const WINDOW = 24 * 60 * 60;
 const MAX = 25;
@@ -32,11 +32,27 @@ function stripCodeFences(s: string): string {
   return fenceMatch ? fenceMatch[1].trim() : trimmed;
 }
 
-function parseDossier(text: string): Dossier | null {
+function extractJsonObject(text: string): string {
   const cleaned = stripCodeFences(text);
+  // If it already parses as JSON, return as-is
   try {
-    const parsed = JSON.parse(cleaned);
+    JSON.parse(cleaned);
+    return cleaned;
+  } catch {
+    // Extract the outermost {...} block in case there's surrounding prose
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    return match ? match[0] : cleaned;
+  }
+}
+
+function parseDossier(text: string): Dossier | null {
+  const extracted = extractJsonObject(text);
+  try {
+    const parsed = JSON.parse(extracted);
     const result = dossierSchema.safeParse(parsed);
+    if (!result.success) {
+      console.error("Dossier schema validation failed:", JSON.stringify(result.error.issues));
+    }
     return result.success ? result.data : null;
   } catch {
     return null;
@@ -45,20 +61,22 @@ function parseDossier(text: string): Dossier | null {
 
 async function callModel(systemPrompt: string, userMessage: string) {
   const result = await generateText({
-    model: openai.responses("gpt-4o"),
+    model: anthropic("claude-sonnet-4-6"),
     system: systemPrompt,
     messages: [{ role: "user", content: userMessage }],
     tools: {
-      web_search_preview: openai.tools.webSearchPreview({}),
+      web_search: anthropic.tools.webSearch_20250305({ maxUses: 3 }),
     },
+    stopWhen: stepCountIs(4),
+    maxRetries: 0,
   });
   return result.text;
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
-      { error: "OpenAI API key not configured" },
+      { error: "Anthropic API key not configured" },
       { status: 500 }
     );
   }

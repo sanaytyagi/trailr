@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { generateText, stepCountIs } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { createClient } from "@/lib/supabase/server";
 import { parseJsonBody } from "@/lib/parse-json-body";
 import {
@@ -16,16 +16,23 @@ const ENDPOINT = "research-brief-followup";
 const WINDOW = 24 * 60 * 60;
 const MAX = 50;
 
-function stripCodeFences(s: string): string {
+function extractJsonArray(s: string): string {
   const trimmed = s.trim();
   const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-  return fenceMatch ? fenceMatch[1].trim() : trimmed;
+  const cleaned = fenceMatch ? fenceMatch[1].trim() : trimmed;
+  try {
+    JSON.parse(cleaned);
+    return cleaned;
+  } catch {
+    const match = cleaned.match(/\[[\s\S]*\]/);
+    return match ? match[0] : cleaned;
+  }
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
-      { error: "OpenAI API key not configured" },
+      { error: "Anthropic API key not configured" },
       { status: 500 }
     );
   }
@@ -120,15 +127,19 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await generateText({
-      model: openai.responses("gpt-4o"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       system: systemPrompt,
       messages: [{ role: "user", content: prompt.trim() }],
       tools: {
-        web_search_preview: openai.tools.webSearchPreview({}),
+        web_search: anthropic.tools.webSearch_20250305({ maxUses: 2 }),
       },
+      stopWhen: stepCountIs(3),
+      maxRetries: 0,
     });
 
-    const cleaned = stripCodeFences(result.text);
+    const cleaned = extractJsonArray(result.text);
+    console.log("Followup raw output:", JSON.stringify(result.text.slice(0, 800)));
+    console.log("Followup cleaned:", JSON.stringify(cleaned.slice(0, 800)));
     let items;
     try {
       const parsed = JSON.parse(cleaned);
@@ -141,16 +152,31 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const validation = followupItemsSchema.safeParse(parsed);
+      // Normalize URLs — model sometimes omits the protocol
+      const normalized = Array.isArray(parsed)
+        ? parsed.map((item: Record<string, unknown>) => ({
+            ...item,
+            url: typeof item.url === "string" && !item.url.startsWith("http")
+              ? `https://${item.url}`
+              : item.url,
+          }))
+        : parsed;
+
+      const validation = followupItemsSchema.safeParse(normalized);
       if (!validation.success) {
+        console.error("Followup schema validation failed:", JSON.stringify(validation.error.issues));
+        console.error("Raw model output:", result.text.slice(0, 500));
         throw new Error("Response did not match expected schema");
       }
       items = validation.data;
     } catch {
-      return NextResponse.json(
-        { error: "Model returned an unexpected format. Try rephrasing your request." },
-        { status: 422 }
-      );
+      // If the model returned prose instead of JSON, surface it directly
+      const raw = result.text.trim();
+      const looksLikeProse = raw.length > 0 && !raw.startsWith("[") && !raw.startsWith("{");
+      const userMessage = looksLikeProse
+        ? "The research tool couldn't process that as a search query. Try being more specific — e.g. \"Find me professors doing AI research at BU who mentor undergrads\"."
+        : "Model returned an unexpected format. Try rephrasing your request.";
+      return NextResponse.json({ error: userMessage }, { status: 422 });
     }
 
     const { data: saved, error: insertError } = await db

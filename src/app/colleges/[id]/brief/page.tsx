@@ -256,9 +256,17 @@ export default function CollegeBriefPage({
       )}
 
       {state.kind === "has_brief" && state.brief.status === "generating" && (
-        <div className="rounded-lg border border-border p-6 text-center">
-          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-3" />
+        <div className="rounded-lg border border-border p-6 text-center space-y-4">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto" />
           <p className="text-sm">Brief is generating. This page will update when it&apos;s ready.</p>
+          <button
+            onClick={handleRegenerate}
+            disabled={generating}
+            className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+          >
+            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Cancel and retry
+          </button>
         </div>
       )}
 

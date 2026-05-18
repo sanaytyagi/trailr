@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/cron/digest-submit", "schedule": "0 13 * * 1" },
+    { "path": "/api/cron/digest-collect", "schedule": "0 */6 * * *" }
+  ]
+}
