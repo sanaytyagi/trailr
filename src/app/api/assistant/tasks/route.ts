@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 30;
@@ -70,8 +70,8 @@ function sanitizeTasks(raw: unknown): AssistantTask[] {
 }
 
 export async function POST() {
-  if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json({ error: "Anthropic API key not configured" }, { status: 500 });
   }
 
   try {
@@ -183,15 +183,14 @@ export async function POST() {
         }).join("\n")
       : "(none)";
 
-    // Fix 1 + Fix 3 + Fix 7: Enrollment deadline context for accepted schools.
+    // Enrollment context for accepted schools.
+    // NOTE: personal_deadline is the *application submission* deadline, not an enrollment
+    // deadline. It is not passed here — the model must not confuse it with a commitment date.
     const enrollmentContext = acceptedColleges.length
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? (acceptedColleges as any[]).map((c) => {
           const name = c.colleges?.name ?? "Unknown";
-          const deadlineDesc = c.personal_deadline
-            ? deadlineLabel(c.personal_deadline)
-            : "no enrollment deadline recorded";
-          return `${name} — ACCEPTED, enrollment deadline: ${deadlineDesc} [ENROLLMENT/COMMITMENT DEADLINE — not an application task]`;
+          return `${name} — ACCEPTED (no enrollment deadline stored; use May 1 as the typical national deadline unless the student notes otherwise)`;
         }).join("\n")
       : "(none)";
 
@@ -246,7 +245,7 @@ STUDENT DATA:
 Schools with pending application deadlines (application NOT yet submitted):
 ${appDeadlinesContext}
 
-Schools where student was ACCEPTED — enrollment/commitment deadlines only:
+Schools where student was ACCEPTED — no enrollment deadline is stored in the system (the only deadline field is the application submission deadline, which is irrelevant once accepted):
 ${enrollmentContext}
 
 Deferred schools:
@@ -314,7 +313,7 @@ Output ONLY the JSON array. No prose, no fences, no commentary. Example:
 ]`;
 
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: anthropic("claude-haiku-4-5-20251001"),
       prompt,
       maxOutputTokens: 800,
       temperature: 0.3,
