@@ -793,7 +793,7 @@ function EssaysPageInner() {
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteEssay(essay.id, essay.college_id); }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                          className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
                           aria-label="Delete essay"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
