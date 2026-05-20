@@ -7,7 +7,15 @@ import {
   checkRateLimit,
   recordRateLimitHit,
   rateLimitedResponse,
+  getRateLimitAdminClient,
 } from "@/lib/rate-limit";
+import {
+  checkAiQuota,
+  estimateCostCents,
+  quotaExceededResponse,
+  resolvePlan,
+  type Plan,
+} from "@/lib/ai-quota";
 import {
   dossierSchema,
   detectGenericPhrases,
@@ -70,7 +78,7 @@ async function callModel(systemPrompt: string, userMessage: string) {
     stopWhen: stepCountIs(4),
     maxRetries: 0,
   });
-  return result.text;
+  return { text: result.text, usage: result.usage };
 }
 
 export async function POST(req: NextRequest) {
@@ -143,15 +151,24 @@ export async function POST(req: NextRequest) {
   // Load profile context
   const { data: profile } = await db
     .from("profiles")
-    .select("id, full_name, role")
+    .select("id, full_name, role, plan, plan_expires_at")
     .eq("id", user.id)
-    .single();
+    .single() as { data: { id: string; full_name: string | null; role: "student" | "counselor"; plan: Plan; plan_expires_at: string | null } | null };
   if (!profile || profile.role !== "student") {
     return NextResponse.json(
       { error: "Research briefs are student-only" },
       { status: 403 }
     );
   }
+
+  const effectivePlan = resolvePlan(profile);
+  const quota = await checkAiQuota(
+    getRateLimitAdminClient(),
+    user.id,
+    effectivePlan,
+    ENDPOINT
+  );
+  if (!quota.ok) return quotaExceededResponse(quota);
 
   const { data: listRow } = await db
     .from("user_lists")
@@ -219,10 +236,24 @@ export async function POST(req: NextRequest) {
   const systemPrompt = buildBriefSystemPrompt(promptContext);
 
   try {
-    let rawText = await callModel(
+    let totalInput = 0;
+    let totalOutput = 0;
+    let totalCacheRead = 0;
+    let webSearchUses = 0;
+    const accumulate = (u: { inputTokens?: number; outputTokens?: number; cachedInputTokens?: number; reasoningTokens?: number } | undefined) => {
+      if (!u) return;
+      totalInput += u.inputTokens ?? 0;
+      totalOutput += u.outputTokens ?? 0;
+      totalCacheRead += u.cachedInputTokens ?? 0;
+    };
+
+    let first = await callModel(
       systemPrompt,
       `Produce the research brief for ${college.name}.`
     );
+    accumulate(first.usage);
+    webSearchUses += 1; // best-effort: at least one search per call
+    let rawText = first.text;
     let dossier = parseDossier(rawText);
 
     if (!dossier) {
@@ -235,10 +266,13 @@ export async function POST(req: NextRequest) {
     let qualityFlag: string | null = null;
     const generic = detectGenericPhrases(dossier);
     if (generic.length > 0) {
-      rawText = await callModel(
+      const retry = await callModel(
         systemPrompt + "\n\n" + buildRetryInstruction(generic),
         `Regenerate the research brief for ${college.name} without any of the banned generic phrases.`
       );
+      accumulate(retry.usage);
+      webSearchUses += 1;
+      rawText = retry.text;
       const retried = parseDossier(rawText);
       if (retried) {
         dossier = retried;
@@ -266,7 +300,21 @@ export async function POST(req: NextRequest) {
 
     if (updateError) throw new Error(updateError.message);
 
-    await recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id });
+    const costCents = estimateCostCents(
+      "claude-sonnet-4-6",
+      {
+        input_tokens: totalInput,
+        output_tokens: totalOutput,
+        cache_read_input_tokens: totalCacheRead,
+      },
+      webSearchUses
+    );
+    await recordRateLimitHit(supabase, {
+      endpoint: ENDPOINT,
+      userId: user.id,
+      billable: true,
+      costCents: costCents ?? undefined,
+    });
 
     return NextResponse.json({
       id: briefId,

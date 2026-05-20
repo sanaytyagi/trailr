@@ -76,14 +76,28 @@ export async function checkRateLimit(
  */
 export async function recordRateLimitHit(
   client: SupabaseClient,
-  input: { endpoint: string; userId?: string; key?: string }
+  input: {
+    endpoint: string;
+    userId?: string;
+    key?: string;
+    costCents?: number;
+    billable?: boolean;
+  }
 ): Promise<void> {
   if (!input.userId && !input.key) return;
-  const row: { endpoint: string; user_id?: string; key?: string } = {
+  const row: {
+    endpoint: string;
+    user_id?: string;
+    key?: string;
+    cost_cents?: number;
+    billable?: boolean;
+  } = {
     endpoint: input.endpoint,
   };
   if (input.userId) row.user_id = input.userId;
   if (input.key) row.key = input.key;
+  if (typeof input.costCents === "number") row.cost_cents = input.costCents;
+  if (typeof input.billable === "boolean") row.billable = input.billable;
   const { error } = await client.from("api_rate_limits").insert(row);
   if (error) {
     console.error(`recordRateLimitHit(${input.endpoint}) failed:`, error.message);

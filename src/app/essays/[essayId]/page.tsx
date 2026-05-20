@@ -8,6 +8,7 @@ import {
   Undo2, Redo2, MessageSquare, Check,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Bold, Italic, Underline, Settings, Plus, Minus, Search, Sparkles,
+  StickyNote, Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -41,6 +42,19 @@ interface EssayComment {
   resolved: boolean;
   created_at: string;
 }
+
+interface EssayNote {
+  id: string;
+  essay_id: string;
+  user_id: string;
+  text: string;
+  start_offset: number;
+  end_offset: number;
+  color_index: number;
+  created_at: string;
+}
+
+type AnnotationLike = { id: string; start_offset: number; end_offset: number; color_index: number; resolved?: boolean };
 
 interface Segment {
   text: string;
@@ -81,7 +95,7 @@ function getCharOffset(container: Node, node: Node, offset: number): number {
 
 function buildSegments(
   body: string,
-  comments: EssayComment[],
+  comments: AnnotationLike[],
   pending?: { start: number; end: number; colorIndex: number },
 ): Segment[] {
   type Event = { pos: number; open: boolean; id: string; colorIndex: number };
@@ -168,12 +182,20 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
   // Sibling navigation (Change 3)
   const [siblingEssays, setSiblingEssays] = useState<{ id: string }[]>([]);
 
-  // Comments
+  // Counselor comments
   const [comments, setComments] = useState<EssayComment[]>([]);
   const [selectionInfo, setSelectionInfo] = useState<{ start: number; end: number; rect: DOMRect } | null>(null);
   const [pendingSelection, setPendingSelection] = useState<{ start: number; end: number } | null>(null);
   const [newCommentText, setNewCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+
+  // Student notes
+  const [notes, setNotes] = useState<EssayNote[]>([]);
+  const [notesMode, setNotesMode] = useState(false);
+  const [noteSelectionInfo, setNoteSelectionInfo] = useState<{ start: number; end: number; rect: DOMRect } | null>(null);
+  const [pendingNoteSelection, setPendingNoteSelection] = useState<{ start: number; end: number } | null>(null);
+  const [newNoteText, setNewNoteText] = useState("");
+  const [submittingNote, setSubmittingNote] = useState(false);
 
   // Counselor notification banner
   const { notifications: counselorNotifs, markEssayRead } = useCounselorNotifications(profile ?? null);
@@ -189,6 +211,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const essayTextRef = useRef<HTMLDivElement>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  const noteInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Mark essay comments as read when the student scrolls essay text into view
   useEffect(() => {
@@ -266,7 +289,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         .order("created_at", { ascending: true });
       if (siblingsData) setSiblingEssays(siblingsData as { id: string }[]);
 
-      // Load comments
+      // Load counselor comments
       const { data: commentsData } = await (supabase as any)
         .from("essay_comments")
         .select("id, essay_id, counselor_id, text, start_offset, end_offset, color_index, resolved, created_at, counselor:profiles!counselor_id(full_name)")
@@ -278,6 +301,16 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
           ...(c as object),
           counselor_name: (c.counselor as { full_name: string | null } | null)?.full_name ?? "Counselor",
         })) as EssayComment[]);
+      }
+
+      // Load student notes (only for owner)
+      if (essayData.user_id === profile!.id) {
+        const { data: notesData } = await (supabase as any)
+          .from("essay_notes")
+          .select("id, essay_id, user_id, text, start_offset, end_offset, color_index, created_at")
+          .eq("essay_id", essayId)
+          .order("start_offset", { ascending: true });
+        if (notesData) setNotes(notesData as EssayNote[]);
       }
 
       setLoading(false);
@@ -418,6 +451,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
     function onMouseDown(e: MouseEvent) {
       if (essayTextRef.current?.contains(e.target as Node)) return;
       setSelectionInfo(null);
+      setNoteSelectionInfo(null);
     }
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
@@ -426,6 +460,66 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
   function scrollToComment(commentId: string) {
     essayTextRef.current
       ?.querySelector(`[data-comment="${commentId}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // ── Note system (student self-annotation) ────────────────────────────────────
+
+  function handleNoteTextSelect() {
+    if (pendingNoteSelection) return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) { setNoteSelectionInfo(null); return; }
+    const range = sel.getRangeAt(0);
+    if (!essayTextRef.current?.contains(range.commonAncestorContainer)) { setNoteSelectionInfo(null); return; }
+    const start = getCharOffset(essayTextRef.current, range.startContainer, range.startOffset);
+    const end = getCharOffset(essayTextRef.current, range.endContainer, range.endOffset);
+    if (start >= end) { setNoteSelectionInfo(null); return; }
+    if (notes.some((n) => n.start_offset < end && n.end_offset > start)) {
+      setNoteSelectionInfo(null); return;
+    }
+    setNoteSelectionInfo({ start, end, rect: range.getBoundingClientRect() });
+  }
+
+  function openNoteInput() {
+    if (!noteSelectionInfo) return;
+    setPendingNoteSelection({ start: noteSelectionInfo.start, end: noteSelectionInfo.end });
+    setNoteSelectionInfo(null);
+    window.getSelection()?.removeAllRanges();
+    setTimeout(() => noteInputRef.current?.focus(), 50);
+  }
+
+  async function submitNote() {
+    if (!pendingNoteSelection || !newNoteText.trim() || !profile || !essay) return;
+    setSubmittingNote(true);
+    const colorIndex = notes.length % HIGHLIGHT_COLORS.length;
+    const { data } = await (supabase as any)
+      .from("essay_notes")
+      .insert({
+        essay_id: essayId,
+        user_id: profile.id,
+        text: newNoteText.trim(),
+        start_offset: pendingNoteSelection.start,
+        end_offset: pendingNoteSelection.end,
+        color_index: colorIndex,
+      })
+      .select("id, essay_id, user_id, text, start_offset, end_offset, color_index, created_at")
+      .single();
+    if (data) {
+      setNotes((prev) => [...prev, data as EssayNote].sort((a, b) => a.start_offset - b.start_offset));
+    }
+    setPendingNoteSelection(null);
+    setNewNoteText("");
+    setSubmittingNote(false);
+  }
+
+  async function deleteNote(noteId: string) {
+    await (supabase as any).from("essay_notes").delete().eq("id", noteId);
+    setNotes((prev) => prev.filter((n) => n.id !== noteId));
+  }
+
+  function scrollToNote(noteId: string) {
+    essayTextRef.current
+      ?.querySelector(`[data-comment="${noteId}"]`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
@@ -694,6 +788,158 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
     );
   }
 
+  // ── Owner view — notes mode ───────────────────────────────────────────────────
+
+  if (viewMode === "owner" && notesMode) {
+    const noteSegments = buildSegments(
+      body,
+      notes,
+      pendingNoteSelection
+        ? { start: pendingNoteSelection.start, end: pendingNoteSelection.end, colorIndex: notes.length % HIGHLIGHT_COLORS.length }
+        : undefined,
+    );
+    const pendingNoteColorIndex = notes.length % HIGHLIGHT_COLORS.length;
+
+    return (
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+
+        {/* Top bar */}
+        <div className="flex items-center gap-3 mb-5">
+          <button
+            onClick={() => setNotesMode(false)}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {activeComments.length > 0 ? "Back to Review" : "Back to Editor"}
+          </button>
+          {collegeName && (
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 pl-1.5 pr-3 py-1 text-sm font-medium text-foreground truncate max-w-xs">
+              <CollegeLogo name={collegeName} website_url={collegeWebsiteUrl} size={24} />
+              {collegeName}
+            </span>
+          )}
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/8 px-3 py-1 text-xs font-medium text-primary shrink-0">
+            <StickyNote className="h-3 w-3" />
+            My Notes
+          </span>
+          <div className="flex-1" />
+        </div>
+
+        {/* Two-column layout */}
+        <div className="flex gap-6 items-start">
+          <div className="flex-1 min-w-0 rounded-xl border border-border bg-card overflow-hidden shadow-sm">
+            <PromptSection />
+            <div
+              ref={essayTextRef}
+              onMouseUp={handleNoteTextSelect}
+              className="px-6 py-5 text-sm leading-relaxed whitespace-pre-wrap select-text min-h-[420px] cursor-text"
+            >
+              {body.trim() === "" ? (
+                <span className="text-muted-foreground italic">No content yet.</span>
+              ) : (
+                noteSegments.map((seg, i) => {
+                  if (!seg.commentId) return <span key={i}>{seg.text}</span>;
+                  const color = HIGHLIGHT_COLORS[seg.colorIndex % HIGHLIGHT_COLORS.length];
+                  return (
+                    <mark key={i} data-comment={seg.commentId}
+                      style={{ backgroundColor: color.bg, borderBottom: `2px dashed ${color.border}`, borderRadius: "2px" }}
+                      className="cursor-pointer"
+                    >{seg.text}</mark>
+                  );
+                })
+              )}
+            </div>
+            <CountFooter />
+          </div>
+
+          {/* Notes sidebar */}
+          <div className="w-72 shrink-0 flex flex-col gap-3 sticky top-20">
+            {notes.length === 0 && !pendingNoteSelection && (
+              <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-border">
+                <StickyNote className="h-7 w-7 text-muted-foreground/30 mb-2" />
+                <p className="text-xs font-medium text-foreground mb-0.5">No notes yet</p>
+                <p className="text-xs text-muted-foreground">Select text in the essay to add a note.</p>
+              </div>
+            )}
+            {notes.map((note) => {
+              const color = HIGHLIGHT_COLORS[note.color_index % HIGHLIGHT_COLORS.length];
+              return (
+                <div key={note.id} onClick={() => scrollToNote(note.id)}
+                  className="rounded-xl border border-border bg-card p-4 shadow-sm cursor-pointer transition-colors hover:bg-muted/30"
+                  style={{ borderLeft: `3px solid ${color.border}` }}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-foreground">Note</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-muted-foreground">{formatDate(note.created_at)}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
+                        className="text-muted-foreground/50 hover:text-destructive transition-colors"
+                        title="Delete note"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] italic leading-snug mb-2 rounded px-1.5 py-0.5"
+                    style={{ backgroundColor: color.bg, color: "hsl(var(--foreground) / 0.7)" }}>
+                    &ldquo;{truncateQuote(body.slice(note.start_offset, note.end_offset))}&rdquo;
+                  </p>
+                  <p className="text-xs text-foreground leading-snug">{note.text}</p>
+                </div>
+              );
+            })}
+            {pendingNoteSelection && (
+              <div className="rounded-xl border border-border bg-card p-4 shadow-sm"
+                style={{ borderLeft: `3px solid ${HIGHLIGHT_COLORS[pendingNoteColorIndex].border}` }}
+              >
+                <p className="text-[11px] italic leading-snug mb-2 rounded px-1.5 py-0.5"
+                  style={{ backgroundColor: HIGHLIGHT_COLORS[pendingNoteColorIndex].bg, color: "hsl(var(--foreground) / 0.7)" }}>
+                  &ldquo;{truncateQuote(body.slice(pendingNoteSelection.start, pendingNoteSelection.end))}&rdquo;
+                </p>
+                <textarea
+                  ref={noteInputRef}
+                  value={newNoteText}
+                  onChange={(e) => setNewNoteText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submitNote(); }}
+                  placeholder="Add a note…"
+                  rows={3}
+                  className="w-full text-xs bg-muted/50 rounded-md px-2 py-1.5 resize-none outline-none focus:ring-2 focus:ring-ring mb-2"
+                />
+                <div className="flex gap-2">
+                  <button onClick={submitNote} disabled={submittingNote || !newNoteText.trim()}
+                    className="text-xs font-semibold text-primary hover:text-primary/80 disabled:opacity-50 transition-colors">
+                    {submittingNote ? "Saving…" : "Add Note"}
+                  </button>
+                  <button onClick={() => { setPendingNoteSelection(null); setNewNoteText(""); }}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {noteSelectionInfo && typeof window !== "undefined" && createPortal(
+          <button
+            onMouseDown={(e) => { e.preventDefault(); openNoteInput(); }}
+            className="fixed z-50 flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-1.5 text-xs font-semibold text-background shadow-lg hover:bg-foreground/90 transition-colors"
+            style={{
+              top: noteSelectionInfo.rect.top - 40 + window.scrollY,
+              left: noteSelectionInfo.rect.left + noteSelectionInfo.rect.width / 2,
+              transform: "translateX(-50%)",
+            }}
+          >
+            <StickyNote className="h-3 w-3" />
+            Add Note
+          </button>,
+          document.body,
+        )}
+      </main>
+    );
+  }
+
   // ── Owner view — review mode (active comments) ───────────────────────────────
 
   if (activeComments.length > 0) {
@@ -734,6 +980,13 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
             <MessageSquare className="h-3 w-3" />
             {activeComments.length} comment{activeComments.length !== 1 ? "s" : ""}
           </span>
+          <button
+            onClick={() => setNotesMode(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm transition-colors shrink-0"
+          >
+            <StickyNote className="h-3.5 w-3.5" />
+            Notes{notes.length > 0 ? ` (${notes.length})` : ""}
+          </button>
           <div className="flex-1" />
           <span className="text-xs text-muted-foreground shrink-0">
             {saving ? "Saving…" : savedAt ? "Saved" : ""}
@@ -918,6 +1171,14 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         >
           <Settings className="h-3.5 w-3.5" />
           Edit Settings
+        </button>
+
+        <button
+          onClick={() => setNotesMode(true)}
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm transition-colors shrink-0"
+        >
+          <StickyNote className="h-3.5 w-3.5" />
+          Notes{notes.length > 0 ? ` (${notes.length})` : ""}
         </button>
 
         {/* Change 3: essay navigation */}

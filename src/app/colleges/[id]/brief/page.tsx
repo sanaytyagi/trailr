@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, RefreshCw, ExternalLink, AlertCircle, SendHorizontal } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Dossier, CitedItem } from "@/lib/research-brief/schema";
+import { UpgradeModal } from "@/components/upgrade-modal";
+import { useUsage } from "@/components/usage-meter";
 
 interface BriefRow {
   id: string;
@@ -48,6 +50,8 @@ export default function CollegeBriefPage({
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [followups, setFollowups] = useState<FollowUpRow[]>([]);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const { data: usage, refresh: refreshUsage } = useUsage();
   const [followUpInput, setFollowUpInput] = useState("");
   const [followUpLoading, setFollowUpLoading] = useState(false);
   const [followUpError, setFollowUpError] = useState<string | null>(null);
@@ -118,6 +122,10 @@ export default function CollegeBriefPage({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: "Request failed" }));
+        if (res.status === 402 && body.code === "quota_exceeded") {
+          setUpgradeOpen(true);
+          throw new Error(body.error ?? "You've reached your monthly AI limit.");
+        }
         throw new Error(body.error ?? `HTTP ${res.status}`);
       }
       await load();
@@ -148,6 +156,10 @@ export default function CollegeBriefPage({
       });
       if (!gen.ok) {
         const body = await gen.json().catch(() => ({ error: "Generation failed" }));
+        if (gen.status === 402 && body.code === "quota_exceeded") {
+          setUpgradeOpen(true);
+          throw new Error(body.error ?? "You've reached your monthly AI limit.");
+        }
         throw new Error(body.error ?? `HTTP ${gen.status}`);
       }
       await load();
@@ -172,7 +184,13 @@ export default function CollegeBriefPage({
         body: JSON.stringify({ brief_id: state.brief.id, prompt }),
       });
       const data = await res.json().catch(() => ({ error: "Request failed" }));
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      if (!res.ok) {
+        if (res.status === 402 && data.code === "quota_exceeded") {
+          setUpgradeOpen(true);
+          throw new Error(data.error ?? "You've reached your monthly AI limit.");
+        }
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
       setFollowups((prev) => [...prev, { id: data.id, prompt: data.prompt, items: data.items }]);
       setFollowUpInput("");
     } catch (err) {
@@ -307,6 +325,17 @@ export default function CollegeBriefPage({
           <span>{genError}</span>
         </div>
       )}
+      <UpgradeModal
+        open={upgradeOpen}
+        onOpenChange={(o) => {
+          setUpgradeOpen(o);
+          if (!o) refreshUsage();
+        }}
+        currentPlan={(usage?.plan ?? "free") as "free" | "plus" | "unlimited"}
+        initialTier={usage?.plan === "plus" ? "unlimited" : "plus"}
+        title="You've reached your monthly AI limit"
+        description="Upgrade to generate more research briefs this month."
+      />
     </div>
   );
 }
