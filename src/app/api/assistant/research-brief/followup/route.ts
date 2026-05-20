@@ -7,7 +7,15 @@ import {
   checkRateLimit,
   recordRateLimitHit,
   rateLimitedResponse,
+  getRateLimitAdminClient,
 } from "@/lib/rate-limit";
+import {
+  checkAiQuota,
+  estimateCostCents,
+  quotaExceededResponse,
+  resolvePlan,
+  type Plan,
+} from "@/lib/ai-quota";
 import { followupItemsSchema, type Dossier } from "@/lib/research-brief/schema";
 import { buildFollowUpSystemPrompt } from "@/lib/research-brief/prompt";
 
@@ -61,6 +69,20 @@ export async function POST(req: NextRequest) {
       "You've reached the daily limit for follow-up questions. Try again tomorrow."
     );
   }
+
+  const { data: profile } = await db
+    .from("profiles")
+    .select("id, plan, plan_expires_at")
+    .eq("id", user.id)
+    .single() as { data: { id: string; plan: Plan; plan_expires_at: string | null } | null };
+  const effectivePlan = resolvePlan(profile);
+  const quota = await checkAiQuota(
+    getRateLimitAdminClient(),
+    user.id,
+    effectivePlan,
+    ENDPOINT
+  );
+  if (!quota.ok) return quotaExceededResponse(quota);
 
   const parsed = await parseJsonBody<{ brief_id?: string; prompt?: string }>(req, 8 * 1024);
   if (!parsed.ok) return parsed.response;
@@ -194,7 +216,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
-    await recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id });
+    const costCents = estimateCostCents(
+      "claude-haiku-4-5",
+      {
+        input_tokens: result.usage?.inputTokens ?? 0,
+        output_tokens: result.usage?.outputTokens ?? 0,
+        cache_read_input_tokens: result.usage?.cachedInputTokens ?? 0,
+      },
+      1
+    );
+    await recordRateLimitHit(supabase, {
+      endpoint: ENDPOINT,
+      userId: user.id,
+      billable: true,
+      costCents: costCents ?? undefined,
+    });
 
     return NextResponse.json({ id: saved.id, items, prompt: prompt.trim() });
   } catch (err) {

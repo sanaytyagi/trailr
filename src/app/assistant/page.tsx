@@ -17,6 +17,8 @@ import {
   PromptInputAction,
 } from "@/components/ui/prompt-input";
 import { AssistantSidebar } from "@/components/assistant-sidebar";
+import { UpgradeModal } from "@/components/upgrade-modal";
+import { useUsage } from "@/components/usage-meter";
 
 type DBMessage = { id: string; role: "user" | "assistant"; content: string };
 
@@ -287,6 +289,22 @@ function ChatView({
     transport,
   });
 
+  // Quota / upgrade handling: on any chat error, fetch /api/usage and open the
+  // upgrade modal if the user is over their monthly cap (402 quota_exceeded).
+  const { data: usage, refresh: refreshUsage } = useUsage();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  useEffect(() => {
+    if (!error) return;
+    fetch("/api/usage")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((u: { plan: string; used: number; cap: number | null } | null) => {
+        if (u && u.cap !== null && u.used >= u.cap) {
+          setUpgradeOpen(true);
+        }
+      })
+      .catch(() => {});
+  }, [error]);
+
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const streaming = status === "streaming" || status === "submitted";
@@ -409,9 +427,23 @@ function ChatView({
             </div>
           )}
           {error && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              {error.message || "Something went wrong. Try again."}
-            </div>
+            usage && usage.cap !== null && usage.used >= usage.cap ? (
+              <div className="rounded-lg border border-border bg-card px-3 py-2 text-sm flex items-center justify-between gap-3">
+                <span className="text-muted-foreground">
+                  You&apos;ve hit your monthly AI limit ({usage.used}/{usage.cap}).
+                </span>
+                <button
+                  onClick={() => setUpgradeOpen(true)}
+                  className="rounded-md bg-primary px-3 h-7 text-xs font-semibold text-primary-foreground hover:opacity-90"
+                >
+                  Upgrade
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {error.message || "Something went wrong. Try again."}
+              </div>
+            )
           )}
           {initError && (
             <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -482,6 +514,17 @@ function ChatView({
           </PromptInput>
         </div>
       </div>
+      <UpgradeModal
+        open={upgradeOpen}
+        onOpenChange={(o) => {
+          setUpgradeOpen(o);
+          if (!o) refreshUsage();
+        }}
+        currentPlan={(usage?.plan ?? "free") as "free" | "plus" | "unlimited"}
+        initialTier={usage?.plan === "plus" ? "unlimited" : "plus"}
+        title="You've reached your monthly AI limit"
+        description="Upgrade to keep using the assistant this month."
+      />
     </div>
   );
 }
@@ -539,7 +582,7 @@ function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreami
         {isUser ? (
           <div className="whitespace-pre-wrap">{text}</div>
         ) : (
-          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2.5 prose-ul:my-2.5 prose-ol:my-2.5 prose-headings:mt-3.5 prose-headings:mb-1.5 prose-headings:font-semibold prose-pre:bg-muted prose-pre:text-foreground prose-strong:font-semibold prose-strong:text-foreground/90">
+          <div className={cn("prose prose-sm max-w-none dark:prose-invert prose-p:my-2.5 prose-ul:my-2.5 prose-ol:my-2.5 prose-headings:mt-3.5 prose-headings:mb-1.5 prose-headings:font-semibold prose-pre:bg-muted prose-pre:text-foreground prose-strong:font-semibold prose-strong:text-foreground/90", isStreaming && "prose-streaming")}>
             <ReactMarkdown
               components={{
                 li: ({ children }) => (
@@ -549,7 +592,6 @@ function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreami
             >
               {text}
             </ReactMarkdown>
-            {isStreaming && <span className="streaming-cursor" />}
           </div>
         )}
       </div>

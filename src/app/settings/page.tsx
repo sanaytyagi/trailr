@@ -7,6 +7,8 @@ import type { User } from "@supabase/supabase-js";
 import { PasswordStrengthIndicator } from "@/components/ui/premium-auth";
 import { Calendar, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { UsageMeter, useUsage } from "@/components/usage-meter";
+import { UpgradeModal } from "@/components/upgrade-modal";
 
 type CalendarStatus = "loading" | "connected" | "disconnected";
 
@@ -33,6 +35,11 @@ function SettingsPageInner() {
   const [calendarStatus, setCalendarStatus] = useState<CalendarStatus>("loading");
   const [disconnecting, setDisconnecting] = useState(false);
 
+  // Billing
+  const { data: usage, loading: usageLoading, refresh: refreshUsage } = useUsage();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { router.push("/auth"); return; }
@@ -49,6 +56,44 @@ function SettingsPageInner() {
     else if (result === "error") toast.error("Couldn't connect Google Calendar", { description: "Something went wrong. Please try again." });
     router.replace("/settings");
   }, [searchParams, router]);
+
+  // Handle post-checkout return: ?upgraded=1&session_id=... fires the
+  // session-verify fallback so a slow webhook doesn't leave the user blocked.
+  useEffect(() => {
+    const upgraded = searchParams.get("upgraded");
+    const sessionId = searchParams.get("session_id");
+    if (upgraded === "1" && sessionId) {
+      fetch(`/api/billing/verify-session?session_id=${encodeURIComponent(sessionId)}`, {
+        method: "POST",
+      })
+        .then((r) => r.json())
+        .then(() => {
+          toast.success("Subscription active", { description: "Your plan has been upgraded." });
+          refreshUsage();
+        })
+        .catch(() => {
+          toast.error("We couldn't verify the payment yet. It should activate within a minute.");
+        });
+      router.replace("/settings");
+    } else if (upgraded === "0") {
+      toast.info("Checkout cancelled");
+      router.replace("/settings");
+    }
+  }, [searchParams, router, refreshUsage]);
+
+  async function handleOpenPortal() {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/billing/portal", { method: "POST" });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Failed");
+      window.location.href = data.url;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      toast.error("Couldn't open billing portal", { description: msg });
+      setPortalLoading(false);
+    }
+  }
 
   // Fetch calendar connection status
   useEffect(() => {
@@ -131,6 +176,42 @@ function SettingsPageInner() {
             </label>
             <div className="h-10 w-full rounded-lg border border-border bg-muted/50 px-3 flex items-center text-sm text-muted-foreground select-all">
               {user.email}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Billing ── */}
+        <section className="mb-6">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+            Billing
+          </h2>
+          <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+            <UsageMeter data={usage} loading={usageLoading} />
+            <div className="flex flex-wrap items-center gap-2">
+              {usage?.plan === "free" ? (
+                <button
+                  onClick={() => setUpgradeOpen(true)}
+                  className="inline-flex items-center rounded-lg bg-primary px-4 h-9 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+                >
+                  Upgrade plan
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setUpgradeOpen(true)}
+                    className="inline-flex items-center rounded-lg border border-border px-4 h-9 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                  >
+                    Change plan
+                  </button>
+                  <button
+                    onClick={handleOpenPortal}
+                    disabled={portalLoading}
+                    className="inline-flex items-center rounded-lg border border-border px-4 h-9 text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                  >
+                    {portalLoading ? "Opening…" : "Manage subscription"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </section>
@@ -298,6 +379,12 @@ function SettingsPageInner() {
           </div>
         </section>
       </div>
+      <UpgradeModal
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        currentPlan={usage?.plan ?? "free"}
+        initialTier={usage?.plan === "plus" ? "unlimited" : "plus"}
+      />
     </main>
   );
 }

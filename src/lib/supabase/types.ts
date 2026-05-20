@@ -145,6 +145,12 @@ export interface Database {
           counselor_id: string | null;
           invite_code: string | null;
           created_at: string;
+          plan: "free" | "plus" | "unlimited";
+          plan_expires_at: string | null;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          subscription_status: string | null;
+          cancel_at_period_end: boolean;
         };
         Insert: {
           id: string;
@@ -154,6 +160,12 @@ export interface Database {
           counselor_id?: string | null;
           invite_code?: string | null;
           created_at?: string;
+          plan?: "free" | "plus" | "unlimited";
+          plan_expires_at?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          subscription_status?: string | null;
+          cancel_at_period_end?: boolean;
         };
         Update: {
           email?: string;
@@ -161,6 +173,12 @@ export interface Database {
           role?: "student" | "counselor";
           counselor_id?: string | null;
           invite_code?: string | null;
+          plan?: "free" | "plus" | "unlimited";
+          plan_expires_at?: string | null;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          subscription_status?: string | null;
+          cancel_at_period_end?: boolean;
         };
         Relationships: [];
       };
@@ -245,26 +263,6 @@ export interface Database {
         };
         Relationships: [];
       };
-      essay_notes: {
-        Row: {
-          id: string;
-          essay_id: string;
-          counselor_id: string;
-          note: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          essay_id: string;
-          counselor_id: string;
-          note?: string;
-          created_at?: string;
-        };
-        Update: {
-          note?: string;
-        };
-        Relationships: [];
-      };
       essay_comments: {
         Row: {
           id: string;
@@ -294,6 +292,32 @@ export interface Database {
           text?: string;
           resolved?: boolean;
           read_by_student?: boolean;
+        };
+        Relationships: [];
+      };
+      essay_notes: {
+        Row: {
+          id: string;
+          essay_id: string;
+          user_id: string;
+          text: string;
+          start_offset: number;
+          end_offset: number;
+          color_index: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          essay_id: string;
+          user_id: string;
+          text: string;
+          start_offset: number;
+          end_offset: number;
+          color_index?: number;
+          created_at?: string;
+        };
+        Update: {
+          text?: string;
         };
         Relationships: [];
       };
@@ -343,19 +367,45 @@ export interface Database {
       api_rate_limits: {
         Row: {
           id: string;
-          user_id: string;
+          user_id: string | null;
           endpoint: string;
           created_at: string;
+          key: string | null;
+          cost_cents: number | null;
+          billable: boolean;
         };
         Insert: {
           id?: string;
-          user_id: string;
+          user_id?: string | null;
           endpoint: string;
           created_at?: string;
+          key?: string | null;
+          cost_cents?: number | null;
+          billable?: boolean;
         };
         Update: {
           endpoint?: string;
           created_at?: string;
+          key?: string | null;
+          cost_cents?: number | null;
+          billable?: boolean;
+        };
+        Relationships: [];
+      };
+      webhook_events: {
+        Row: {
+          id: string;
+          source: string;
+          processed_at: string;
+        };
+        Insert: {
+          id: string;
+          source: string;
+          processed_at?: string;
+        };
+        Update: {
+          source?: string;
+          processed_at?: string;
         };
         Relationships: [];
       };

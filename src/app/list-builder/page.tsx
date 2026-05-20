@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatAcceptanceRate } from "@/lib/utils";
+import { UpgradeModal } from "@/components/upgrade-modal";
+import { useUsage } from "@/components/usage-meter";
 
 interface GeneratedCollege {
   college_id: string;
@@ -32,6 +34,8 @@ export default function ListBuilderPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const { data: usage, refresh: refreshUsage } = useUsage();
   const [removedColleges, setRemovedColleges] = useState<Set<string>>(new Set());
 
   // Add college state
@@ -123,6 +127,10 @@ export default function ListBuilderPage() {
       const responseData = await response.json();
 
       if (!response.ok) {
+        if (response.status === 402 && responseData.code === "quota_exceeded") {
+          setUpgradeOpen(true);
+          throw new Error(responseData.error ?? "You've reached your monthly AI limit.");
+        }
         throw new Error(responseData.error || "Failed to generate list");
       }
 
@@ -478,6 +486,17 @@ export default function ListBuilderPage() {
           );
         })}
       </div>
+      <UpgradeModal
+        open={upgradeOpen}
+        onOpenChange={(o) => {
+          setUpgradeOpen(o);
+          if (!o) refreshUsage();
+        }}
+        currentPlan={(usage?.plan ?? "free") as "free" | "plus" | "unlimited"}
+        initialTier={usage?.plan === "plus" ? "unlimited" : "plus"}
+        title="You've reached your monthly AI limit"
+        description="Upgrade to generate more lists this month."
+      />
     </div>
   );
 }

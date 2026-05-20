@@ -8,7 +8,14 @@ import {
   checkRateLimit,
   recordRateLimitHit,
   rateLimitedResponse,
+  getRateLimitAdminClient,
 } from "@/lib/rate-limit";
+import {
+  checkAiQuota,
+  quotaExceededResponse,
+  resolvePlan,
+  type Plan,
+} from "@/lib/ai-quota";
 
 export const maxDuration = 60;
 
@@ -206,13 +213,22 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await db
       .from("profiles")
-      .select("id, full_name, role, counselor_id")
+      .select("id, full_name, role, counselor_id, plan, plan_expires_at")
       .eq("id", user.id)
-      .single() as { data: { id: string; full_name: string | null; role: "student" | "counselor"; counselor_id: string | null } | null };
+      .single() as { data: { id: string; full_name: string | null; role: "student" | "counselor"; counselor_id: string | null; plan: Plan; plan_expires_at: string | null } | null };
 
     if (!profile || profile.role !== "student") {
       return NextResponse.json({ error: "Assistant is student-only" }, { status: 403 });
     }
+
+    const effectivePlan = resolvePlan(profile);
+    const quota = await checkAiQuota(
+      getRateLimitAdminClient(),
+      user.id,
+      effectivePlan,
+      ENDPOINT
+    );
+    if (!quota.ok) return quotaExceededResponse(quota);
 
     const parsed = await parseJsonBody<{ messages: UIMessage[] }>(req, 256 * 1024);
     if (!parsed.ok) return parsed.response;
@@ -357,12 +373,19 @@ export async function POST(req: NextRequest) {
           await Promise.all([
             db.from("assistant_messages").insert({ user_id: user.id, role: "user", content: latestText }),
             db.from("assistant_messages").insert({ user_id: user.id, role: "assistant", content: text }),
-            recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id }),
           ]);
         } catch (err) {
           console.error("Failed to persist assistant messages:", err);
         }
       },
+    });
+
+    // Record the billable hit once the stream is accepted (model call committed).
+    // Plan: record on stream-accepted, not on full completion — see implementation plan §9.
+    await recordRateLimitHit(supabase, {
+      endpoint: ENDPOINT,
+      userId: user.id,
+      billable: true,
     });
 
     return result.toUIMessageStreamResponse();

@@ -15,3 +15,11 @@
 **Cons:** Adds a server-only `ENCRYPTION_SECRET` env var, ~20 lines of crypto utility code.
 **Context:** Currently blocked by "ship it first." Add a `src/lib/crypto.ts` utility wrapping Node's built-in `crypto.createCipheriv`.
 **Depends on:** Google Calendar integration shipped.
+
+## Re-tune AI quota caps and subscription prices from real cost data
+**What:** Revisit the Free/Plus/Unlimited caps (35/150/unlimited) and prices ($10/$20) using real `cost_cents` and conversion data.
+**Why:** Every quota number and price shipped with the freemium launch is a provisional guess. The design doc explicitly calls for tuning in the first 4-6 weeks. Real data turns the guesses into decisions.
+**Pros:** Corrects margin (a Plus user could cost $4 or $14 — only data tells you) and conversion (is the 35-action wall too early or too late). Prevents shipping blind numbers permanently.
+**Cons:** One more tracked item; requires actually running the analysis when the data is ready.
+**Context:** The freemium plan instruments `cost_cents` per metered AI action on `api_rate_limits` rows from day one. After ~2-4 weeks of live usage: compute median and p95 cost per plan, compare against revenue, and check conversion rate at the free-tier wall. Adjust caps and prices accordingly.
+**Depends on:** Student freemium monetization shipped + ~2-4 weeks of live student usage.

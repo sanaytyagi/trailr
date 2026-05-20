@@ -10,11 +10,21 @@ import {
   checkRateLimit,
   recordRateLimitHit,
   rateLimitedResponse,
+  getRateLimitAdminClient,
 } from "@/lib/rate-limit";
+import {
+  checkAiQuota,
+  estimateCostCents,
+  quotaExceededResponse,
+  resolvePlan,
+  type Plan,
+} from "@/lib/ai-quota";
 
 const ENDPOINT = "generate-list";
 const WINDOW = 24 * 60 * 60;
-const MAX = 5;
+// Bumped from 5 -> 25 so the daily ceiling doesn't bite a paying user.
+// The monthly plan cap (checkAiQuota) is now the primary gate.
+const MAX = 25;
 
 interface GeneratedCollege {
   college_id: string;
@@ -99,6 +109,22 @@ export async function POST(req: NextRequest) {
       "You've reached the daily limit for list generation. Try again tomorrow."
     );
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const { data: profile } = await db
+    .from("profiles")
+    .select("id, plan, plan_expires_at")
+    .eq("id", user.id)
+    .single() as { data: { id: string; plan: Plan; plan_expires_at: string | null } | null };
+  const effectivePlan = resolvePlan(profile);
+  const quota = await checkAiQuota(
+    getRateLimitAdminClient(),
+    user.id,
+    effectivePlan,
+    ENDPOINT
+  );
+  if (!quota.ok) return quotaExceededResponse(quota);
 
   const parsed = await parseJsonBody(req, 100 * 1024);
   if (!parsed.ok) return parsed.response;
@@ -301,7 +327,22 @@ ${JSON.stringify(collegesSlim, null, 2)}`;
       );
     }
 
-    await recordRateLimitHit(supabase, { endpoint: ENDPOINT, userId: user.id });
+    const costCents = estimateCostCents(
+      "claude-sonnet-4-6",
+      {
+        input_tokens: message.usage?.input_tokens ?? 0,
+        output_tokens: message.usage?.output_tokens ?? 0,
+        cache_read_input_tokens: message.usage?.cache_read_input_tokens ?? 0,
+        cache_creation_input_tokens: message.usage?.cache_creation_input_tokens ?? 0,
+      },
+      0
+    );
+    await recordRateLimitHit(supabase, {
+      endpoint: ENDPOINT,
+      userId: user.id,
+      billable: true,
+      costCents: costCents ?? undefined,
+    });
 
     return NextResponse.json({ colleges: validatedList });
   } catch (error) {
