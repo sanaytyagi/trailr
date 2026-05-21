@@ -29,7 +29,8 @@ export function buildDigestPrompt(colleges: DigestCollege[], essays: DigestEssay
         .map((c) => {
           const name = c.colleges?.name ?? "Unknown";
           const hasDecision = c.decision && c.decision !== "pending";
-          const days = (!hasDecision && c.personal_deadline) ? daysUntil(c.personal_deadline) : null;
+          const isSubmitted = c.application_status === "submitted";
+          const days = (!hasDecision && !isSubmitted && c.personal_deadline) ? daysUntil(c.personal_deadline) : null;
           return (
             `${name}: ${c.application_status}/${c.application_round}` +
             (c.decision ? ` (${c.decision})` : "") +

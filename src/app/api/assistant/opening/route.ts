@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { createClient } from "@/lib/supabase/server";
+import {
+  checkAiQuota,
+  estimateCostCents,
+  quotaExceededResponse,
+  resolvePlan,
+  type Plan,
+} from "@/lib/ai-quota";
+import { getRateLimitAdminClient, recordRateLimitHit } from "@/lib/rate-limit";
 
 type ListBuilderEntry = { name?: string; tier?: string; reason?: string };
 
@@ -29,13 +37,17 @@ export async function POST() {
 
     const { data: profile } = await db
       .from("profiles")
-      .select("id, role, counselor_id")
+      .select("id, role, counselor_id, plan, plan_expires_at")
       .eq("id", user.id)
-      .single() as { data: { id: string; role: "student" | "counselor"; counselor_id: string | null } | null };
+      .single() as { data: { id: string; role: "student" | "counselor"; counselor_id: string | null; plan: Plan; plan_expires_at: string | null } | null };
 
     if (!profile || profile.role !== "student") {
       return NextResponse.json({ error: "Student-only" }, { status: 403 });
     }
+
+    const effectivePlan = resolvePlan(profile);
+    const quota = await checkAiQuota(getRateLimitAdminClient(), user.id, effectivePlan, "assistant");
+    if (!quota.ok) return quotaExceededResponse(quota);
 
     // Guard: return the first assistant message if one already exists.
     const { data: existing } = await db
@@ -115,8 +127,8 @@ export async function POST() {
               ` — status: ${c.application_status}, round: ${c.application_round}` +
               (c.admissions_category ? `, category: ${c.admissions_category}` : "") +
               (c.decision ? `, decision: ${c.decision}` : "") +
-              (c.personal_deadline
-                ? `, deadline: ${c.personal_deadline} (${days === 0 ? "TODAY" : days === 1 ? "tomorrow" : days !== null && days < 0 ? `${Math.abs(days)} days ago` : days !== null ? `in ${days} days` : ""})`
+              (c.personal_deadline && c.application_status !== "submitted"
+                ? `, application submission deadline: ${c.personal_deadline} (${days === 0 ? "TODAY" : days === 1 ? "tomorrow" : days !== null && days < 0 ? `${Math.abs(days)} days ago` : days !== null ? `in ${days} days` : ""})`
                 : "")
             );
           })
@@ -187,7 +199,7 @@ HARD RULES:
 - Sound like a human advisor who has read their file and has something specific to say.
 - End with one direct, specific question that gets them talking about the angle you led with.`;
 
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model: anthropic("claude-sonnet-4-6"),
       prompt: openingPrompt,
       maxOutputTokens: 300,
@@ -195,6 +207,19 @@ HARD RULES:
     });
 
     const message = text.trim();
+
+    // Record the billable hit before returning — ensures navigate-away can't skip it.
+    const costCents = estimateCostCents("claude-sonnet-4-6", {
+      input_tokens: usage?.inputTokens ?? 0,
+      output_tokens: usage?.outputTokens ?? 0,
+      cache_read_input_tokens: usage?.cachedInputTokens ?? 0,
+    });
+    await recordRateLimitHit(supabase, {
+      endpoint: "assistant",
+      userId: user.id,
+      billable: true,
+      costCents: costCents ?? undefined,
+    });
 
     // Persist so it's in the model's context on the student's first reply.
     await db.from("assistant_messages").insert({

@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { createClient } from "@/lib/supabase/server";
+import {
+  checkAiQuota,
+  quotaExceededResponse,
+  resolvePlan,
+  type Plan,
+} from "@/lib/ai-quota";
+import { getRateLimitAdminClient, recordRateLimitHit } from "@/lib/rate-limit";
 
 export const maxDuration = 30;
 
@@ -85,13 +92,17 @@ export async function POST() {
 
     const { data: profile } = await db
       .from("profiles")
-      .select("id, full_name, role, counselor_id")
+      .select("id, full_name, role, counselor_id, plan, plan_expires_at")
       .eq("id", user.id)
-      .single() as { data: { id: string; full_name: string | null; role: "student" | "counselor"; counselor_id: string | null } | null };
+      .single() as { data: { id: string; full_name: string | null; role: "student" | "counselor"; counselor_id: string | null; plan: Plan; plan_expires_at: string | null } | null };
 
     if (!profile || profile.role !== "student") {
       return NextResponse.json({ error: "Student-only" }, { status: 403 });
     }
+
+    const effectivePlan = resolvePlan(profile);
+    const quota = await checkAiQuota(getRateLimitAdminClient(), user.id, effectivePlan, "assistant");
+    if (!quota.ok) return quotaExceededResponse(quota);
 
     const [collegesRes, essaysRes, commentsRes] = await Promise.all([
       db
@@ -328,6 +339,13 @@ Output ONLY the JSON array. No prose, no fences, no commentary. Example:
     })();
 
     const tasks = sanitizeTasks(parsed);
+
+    await recordRateLimitHit(supabase, {
+      endpoint: "assistant",
+      userId: user.id,
+      billable: true,
+      costCents: undefined,
+    });
 
     return NextResponse.json({ tasks });
   } catch (error) {

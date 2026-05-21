@@ -18,7 +18,7 @@ export const METERED_ENDPOINTS: readonly MeteredEndpoint[] = [
 
 export const PLAN_CAPS: Record<Plan, number> = {
   free: 35,
-  plus: 150,
+  plus: 40,
   unlimited: Number.POSITIVE_INFINITY,
 };
 

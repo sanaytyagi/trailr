@@ -24,6 +24,13 @@ const ENDPOINT = "research-brief-followup";
 const WINDOW = 24 * 60 * 60;
 const MAX = 50;
 
+function stripCiteTags(s: string): string {
+  return s
+    .replace(/<cite[^>]*>(.*?)<\/cite>/gs, "$1")
+    .replace(/<cite[^>]*/g, "")
+    .trim();
+}
+
 function extractJsonArray(s: string): string {
   const trimmed = s.trim();
   const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
@@ -174,10 +181,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Normalize URLs — model sometimes omits the protocol
+      // Normalize URLs and strip citation tags from text fields
       const normalized = Array.isArray(parsed)
         ? parsed.map((item: Record<string, unknown>) => ({
             ...item,
+            title: typeof item.title === "string" ? stripCiteTags(item.title) : item.title,
+            detail: typeof item.detail === "string" ? stripCiteTags(item.detail) : item.detail,
             url: typeof item.url === "string" && !item.url.startsWith("http")
               ? `https://${item.url}`
               : item.url,

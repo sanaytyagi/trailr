@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatAcceptanceRate } from "@/lib/utils";
-import { UpgradeModal } from "@/components/upgrade-modal";
+import { PaywallSheet } from "@/components/paywall-sheet";
 import { useUsage } from "@/components/usage-meter";
 
 interface GeneratedCollege {
@@ -486,16 +486,15 @@ export default function ListBuilderPage() {
           );
         })}
       </div>
-      <UpgradeModal
+      <PaywallSheet
         open={upgradeOpen}
         onOpenChange={(o) => {
           setUpgradeOpen(o);
           if (!o) refreshUsage();
         }}
-        currentPlan={(usage?.plan ?? "free") as "free" | "plus" | "unlimited"}
-        initialTier={usage?.plan === "plus" ? "unlimited" : "plus"}
-        title="You've reached your monthly AI limit"
-        description="Upgrade to generate more lists this month."
+        context="list-builder"
+        currentPlan={usage?.plan ?? "free"}
+        usage={usage ? { used: usage.used, cap: usage.cap } : undefined}
       />
     </div>
   );
