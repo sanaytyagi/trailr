@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import { ArrowUp, Globe, Sparkles, RotateCcw, Square } from "lucide-react";
+import { ArrowUp, Globe, Sparkles, RotateCcw, Square, Loader2 } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isToolUIPart, type UIMessage } from "ai";
 import { createClient } from "@/lib/supabase/client";
@@ -17,7 +17,7 @@ import {
   PromptInputAction,
 } from "@/components/ui/prompt-input";
 import { AssistantSidebar } from "@/components/assistant-sidebar";
-import { UpgradeModal } from "@/components/upgrade-modal";
+import { PaywallSheet } from "@/components/paywall-sheet";
 import { useUsage } from "@/components/usage-meter";
 
 type DBMessage = { id: string; role: "user" | "assistant"; content: string };
@@ -108,10 +108,14 @@ export default function AssistantPage() {
 
   const [initialReady, setInitialReady] = useState(false);
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
+  const [pendingOpening, setPendingOpening] = useState<UIMessage | null>(null);
+  const [fetchingOpening, setFetchingOpening] = useState(false);
   const [firstCollege, setFirstCollege] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const initializingRef = useRef(false);
   const setChatInputRef = useRef<(value: string) => void>(() => {});
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const { data: usage, refresh: refreshUsage } = useUsage();
 
   const handlePrefill = (text: string) => {
     setChatInputRef.current(text);
@@ -169,34 +173,41 @@ export default function AssistantPage() {
           return;
         }
 
-        const res = await fetch("/api/assistant/opening", { method: "POST" });
-        if (cancelled) return;
-        if (!res.ok) {
-          setInitialMessages([]);
-          setInitialReady(true);
-          return;
-        }
-        const { message } = (await res.json()) as { message: string | null };
-        if (!message) {
-          // Messages already exist server-side — reload real history.
-          const { data: freshHistory } = await (supabase as any)
-            .from("assistant_messages")
-            .select("id, role, content")
-            .order("created_at", { ascending: true })
-            .limit(20);
+        // No history: show the page immediately, fetch the opening in the background.
+        // This prevents blocking the spinner on the Claude API call (~5-15s).
+        setInitialReady(true);
+        setFetchingOpening(true);
+
+        try {
+          const res = await fetch("/api/assistant/opening", { method: "POST" });
           if (cancelled) return;
-          setInitialMessages(((freshHistory ?? []) as DBMessage[]).map(toUIMessage));
-          setInitialReady(true);
-          return;
-        }
-        setInitialMessages([
-          {
+          if (!res.ok) {
+            setFetchingOpening(false);
+            return;
+          }
+          const { message } = (await res.json()) as { message: string | null };
+          if (cancelled) return;
+          if (!message) {
+            // Messages already exist server-side (race condition) — reload history.
+            const { data: freshHistory } = await (supabase as any)
+              .from("assistant_messages")
+              .select("id, role, content")
+              .order("created_at", { ascending: true })
+              .limit(20);
+            if (cancelled) return;
+            setFetchingOpening(false);
+            setInitialMessages(((freshHistory ?? []) as DBMessage[]).map(toUIMessage));
+            return;
+          }
+          setPendingOpening({
             id: `opening-${Date.now()}`,
             role: "assistant",
             parts: [{ type: "text", text: message }],
-          },
-        ]);
-        setInitialReady(true);
+          });
+          setFetchingOpening(false);
+        } catch {
+          if (!cancelled) setFetchingOpening(false);
+        }
       } catch (err) {
         if (cancelled) return;
         console.error("Failed to init assistant:", err);
@@ -216,13 +227,15 @@ export default function AssistantPage() {
   if (profileLoading || !initialReady || !profile || profile.role !== "student") {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-        <div className="text-sm text-muted-foreground">Loading…</div>
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   const handleReset = async () => {
     initializingRef.current = false;
+    setPendingOpening(null);
+    setFetchingOpening(false);
     setInitialReady(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabase as any;
@@ -243,6 +256,10 @@ export default function AssistantPage() {
           setInitialMessages([]);
         }
       } else {
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 402 && body.code === "quota_exceeded") {
+          setUpgradeOpen(true);
+        }
         setInitialMessages([]);
       }
     } catch {
@@ -256,24 +273,44 @@ export default function AssistantPage() {
       <ChatView
         key={initialMessages.map((m) => m.id).join("|") || "empty"}
         initialMessages={initialMessages}
+        pendingOpening={pendingOpening}
+        fetchingOpening={fetchingOpening}
         firstCollege={firstCollege}
         initError={initError}
         onReset={handleReset}
         setInputRef={setChatInputRef}
       />
-      <AssistantSidebar userId={profile.id} onPrefillChat={handlePrefill} />
+      <AssistantSidebar
+        userId={profile.id}
+        onPrefillChat={handlePrefill}
+        onQuotaExceeded={() => setUpgradeOpen(true)}
+      />
+      <PaywallSheet
+        open={upgradeOpen}
+        onOpenChange={(o) => {
+          setUpgradeOpen(o);
+          if (!o) refreshUsage();
+        }}
+        context="assistant"
+        currentPlan={usage?.plan ?? "free"}
+        usage={usage ? { used: usage.used, cap: usage.cap } : undefined}
+      />
     </div>
   );
 }
 
 function ChatView({
   initialMessages,
+  pendingOpening,
+  fetchingOpening,
   firstCollege,
   initError,
   onReset,
   setInputRef,
 }: {
   initialMessages: UIMessage[];
+  pendingOpening: UIMessage | null;
+  fetchingOpening: boolean;
   firstCollege: string | null;
   initError: string | null;
   onReset: () => void | Promise<void>;
@@ -288,6 +325,16 @@ function ChatView({
     messages: initialMessages,
     transport,
   });
+
+  // Inject the async opening message once it arrives, but only if the user
+  // hasn't already sent a message (in which case we leave the chat alone).
+  const openingInjectedRef = useRef(false);
+  useEffect(() => {
+    if (!pendingOpening || openingInjectedRef.current) return;
+    if (messages.some((m) => m.role === "user")) return;
+    openingInjectedRef.current = true;
+    setMessages([pendingOpening]);
+  }, [pendingOpening, messages, setMessages]);
 
   // Quota / upgrade handling: on any chat error, fetch /api/usage and open the
   // upgrade modal if the user is over their monthly cap (402 quota_exceeded).
@@ -354,7 +401,7 @@ function ChatView({
 
   function submit() {
     const trimmed = input.trim();
-    if (!trimmed || streaming) return;
+    if (!trimmed || streaming || fetchingOpening) return;
     setInput("");
     sendMessage({ text: trimmed });
   }
@@ -368,8 +415,9 @@ function ChatView({
     onReset();
   }
 
-  const showChips = !hasSentAnything && !streaming;
-  const showTypingIndicator = status === "submitted";
+  const inputLocked = streaming || fetchingOpening;
+  const showChips = !hasSentAnything && !inputLocked;
+  const showTypingIndicator = status === "submitted" || fetchingOpening;
   const lastMessage = messages[messages.length - 1];
   const showSearching =
     streaming &&
@@ -392,7 +440,7 @@ function ChatView({
         </div>
         <button
           onClick={handleNewConversation}
-          disabled={streaming || messages.length === 0}
+          disabled={streaming || fetchingOpening || messages.length === 0}
           className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
         >
           <RotateCcw className="h-3 w-3" />
@@ -469,23 +517,23 @@ function ChatView({
               <Chip onClick={() => { setInput(SUGGESTED_PROMPTS.earlyAction); }} label={SUGGESTED_PROMPTS.earlyAction} />
             </div>
           )}
-          {streaming && (
+          {inputLocked && (
             <div className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="h-1.5 w-1.5 rounded-full bg-primary/70 chat-dot" style={{ animationDelay: "0ms" }} />
               <span className="h-1.5 w-1.5 rounded-full bg-primary/70 chat-dot" style={{ animationDelay: "160ms" }} />
               <span className="h-1.5 w-1.5 rounded-full bg-primary/70 chat-dot" style={{ animationDelay: "320ms" }} />
-              <span>AI is responding…</span>
+              <span>{fetchingOpening ? "Generating your welcome message…" : "AI is responding…"}</span>
             </div>
           )}
           <PromptInput
             value={input}
             onValueChange={setInput}
-            isLoading={streaming}
+            isLoading={inputLocked}
             onSubmit={submit}
             className="w-full"
           >
             <PromptInputTextarea
-              placeholder={streaming ? "Waiting for response…" : "Ask anything about your applications…"}
+              placeholder={fetchingOpening ? "Generating your welcome message…" : streaming ? "Waiting for response…" : "Ask anything about your applications…"}
               maxLength={4000}
             />
             <PromptInputActions className="justify-between pt-1">
@@ -501,7 +549,7 @@ function ChatView({
                   size="icon"
                   className="h-8 w-8 rounded-full"
                   onClick={streaming ? handleStop : submit}
-                  disabled={!streaming && !input.trim()}
+                  disabled={fetchingOpening || (!streaming && !input.trim())}
                 >
                   {streaming ? (
                     <Square className="size-4 fill-current" />
@@ -514,16 +562,15 @@ function ChatView({
           </PromptInput>
         </div>
       </div>
-      <UpgradeModal
+      <PaywallSheet
         open={upgradeOpen}
         onOpenChange={(o) => {
           setUpgradeOpen(o);
           if (!o) refreshUsage();
         }}
-        currentPlan={(usage?.plan ?? "free") as "free" | "plus" | "unlimited"}
-        initialTier={usage?.plan === "plus" ? "unlimited" : "plus"}
-        title="You've reached your monthly AI limit"
-        description="Upgrade to keep using the assistant this month."
+        context="assistant"
+        currentPlan={usage?.plan ?? "free"}
+        usage={usage ? { used: usage.used, cap: usage.cap } : undefined}
       />
     </div>
   );

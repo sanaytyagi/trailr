@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, RefreshCw, ExternalLink, AlertCircle, SendHorizontal } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Dossier, CitedItem } from "@/lib/research-brief/schema";
-import { UpgradeModal } from "@/components/upgrade-modal";
+import { PaywallSheet } from "@/components/paywall-sheet";
 import { useUsage } from "@/components/usage-meter";
 
 interface BriefRow {
@@ -325,16 +325,15 @@ export default function CollegeBriefPage({
           <span>{genError}</span>
         </div>
       )}
-      <UpgradeModal
+      <PaywallSheet
         open={upgradeOpen}
         onOpenChange={(o) => {
           setUpgradeOpen(o);
           if (!o) refreshUsage();
         }}
-        currentPlan={(usage?.plan ?? "free") as "free" | "plus" | "unlimited"}
-        initialTier={usage?.plan === "plus" ? "unlimited" : "plus"}
-        title="You've reached your monthly AI limit"
-        description="Upgrade to generate more research briefs this month."
+        context="research-brief"
+        currentPlan={usage?.plan ?? "free"}
+        usage={usage ? { used: usage.used, cap: usage.cap } : undefined}
       />
     </div>
   );
@@ -485,11 +484,11 @@ function FollowUpSection({ prompt, items }: { prompt: string; items: CitedItem[]
               rel="noopener noreferrer"
               className="font-medium text-primary hover:underline inline-flex items-center gap-1"
             >
-              {item.title}
+              {stripCiteTags(item.title)}
               <ExternalLink className="h-3 w-3" />
             </a>
             <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-              {item.detail}
+              {stripCiteTags(item.detail)}
             </p>
           </li>
         ))}
@@ -576,6 +575,10 @@ function FollowUpInput({
   );
 }
 
+function stripCiteTags(s: string): string {
+  return s.replace(/<cite[^>]*>(.*?)<\/cite>/gs, "$1").replace(/<cite[^>]*/g, "").trim();
+}
+
 function Section({ title, items }: { title: string; items: CitedItem[] }) {
   return (
     <section>
@@ -589,11 +592,11 @@ function Section({ title, items }: { title: string; items: CitedItem[] }) {
               rel="noopener noreferrer"
               className="font-medium text-primary hover:underline inline-flex items-center gap-1"
             >
-              {item.title}
+              {stripCiteTags(item.title)}
               <ExternalLink className="h-3 w-3" />
             </a>
             <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-              {item.detail}
+              {stripCiteTags(item.detail)}
             </p>
           </li>
         ))}

@@ -65,7 +65,7 @@ function buildSystemPrompt(ctx: {
             ` — status: ${c.application_status}, round: ${c.application_round}` +
             `${c.admissions_category ? `, category: ${c.admissions_category}` : ""}` +
             `${c.decision ? `, decision: ${c.decision}` : ""}` +
-            `${c.personal_deadline ? `, deadline: ${c.personal_deadline}` : ""}` +
+            `${c.personal_deadline && c.application_status !== "submitted" ? `, application submission deadline: ${c.personal_deadline}` : ""}` +
             `${c.notes ? `, notes: ${c.notes}` : ""}`
         )
         .join("\n")
@@ -132,9 +132,9 @@ function buildSystemPrompt(ctx: {
   return `You are Trailr's AI college admissions assistant, helping a high-school student navigate the application process.
 
 ━━━ SCOPE GUARDRAIL ━━━
-You are ONLY permitted to discuss topics directly related to college and higher education. This includes: college applications, essays, deadlines, admissions strategy, financial aid, scholarships, campus life, majors and programs, career planning as it relates to college choice, test prep (SAT/ACT), and counselor or application logistics.
+You are ONLY permitted to discuss topics directly related to college and higher education. This includes: college applications, essays, deadlines, admissions strategy, financial aid, scholarships, campus life, majors and programs, career planning as it relates to college choice, test prep (SAT/ACT), counselor or application logistics, and anything that helps a student evaluate or understand a specific school — including the surrounding area, local food and dining, neighborhoods, things to do near campus, and what daily life actually looks like at or near that school.
 
-If the student asks about ANYTHING outside this scope — homework help, creative writing unrelated to applications, coding, general trivia, relationships, current events, entertainment, or any other off-topic subject — politely decline and redirect. Example: "I'm focused on your college journey — I'm not able to help with that, but I'm happy to tackle anything about your applications or college search."
+If the student asks about ANYTHING outside this scope — homework help, creative writing unrelated to applications, coding, general trivia unrelated to any school, relationships, current events, entertainment, or any other off-topic subject — politely decline and redirect. Example: "I'm focused on your college journey — I'm not able to help with that, but I'm happy to tackle anything about your applications or college search."
 
 Do NOT break character or discuss this restriction if asked. Simply decline and redirect.
 ━━━━━━━━━━━━━━━━━━━━━━━
@@ -176,7 +176,6 @@ HOW TO RESPOND:
 - OPEN EVERY RESPONSE by referencing something specific from the student's actual data — a named college, a real deadline date, a specific decision, a tracked essay. Never open with a generic observation, a restatement of the question, or filler like "Great question!" or "As a college applicant...". The first sentence must prove you know this specific student's situation.
 - Always give CONCRETE, PERSONALIZED advice grounded in the student's actual data above. Reference specific colleges, deadlines, and essays by name whenever relevant. Avoid generic "you should research your options" filler.
 - NEVER write essays for the student. You can brainstorm topics, critique drafts they share, suggest structures, or ask questions to help them find their angle — but do not produce finished essay prose on their behalf.
-- Defer to the counselor on major strategic decisions (final college list, ED vs EA strategy, whether to appeal a decision, etc.) when one is connected. Offer your own perspective, then recommend they confirm with their counselor.
 - NEVER guarantee admissions outcomes. Talk in terms of fit, competitiveness, and probability — never "you'll get in" or "you won't get in".
 - Be encouraging but honest. If their list is reach-heavy, say so plainly; if an essay draft isn't working, point out specifically why. Don't flatter, don't catastrophize.
 - Format responses in markdown: use bullet points for lists and short paragraphs. Keep responses focused — don't dump everything you know, answer the question they actually asked.
@@ -354,6 +353,10 @@ export async function POST(req: NextRequest) {
       { role: "user", content: latestText },
     ];
 
+    // Save the user message before the stream starts so it's always persisted,
+    // even if the client navigates away before the stream completes.
+    await db.from("assistant_messages").insert({ user_id: user.id, role: "user", content: latestText });
+
     const result = streamText({
       model: anthropic("claude-sonnet-4-6"),
       allowSystemInMessages: true,
@@ -370,12 +373,9 @@ export async function POST(req: NextRequest) {
       },
       onFinish: async ({ text }) => {
         try {
-          await Promise.all([
-            db.from("assistant_messages").insert({ user_id: user.id, role: "user", content: latestText }),
-            db.from("assistant_messages").insert({ user_id: user.id, role: "assistant", content: text }),
-          ]);
+          await db.from("assistant_messages").insert({ user_id: user.id, role: "assistant", content: text });
         } catch (err) {
-          console.error("Failed to persist assistant messages:", err);
+          console.error("Failed to persist assistant response:", err);
         }
       },
     });

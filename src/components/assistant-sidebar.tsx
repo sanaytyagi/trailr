@@ -62,9 +62,11 @@ const URGENCY_LABEL: Record<AssistantTask["urgency"], string> = {
 export function AssistantSidebar({
   userId,
   onPrefillChat,
+  onQuotaExceeded,
 }: {
   userId: string;
   onPrefillChat: (prompt: string) => void;
+  onQuotaExceeded?: () => void;
 }) {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
@@ -79,7 +81,15 @@ export function AssistantSidebar({
     setTasksState({ status: "loading" });
     try {
       const res = await fetch("/api/assistant/tasks", { method: "POST" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 402 && body.code === "quota_exceeded") {
+          onQuotaExceeded?.();
+          setTasksState({ status: "error", message: "Monthly AI limit reached." });
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       const json = (await res.json()) as { tasks?: AssistantTask[]; error?: string };
       if (json.error) throw new Error(json.error);
       setTasksState({ status: "ready", tasks: json.tasks ?? [] });

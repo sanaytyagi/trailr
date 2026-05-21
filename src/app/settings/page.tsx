@@ -8,7 +8,6 @@ import { PasswordStrengthIndicator } from "@/components/ui/premium-auth";
 import { Calendar, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { UsageMeter, useUsage } from "@/components/usage-meter";
-import { UpgradeModal } from "@/components/upgrade-modal";
 
 type CalendarStatus = "loading" | "connected" | "disconnected";
 
@@ -37,7 +36,6 @@ function SettingsPageInner() {
 
   // Billing
   const { data: usage, loading: usageLoading, refresh: refreshUsage } = useUsage();
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
@@ -185,24 +183,68 @@ function SettingsPageInner() {
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Billing
           </h2>
-          <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+          <div className="rounded-xl border border-border bg-card p-6">
+            {/* Plan name row */}
+            {usageLoading ? (
+              <div className="h-6 w-32 bg-muted animate-pulse rounded" />
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-lg font-semibold text-foreground">
+                  {usage?.plan === "free" ? "Free" : usage?.plan === "plus" ? "Plus" : "Unlimited"} plan
+                </span>
+                {usage && usage.plan !== "free" && (
+                  <span
+                    className={
+                      usage.cancel_at_period_end
+                        ? "text-xs font-semibold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive"
+                        : usage.subscription_status === "past_due"
+                          ? "text-xs font-semibold px-2 py-0.5 rounded-full bg-destructive text-destructive-foreground"
+                          : "text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground"
+                    }
+                  >
+                    {usage.cancel_at_period_end && usage.plan_expires_at
+                      ? `Cancels ${new Date(usage.plan_expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                      : usage.subscription_status === "past_due"
+                        ? "Past due"
+                        : "Active"}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Pricing + renewal */}
+            {!usageLoading && usage && usage.plan !== "free" && usage.plan_expires_at && (
+              <p className="text-sm text-muted-foreground mt-1">
+                ${usage.plan === "plus" ? "10" : "20"} / month
+                {" · "}
+                {usage.cancel_at_period_end ? "cancels" : "renews"}{" "}
+                {new Date(usage.plan_expires_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </p>
+            )}
+
+            {/* Divider */}
+            <div className="my-5 border-t border-border" />
+
+            {/* Usage meter */}
             <UsageMeter data={usage} loading={usageLoading} />
-            <div className="flex flex-wrap items-center gap-2">
+
+            {/* Action buttons */}
+            <div className="mt-5 flex flex-wrap gap-2">
               {usage?.plan === "free" ? (
-                <button
-                  onClick={() => setUpgradeOpen(true)}
+                <a
+                  href="/plan"
                   className="inline-flex items-center rounded-lg bg-primary px-4 h-9 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
                 >
-                  Upgrade plan
-                </button>
+                  Compare plans →
+                </a>
               ) : (
                 <>
-                  <button
-                    onClick={() => setUpgradeOpen(true)}
+                  <a
+                    href="/plan"
                     className="inline-flex items-center rounded-lg border border-border px-4 h-9 text-sm font-medium text-foreground hover:bg-muted transition-colors"
                   >
                     Change plan
-                  </button>
+                  </a>
                   <button
                     onClick={handleOpenPortal}
                     disabled={portalLoading}
@@ -213,6 +255,19 @@ function SettingsPageInner() {
                 </>
               )}
             </div>
+
+            {/* Past due warning */}
+            {!usageLoading && usage?.subscription_status === "past_due" && (
+              <p className="mt-3 text-sm text-destructive">
+                Update your payment method to keep your plan.{" "}
+                <button
+                  onClick={handleOpenPortal}
+                  className="underline hover:no-underline"
+                >
+                  Open billing →
+                </button>
+              </p>
+            )}
           </div>
         </section>
 
@@ -379,12 +434,6 @@ function SettingsPageInner() {
           </div>
         </section>
       </div>
-      <UpgradeModal
-        open={upgradeOpen}
-        onOpenChange={setUpgradeOpen}
-        currentPlan={usage?.plan ?? "free"}
-        initialTier={usage?.plan === "plus" ? "unlimited" : "plus"}
-      />
     </main>
   );
 }
