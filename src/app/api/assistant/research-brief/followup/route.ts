@@ -167,8 +167,10 @@ export async function POST(req: NextRequest) {
     });
 
     const cleaned = extractJsonArray(result.text);
-    console.log("Followup raw output:", JSON.stringify(result.text.slice(0, 800)));
-    console.log("Followup cleaned:", JSON.stringify(cleaned.slice(0, 800)));
+    if (process.env.NODE_ENV !== "production") {
+      console.log("Followup raw output:", JSON.stringify(result.text.slice(0, 800)));
+      console.log("Followup cleaned:", JSON.stringify(cleaned.slice(0, 800)));
+    }
     let items;
     try {
       const parsed = JSON.parse(cleaned);
