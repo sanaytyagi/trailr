@@ -390,6 +390,11 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           <AlertTriangle className="h-4 w-4 shrink-0" />{errors.general}
         </div>
       )}
+      {successMessage && (
+        <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-sm text-green-700 animate-in fade-in-0 slide-in-from-top-3">
+          {successMessage}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4 animate-in fade-in-50 slide-in-from-right-5">
         {/* Name — signup only */}
