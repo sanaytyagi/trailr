@@ -208,7 +208,8 @@ HARD RULES:
 
     const message = text.trim();
 
-    // Record the billable hit before returning — ensures navigate-away can't skip it.
+    // Track cost for internal telemetry only — opening is not a user-initiated
+    // action so it does not count against the quota.
     const costCents = estimateCostCents("claude-sonnet-4-6", {
       input_tokens: usage?.inputTokens ?? 0,
       output_tokens: usage?.outputTokens ?? 0,
@@ -217,7 +218,7 @@ HARD RULES:
     await recordRateLimitHit(supabase, {
       endpoint: "assistant",
       userId: user.id,
-      billable: true,
+      billable: false,
       costCents: costCents ?? undefined,
     });
 
