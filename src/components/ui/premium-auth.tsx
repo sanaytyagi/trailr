@@ -51,7 +51,7 @@ interface PasswordStrength {
   feedback: string[];
 }
 
-function calculatePasswordStrength(password: string): PasswordStrength {
+export function calculatePasswordStrength(password: string): PasswordStrength {
   const requirements = {
     length: password.length >= 8,
     uppercase: /[A-Z]/.test(password),
@@ -180,6 +180,8 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
     const fields: (keyof FormData)[] =
       authMode === 'signup'
         ? ['firstName', 'lastName', 'email', 'password', 'confirmPassword', 'agreeToTerms']
+        : authMode === 'reset'
+        ? ['email']
         : ['email', 'password'];
     const newErrors: FormErrors = {};
     fields.forEach(f => {
@@ -259,12 +261,15 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           const { error } = await supabase.auth.signUp({
             email: formData.email,
             password: formData.password,
-            options: fullName ? { data: { name: fullName } } : undefined,
+            options: {
+              emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
+              ...(fullName ? { data: { name: fullName } } : {}),
+            },
           });
           if (error) {
             setErrors({ general: error.message });
           } else {
-            onSuccess?.();
+            setSuccessMessage('Account created! Check your email and spam folder to verify your account before signing in.');
           }
         }
       } else {
@@ -272,13 +277,16 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
         const res = await fetch('/api/auth/reset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: formData.email }),
+          body: JSON.stringify({
+            email: formData.email,
+            redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password`,
+          }),
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
           setErrors({ general: json.error ?? 'Reset failed. Please try again.' });
         } else {
-          setSuccessMessage('Password reset email sent! Check your inbox.');
+          setSuccessMessage('Password reset email sent! Check your inbox and spam folder.');
           setTimeout(() => switchMode('login'), 3000);
         }
       }

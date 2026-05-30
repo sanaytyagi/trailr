@@ -19,7 +19,7 @@ export default function Footer() {
           >
             Send Feedback
           </a>
-          <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms of Service</Link>
+          <Link href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms and Conditions</Link>
           <Link href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</Link>
         </nav>
       </div>

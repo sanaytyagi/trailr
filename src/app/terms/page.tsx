@@ -1,12 +1,34 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import Footer from "@/components/footer";
 
 export default function TermsPage() {
+  const divRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (divRef.current) {
+      divRef.current.setAttribute("name", "termly-embed");
+    }
+
+    const existing = document.getElementById("termly-jssdk");
+    if (existing) existing.remove();
+
+    const script = document.createElement("script");
+    script.id = "termly-jssdk";
+    script.src = "https://app.termly.io/embed-policy.min.js";
+    document.body.appendChild(script);
+
+    return () => {
+      document.getElementById("termly-jssdk")?.remove();
+    };
+  }, []);
+
   return (
     <>
       <main className="min-h-screen bg-background">
-        <div className="mx-auto max-w-2xl px-4 py-24 text-center">
-          <h1 className="text-3xl font-bold text-foreground mb-4">Terms of Service</h1>
-          <p className="text-muted-foreground">This page is coming soon.</p>
+        <div className="mx-auto max-w-3xl px-4 py-24">
+          <div ref={divRef} data-id="dc9b39c2-57fa-4342-8d3f-082fc646592b" />
         </div>
       </main>
       <Footer />
