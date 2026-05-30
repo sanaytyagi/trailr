@@ -282,7 +282,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: formData.email,
-            redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password`,
+            redirectTo: `${window.location.origin}/auth/reset-callback`,
           }),
         });
         const json = await res.json().catch(() => ({}));

@@ -119,7 +119,7 @@ function SettingsPageInner() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: user.email,
-        redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password`,
+        redirectTo: `${window.location.origin}/auth/reset-callback`,
       }),
     });
     setPwLoading(false);
