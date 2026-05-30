@@ -630,7 +630,7 @@ function EssaysPageInner() {
             </div>
             {!showLoader && essays.length > 0 && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                {essays.length} essay{essays.length !== 1 ? "s" : ""} · {collegesWithEssays.length} school{collegesWithEssays.length !== 1 ? "s" : ""}
+                {collegesWithEssays.reduce((n, c) => n + (groupedByCollege.get(c.id)?.length ?? 0), 0)} essay{collegesWithEssays.reduce((n, c) => n + (groupedByCollege.get(c.id)?.length ?? 0), 0) !== 1 ? "s" : ""} · {collegesWithEssays.length} school{collegesWithEssays.length !== 1 ? "s" : ""}
               </p>
             )}
           </div>
