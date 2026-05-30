@@ -25,8 +25,7 @@ export const metadata: Metadata = {
   description:
     "Track college deadlines, acceptance rates, and decision dates in one clean dashboard.",
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
   },
 };
 
