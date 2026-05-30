@@ -261,11 +261,11 @@ export async function POST(req: NextRequest) {
     ] = await Promise.all([
       db
         .from("user_colleges")
-        .select("application_status, application_round, decision, admissions_category, personal_deadline, notes, colleges(name, location, acceptance_rate)")
+        .select("college_id, application_status, application_round, decision, admissions_category, personal_deadline, notes, colleges(name, location, acceptance_rate)")
         .eq("user_id", user.id),
       db
         .from("essays")
-        .select("prompt, word_limit, body, status, colleges(name)")
+        .select("prompt, word_limit, body, status, college_id, colleges(name)")
         .eq("user_id", user.id),
       db
         .from("user_lists")
@@ -298,7 +298,8 @@ export async function POST(req: NextRequest) {
       notes: row.notes ?? "",
     }));
 
-    const essays = (essaysRes.data ?? []).map((row: any) => {
+    const trackedCollegeIds = new Set((collegesRes.data ?? []).map((r: any) => r.college_id));
+    const essays = (essaysRes.data ?? []).filter((row: any) => trackedCollegeIds.has(row.college_id)).map((row: any) => {
       const bodyText: string = row.body ?? "";
       const word_count = bodyText.trim() ? bodyText.trim().split(/\s+/).length : 0;
       return {
