@@ -343,7 +343,7 @@ Output ONLY the JSON array. No prose, no fences, no commentary. Example:
     await recordRateLimitHit(supabase, {
       endpoint: "assistant",
       userId: user.id,
-      billable: true,
+      billable: false,
       costCents: undefined,
     });
 
