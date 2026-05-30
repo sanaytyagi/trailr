@@ -23,7 +23,7 @@ export const PLANS: Plan[] = [
     key: "plus",
     name: "Plus",
     price: 10,
-    cap: 40,
+    cap: 100,
     positioning: "Cover the full application season.",
     popular: true,
     selfSelectLine: "Fits if you're in the thick of applying.",
