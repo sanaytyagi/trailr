@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { ArrowUp, Globe, Sparkles, RotateCcw, Square, Loader2 } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
@@ -103,6 +103,7 @@ const SUGGESTED_PROMPTS = {
 
 export default function AssistantPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { profile, loading: profileLoading } = useProfile();
   const [supabase] = useState(() => createClient());
 
@@ -221,8 +222,9 @@ export default function AssistantPage() {
     init();
     return () => {
       cancelled = true;
+      initializingRef.current = false;
     };
-  }, [profile, profileLoading, supabase]);
+  }, [profile, profileLoading, supabase, pathname]);
 
   if (profileLoading || !initialReady || !profile || profile.role !== "student") {
     return (
