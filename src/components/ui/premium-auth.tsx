@@ -260,7 +260,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           setErrors({ general: json.error ?? 'Signup failed. Please try again.' });
         } else {
           const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-          const { error } = await supabase.auth.signUp({
+          const { data: signUpData, error } = await supabase.auth.signUp({
             email: formData.email,
             password: formData.password,
             options: {
@@ -268,6 +268,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
               ...(fullName ? { data: { name: fullName } } : {}),
             },
           });
+          console.log('[signup] data:', JSON.stringify(signUpData), 'error:', error);
           if (error) {
             setErrors({ general: error.message });
           } else {
