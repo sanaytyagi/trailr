@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -111,6 +112,7 @@ export function PasswordStrengthIndicator({ password }: { password: string }) {
 }
 
 export function AuthForm({ onSuccess, className, initialMode = 'login', onModeChange }: AuthFormProps) {
+  const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [authMode, setAuthMode] = useState<AuthMode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
@@ -269,7 +271,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           if (error) {
             setErrors({ general: error.message });
           } else {
-            setSuccessMessage('Account created! Check your email and spam folder to verify your account before signing in.');
+            router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`);
           }
         }
       } else {
