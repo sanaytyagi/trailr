@@ -24,6 +24,10 @@ export const metadata: Metadata = {
   title: "Trailr",
   description:
     "Track college deadlines, acceptance rates, and decision dates in one clean dashboard.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
