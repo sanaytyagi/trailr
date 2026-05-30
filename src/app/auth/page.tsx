@@ -51,7 +51,7 @@ function AuthPageInner() {
           <img
             src="/transparent_logo.png"
             alt="Trailr logo"
-            className="h-16 w-auto transition-opacity group-hover:opacity-80"
+            className="h-12 w-auto transition-opacity group-hover:opacity-80"
           />
           <span className="text-4xl font-bold tracking-tight text-foreground transition-opacity group-hover:opacity-80">
             Trailr

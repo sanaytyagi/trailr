@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import { PasswordStrengthIndicator } from "@/components/ui/premium-auth";
 import { Calendar, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { UsageMeter, useUsage } from "@/components/usage-meter";
@@ -18,8 +17,6 @@ function SettingsPageInner() {
   const [user, setUser] = useState<User | null>(null);
 
   // Change password
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [pwLoading, setPwLoading] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
@@ -112,33 +109,26 @@ function SettingsPageInner() {
     finally { setDisconnecting(false); }
   }
 
-  function validatePassword(pw: string): string | null {
-    if (pw.length < 8)              return "Password must be at least 8 characters.";
-    if (!/[A-Z]/.test(pw))         return "Password must contain at least one uppercase letter.";
-    if (!/[a-z]/.test(pw))         return "Password must contain at least one lowercase letter.";
-    if (!/\d/.test(pw))            return "Password must contain at least one number.";
-    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pw))
-                                   return "Password must contain at least one special character.";
-    return null;
-  }
-
-  async function handleChangePassword(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleChangePassword() {
+    if (!user?.email) return;
     setPwError(null);
     setPwSuccess(false);
-    const strengthError = validatePassword(newPassword);
-    if (strengthError) { setPwError(strengthError); return; }
-    if (newPassword !== confirmPassword) {
-      setPwError("Passwords do not match.");
-      return;
-    }
     setPwLoading(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    const res = await fetch("/api/auth/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: user.email,
+        redirectTo: `${window.location.origin}/auth/callback?next=/auth/update-password`,
+      }),
+    });
     setPwLoading(false);
-    if (error) { setPwError(error.message); return; }
-    setPwSuccess(true);
-    setNewPassword("");
-    setConfirmPassword("");
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setPwError(data.error ?? "Something went wrong. Try again.");
+    } else {
+      setPwSuccess(true);
+    }
   }
 
   async function handleDeleteAccount() {
@@ -277,51 +267,25 @@ function SettingsPageInner() {
             Security
           </h2>
           <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Change Password</h3>
-            <form onSubmit={handleChangePassword} className="space-y-3 max-w-sm">
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">
-                  New password
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  placeholder="New password"
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring transition-shadow"
-                />
-                <PasswordStrengthIndicator password={newPassword} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">
-                  Confirm new password
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  placeholder="Confirm password"
-                  className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-ring transition-shadow"
-                />
-              </div>
-              {pwError && (
-                <p className="text-xs text-destructive">{pwError}</p>
-              )}
-              {pwSuccess && (
-                <p className="text-xs text-[hsl(142,60%,35%)]">Password updated successfully.</p>
-              )}
+            <h3 className="text-sm font-semibold text-foreground mb-1">Change Password</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              We&apos;ll send a secure reset link to <span className="font-medium text-foreground">{user.email}</span>. Follow the link to set a new password.
+            </p>
+            {pwError && (
+              <p className="text-xs text-destructive mb-3">{pwError}</p>
+            )}
+            {pwSuccess ? (
+              <p className="text-sm text-[hsl(142,60%,35%)]">Reset link sent — check your inbox and spam folder.</p>
+            ) : (
               <button
-                type="submit"
+                type="button"
+                onClick={handleChangePassword}
                 disabled={pwLoading}
                 className="inline-flex items-center rounded-lg bg-primary px-4 h-9 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                {pwLoading ? "Updating..." : "Update Password"}
+                {pwLoading ? "Sending..." : "Send Reset Link"}
               </button>
-            </form>
+            )}
           </div>
         </section>
 
