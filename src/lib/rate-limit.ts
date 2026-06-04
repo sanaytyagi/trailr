@@ -105,6 +105,29 @@ export async function recordRateLimitHit(
 }
 
 /**
+ * Delete all recorded hits for a key/user within an endpoint. Used to reset a
+ * brute-force counter after a *verified* success (e.g. a correct sign-in), so
+ * that only failed attempts accumulate toward the limit. Errors are swallowed.
+ */
+export async function clearRateLimit(
+  client: SupabaseClient,
+  input: { endpoint: string; userId?: string; key?: string }
+): Promise<void> {
+  if (!input.userId && !input.key) return;
+  let query = client
+    .from("api_rate_limits")
+    .delete()
+    .eq("endpoint", input.endpoint);
+  query = input.userId
+    ? query.eq("user_id", input.userId)
+    : query.eq("key", input.key!);
+  const { error } = await query;
+  if (error) {
+    console.error(`clearRateLimit(${input.endpoint}) failed:`, error.message);
+  }
+}
+
+/**
  * Build a 429 JSON response with Retry-After header.
  */
 export function rateLimitedResponse(

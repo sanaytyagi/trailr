@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { US_STATES as STATES } from "@/lib/us-states";
 
 interface QuizAnswers {
   state: string;
@@ -37,15 +38,6 @@ interface CollegeQuizProps {
   onExit?: () => void;
 }
 
-const STATES = [
-  "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware",
-  "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky",
-  "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
-  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico",
-  "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania",
-  "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
-  "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
-];
 
 const BUDGET_OPTIONS = ["Under $30k", "$30k–$50k", "$50k–$70k", "$70k+", "Unsure"];
 const GRAD_SCHOOL_TYPES = ["Masters", "PhD", "Medical School", "Law School", "Business School", "Unsure"];
@@ -148,7 +140,7 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
       case 0:
         return (
           <div>
-            <h2 className="text-3xl font-bold text-foreground mb-4">Build Your College List</h2>
+            <h2 className="text-3xl font-bold text-foreground mb-4">Tell us more about you</h2>
             <p className="text-base text-muted-foreground mb-4">
               To generate a personalized college list, we need to learn a bit about you — your academic profile, preferences, and goals.
             </p>

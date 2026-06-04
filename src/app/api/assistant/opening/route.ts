@@ -10,6 +10,7 @@ import {
   type Plan,
 } from "@/lib/ai-quota";
 import { getRateLimitAdminClient, recordRateLimitHit } from "@/lib/rate-limit";
+import { resolveStudentProfile, formatProfileForPrompt } from "@/lib/assistant/profile";
 
 type ListBuilderEntry = { name?: string; tier?: string; reason?: string };
 
@@ -37,9 +38,9 @@ export async function POST() {
 
     const { data: profile } = await db
       .from("profiles")
-      .select("id, role, counselor_id, plan, plan_expires_at")
+      .select("id, role, counselor_id, plan, plan_expires_at, core_profile")
       .eq("id", user.id)
-      .single() as { data: { id: string; role: "student" | "counselor"; counselor_id: string | null; plan: Plan; plan_expires_at: string | null } | null };
+      .single() as { data: { id: string; role: "student" | "counselor"; counselor_id: string | null; plan: Plan; plan_expires_at: string | null; core_profile: Record<string, unknown> | null } | null };
 
     if (!profile || profile.role !== "student") {
       return NextResponse.json({ error: "Student-only" }, { status: 403 });
@@ -141,27 +142,15 @@ export async function POST() {
           .join("\n")
       : "none";
 
-    const quizContext = quizAnswers
-      ? (() => {
-          const q = quizAnswers;
-          const testInfo = Array.isArray(q.testTypes) && (q.testTypes as string[]).length > 0
-            ? (q.testTypes as string[]).map((t: string) =>
-                t === "SAT" ? `SAT ${q.satScore ?? "n/a"}` : `ACT ${q.actScore ?? "n/a"}`
-              ).join(", ")
-            : "not yet tested";
-          return [
-            `GPA: ${q.gpa}/4.0, Tests: ${testInfo}`,
-            `Intended major: ${q.major || "undecided"}`,
-            `Target careers: ${q.careers || "not specified"}`,
-            `Grad school: ${q.gradSchool}${Array.isArray(q.gradSchoolTypes) && (q.gradSchoolTypes as string[]).length > 0 ? ` (${(q.gradSchoolTypes as string[]).join(", ")})` : ""}`,
-            `Preferences: ${q.setting} setting, ${Array.isArray(q.sizes) ? (q.sizes as string[]).join("/") : q.sizes} school, ${q.schoolType} institution`,
-            `Budget: ${q.budget}, FAFSA: ${q.fafsa ? "Yes" : "No"}, Loans: ${q.loans}`,
-            `Key priorities: major ranking ${q.majorImportance}/5, career services ${q.coopImportance}/5, alumni network ${q.alumniNetworkImportance}/5`,
-            q.otherPriorities ? `Other priorities: ${q.otherPriorities}` : null,
-            q.careerCultureDescription ? `Career culture: ${q.careerCultureDescription}` : null,
-          ].filter(Boolean).join("\n");
-        })()
-      : "No quiz data — student hasn't used List Builder yet.";
+    // Merge the 3-field core profile (captured at registration) with the full
+    // List Builder quiz. Quiz wins on overlap. Personalizes the opening message
+    // even for a brand-new user who hasn't built a list yet.
+    const resolvedProfile = resolveStudentProfile(profile.core_profile, quizAnswers);
+    const quizContext = formatProfileForPrompt(
+      resolvedProfile,
+      "compact",
+      "No profile data yet — student hasn't shared their preferences."
+    );
 
     const openingPrompt = `You are Trailr's AI college admissions assistant. Generate a warm but substantive opening message for a student returning to their assistant.
 

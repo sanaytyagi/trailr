@@ -1,5 +1,13 @@
 # TODOS
 
+## Cache core_profile-done flag to skip the per-navigation gate query
+**What:** The proxy gate (`src/proxy.ts`) does one `profiles.core_profile` lookup on every protected navigation. Once a user has a core_profile, cache that "done" state in a cookie or JWT claim so the query stops firing.
+**Why:** Removes a redundant per-request DB round-trip in middleware once the profile exists. Only matters at scale.
+**Pros:** Cuts middleware latency for the common case (returning users who already have a profile).
+**Cons:** Adds cookie/claim sync and a stale-state failure mode (cookie says done but DB was reset). Not worth it pre-launch.
+**Context:** Added during the student-profile-at-registration eng review (2026-06-01). The gate was deliberately put in the proxy for DRY centralization (one place, matches existing auth gating). We accepted the per-nav query as "boring and fine" at current scale. Trigger to revisit: middleware latency shows up in real measurements.
+**Depends on:** Student profile core-step shipped. Revisit only when latency data justifies it.
+
 ## Apple Calendar — WebCal subscription endpoint
 **What:** Serve a live `.ics` feed at `/api/calendar/ical/[token]` that Apple Calendar can subscribe to.
 **Why:** Lets iPhone/Mac users get automatic deadline sync without any OAuth. ~30 min to build with CC.
