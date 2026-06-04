@@ -151,6 +151,7 @@ export interface Database {
           stripe_subscription_id: string | null;
           subscription_status: string | null;
           cancel_at_period_end: boolean;
+          core_profile: Json | null;
         };
         Insert: {
           id: string;
@@ -166,6 +167,7 @@ export interface Database {
           stripe_subscription_id?: string | null;
           subscription_status?: string | null;
           cancel_at_period_end?: boolean;
+          core_profile?: Json | null;
         };
         Update: {
           email?: string;
@@ -179,6 +181,7 @@ export interface Database {
           stripe_subscription_id?: string | null;
           subscription_status?: string | null;
           cancel_at_period_end?: boolean;
+          core_profile?: Json | null;
         };
         Relationships: [];
       };

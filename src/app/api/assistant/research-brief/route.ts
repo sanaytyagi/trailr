@@ -16,6 +16,7 @@ import {
   resolvePlan,
   type Plan,
 } from "@/lib/ai-quota";
+import { resolveStudentProfile } from "@/lib/assistant/profile";
 import {
   dossierSchema,
   detectGenericPhrases,
@@ -151,9 +152,9 @@ export async function POST(req: NextRequest) {
   // Load profile context
   const { data: profile } = await db
     .from("profiles")
-    .select("id, full_name, role, plan, plan_expires_at")
+    .select("id, full_name, role, plan, plan_expires_at, core_profile")
     .eq("id", user.id)
-    .single() as { data: { id: string; full_name: string | null; role: "student" | "counselor"; plan: Plan; plan_expires_at: string | null } | null };
+    .single() as { data: { id: string; full_name: string | null; role: "student" | "counselor"; plan: Plan; plan_expires_at: string | null; core_profile: Record<string, unknown> | null } | null };
   if (!profile || profile.role !== "student") {
     return NextResponse.json(
       { error: "Research briefs are student-only" },
@@ -178,9 +179,13 @@ export async function POST(req: NextRequest) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const listBlob = (listRow?.colleges ?? {}) as any;
-  const quiz = (listBlob && typeof listBlob === "object" && !Array.isArray(listBlob)
+  const quizAnswers = (listBlob && typeof listBlob === "object" && !Array.isArray(listBlob)
     ? (listBlob.quiz_answers as Record<string, unknown> | undefined)
     : undefined) ?? {};
+  // Merge the 3-field core profile (captured at registration) with the full
+  // List Builder quiz. Quiz wins on overlap. Lets a new user get a personalized
+  // brief (at least major) before building a list.
+  const quiz = resolveStudentProfile(profile.core_profile, quizAnswers) ?? {};
 
   const promptContext: BriefPromptContext = {
     studentName: profile.full_name ?? null,

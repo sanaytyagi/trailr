@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { parseJsonBody } from "@/lib/parse-json-body";
 import { signinSchema } from "@/lib/schemas/auth";
 import {
   checkRateLimit,
   recordRateLimitHit,
+  clearRateLimit,
   rateLimitedResponse,
   getRateLimitAdminClient,
   getClientIp,
@@ -11,11 +13,13 @@ import {
 
 const ENDPOINT = "auth-signin";
 const WINDOW = 15 * 60; // 15 min
-const MAX = 5;
+const MAX = 5; // failed attempts per window before lockout
 
-// Rate-limit gate only. The actual sign-in runs on the client so the browser's
-// Supabase instance fires onAuthStateChange and the header/UI updates without
-// a hard refresh.
+// Sign-in runs server-side here so the rate limiter can authoritatively tell a
+// success from a failure and count ONLY failed attempts toward the lockout. (A
+// client-reported result could be faked by an attacker, defeating the limit.)
+// On success we return the session tokens; the client calls setSession() so the
+// browser fires onAuthStateChange and the header/UI updates without a refresh.
 export async function POST(req: NextRequest) {
   const parsed = await parseJsonBody(req, 4 * 1024);
   if (!parsed.ok) return parsed.response;
@@ -27,12 +31,13 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  const { email } = validation.data;
+  const { email, password } = validation.data;
 
   const ip = getClientIp(req);
   const key = `ip:${ip}|email:${email}`;
   const admin = getRateLimitAdminClient();
 
+  // Block first, based on prior FAILED attempts in the window.
   const limit = await checkRateLimit(admin, {
     endpoint: ENDPOINT,
     key,
@@ -46,8 +51,33 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Record the attempt so brute-force counters tick on every gate hit.
-  await recordRateLimitHit(admin, { endpoint: ENDPOINT, key });
+  // Authenticate server-side with a stateless anon client (no session persisted
+  // here — the browser owns the session via setSession on the response).
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-  return NextResponse.json({ ok: true });
+  if (error || !data.session) {
+    // Count ONLY failed attempts toward the lockout.
+    await recordRateLimitHit(admin, { endpoint: ENDPOINT, key });
+    return NextResponse.json(
+      { error: error?.message ?? "Invalid email or password" },
+      { status: 401 }
+    );
+  }
+
+  // Verified success: reset the failure counter so a legitimate user is never
+  // locked out by their own successful logins.
+  await clearRateLimit(admin, { endpoint: ENDPOINT, key });
+
+  return NextResponse.json({
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+  });
 }

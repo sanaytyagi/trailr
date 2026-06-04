@@ -16,6 +16,11 @@ import {
   resolvePlan,
   type Plan,
 } from "@/lib/ai-quota";
+import {
+  resolveStudentProfile,
+  formatProfileForPrompt,
+  type ResolvedProfile,
+} from "@/lib/assistant/profile";
 
 export const maxDuration = 60;
 
@@ -87,39 +92,11 @@ function buildSystemPrompt(ctx: {
         .join("\n")
     : "(student hasn't generated a list via List Builder yet)";
 
-  const quizText = ctx.quizAnswers
-    ? (() => {
-        const q = ctx.quizAnswers as Record<string, unknown>;
-        const testInfo = Array.isArray(q.testTypes) && (q.testTypes as string[]).length > 0
-          ? (q.testTypes as string[]).map((t: string) =>
-              t === "SAT" ? `SAT ${q.satScore ?? "n/a"}` : `ACT ${q.actScore ?? "n/a"}`
-            ).join(", ")
-          : "not yet tested";
-        return [
-          `State: ${q.state || "not provided"}`,
-          `GPA: ${q.gpa}/4.0`,
-          `Test scores: ${testInfo}`,
-          `Intended major: ${q.major || "undecided"}`,
-          `Major ranking importance: ${q.majorImportance}/5`,
-          `Preferred teaching style: ${q.preferenceResearch}`,
-          `Annual budget: ${q.budget}`,
-          `Applying for financial aid (FAFSA): ${q.fafsa ? "Yes" : "No"}`,
-          `Open to loans: ${q.loans}`,
-          `Preferred campus setting: ${q.setting}`,
-          `Preferred school size(s): ${Array.isArray(q.sizes) ? (q.sizes as string[]).join(", ") : q.sizes}`,
-          `School type preference: ${q.schoolType}`,
-          `Career services / co-op importance: ${q.coopImportance}/5`,
-          `Career culture importance: ${q.careerCultureImportance}/5`,
-          q.careerCultureDescription ? `Career culture description: ${q.careerCultureDescription}` : null,
-          `Grad school plans: ${q.gradSchool}${Array.isArray(q.gradSchoolTypes) && (q.gradSchoolTypes as string[]).length > 0 ? ` (${(q.gradSchoolTypes as string[]).join(", ")})` : ""}`,
-          `Target careers/industries: ${q.careers || "not specified"}`,
-          `Alumni network importance: ${q.alumniNetworkImportance}/5`,
-          `Campus diversity importance: ${q.campusDiversityImportance}/5`,
-          `Campus life importance: ${q.campusLifeImportance}/5`,
-          q.otherPriorities ? `Other priorities: ${q.otherPriorities}` : null,
-        ].filter(Boolean).join("\n");
-      })()
-    : "(student hasn't completed the List Builder quiz yet — no preference data available)";
+  const quizText = formatProfileForPrompt(
+    ctx.quizAnswers as ResolvedProfile | null,
+    "full",
+    "(student hasn't completed the List Builder quiz yet — no preference data available)"
+  );
 
   const counselorNotesText = ctx.counselorConnected
     ? ctx.counselorNotes.length
@@ -212,9 +189,9 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await db
       .from("profiles")
-      .select("id, full_name, role, counselor_id, plan, plan_expires_at")
+      .select("id, full_name, role, counselor_id, plan, plan_expires_at, core_profile")
       .eq("id", user.id)
-      .single() as { data: { id: string; full_name: string | null; role: "student" | "counselor"; counselor_id: string | null; plan: Plan; plan_expires_at: string | null } | null };
+      .single() as { data: { id: string; full_name: string | null; role: "student" | "counselor"; counselor_id: string | null; plan: Plan; plan_expires_at: string | null; core_profile: Record<string, unknown> | null } | null };
 
     if (!profile || profile.role !== "student") {
       return NextResponse.json({ error: "Assistant is student-only" }, { status: 403 });
@@ -321,6 +298,10 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(obj.list)) listBuilderEntries = obj.list;
       if (obj.quiz_answers && typeof obj.quiz_answers === "object") quizAnswers = obj.quiz_answers as Record<string, unknown>;
     }
+    // Merge the 3-field core profile (captured at registration) with the full
+    // List Builder quiz. Quiz wins on overlap. Gives new users a personalized
+    // assistant before they've built a list.
+    const resolvedProfile = resolveStudentProfile(profile.core_profile, quizAnswers);
     const listBuilder = (listBuilderEntries as Array<{ name?: string; tier?: string; reason?: string }>)
       .filter((c) => c && typeof c.name === "string")
       .map((c) => ({ name: c.name!, tier: c.tier ?? "?", reason: c.reason ?? "" }));
@@ -339,7 +320,7 @@ export async function POST(req: NextRequest) {
       colleges,
       essays,
       listBuilder,
-      quizAnswers,
+      quizAnswers: resolvedProfile,
       counselorConnected: !!profile.counselor_id,
       counselorNotes,
     });
