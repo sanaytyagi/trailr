@@ -220,7 +220,10 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
 
     try {
       if (authMode === 'login') {
-        // 1. Hit the API gate so server-side rate-limit increments.
+        // Sign-in is performed server-side (so only FAILED attempts count toward
+        // the rate limit). On success it returns session tokens; we hand them to
+        // the browser client via setSession so onAuthStateChange fires and the
+        // header/UI updates without a hard refresh.
         const res = await fetch('/api/auth/signin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -233,11 +236,9 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
         if (!res.ok) {
           setErrors({ general: json.error ?? 'Sign-in failed. Please try again.' });
         } else {
-          // 2. Run the actual sign-in on the client so onAuthStateChange fires
-          //    and the header/UI updates without a hard refresh.
-          const { error } = await supabase.auth.signInWithPassword({
-            email: formData.email,
-            password: formData.password,
+          const { error } = await supabase.auth.setSession({
+            access_token: json.access_token,
+            refresh_token: json.refresh_token,
           });
           if (error) {
             setErrors({ general: error.message });

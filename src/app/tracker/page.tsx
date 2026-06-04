@@ -8,6 +8,7 @@ import { CollegeSearch, type CollegeSearchHandle } from "@/components/college-se
 import { CollegeGrid } from "@/components/college-grid";
 import { CollegeDetailDialog } from "@/components/college-detail-dialog";
 import { DeadlineCalendar } from "@/components/deadline-calendar";
+import { ProfileCompletionNudge } from "@/components/profile-completion-nudge";
 import { useTrackedColleges } from "@/hooks/use-tracked-colleges";
 import { useProfile } from "@/hooks/use-profile";
 import { useCounselorNotifications, type CounselorNotification } from "@/hooks/use-counselor-notifications";
@@ -513,6 +514,8 @@ export default function TrackerPage() {
       <div className="flex gap-8 items-start">
         {/* Left column */}
         <div className="flex-1 min-w-0">
+          {/* Nudge students with a core profile to finish the full quiz */}
+          <ProfileCompletionNudge />
           {/* Counselor connect banner / chip */}
           {COUNSELOR_ENABLED && profile && profile.role === "student" && (
             profile.counselor_id && !isChanging ? (

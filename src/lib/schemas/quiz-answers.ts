@@ -32,3 +32,16 @@ export const generateListRequestSchema = z.object({
 });
 
 export type QuizAnswers = z.infer<typeof quizAnswersSchema>;
+
+// Tiny required core captured at registration (onboarding 3-field step).
+// Field names MUST be a strict subset of quizAnswersSchema so the resolver's
+// { ...core_profile, ...quiz_answers } merge stays key-aligned (see
+// src/lib/assistant/profile.ts). state/gpa/major are the three high-signal fields
+// that make the AI feel personalized without a 24-question wall at signup.
+export const coreProfileSchema = z.object({
+  state: z.string().trim().min(1).max(100),
+  gpa: z.number().min(0).max(5),
+  major: z.string().trim().min(1).max(200),
+});
+
+export type CoreProfile = z.infer<typeof coreProfileSchema>;

@@ -18,6 +18,7 @@ import {
 } from "@/lib/ai-quota";
 import { followupItemsSchema, type Dossier } from "@/lib/research-brief/schema";
 import { buildFollowUpSystemPrompt } from "@/lib/research-brief/prompt";
+import { resolveStudentProfile } from "@/lib/assistant/profile";
 
 export const maxDuration = 60;
 const ENDPOINT = "research-brief-followup";
@@ -79,9 +80,9 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await db
     .from("profiles")
-    .select("id, plan, plan_expires_at")
+    .select("id, plan, plan_expires_at, core_profile")
     .eq("id", user.id)
-    .single() as { data: { id: string; plan: Plan; plan_expires_at: string | null } | null };
+    .single() as { data: { id: string; plan: Plan; plan_expires_at: string | null; core_profile: Record<string, unknown> | null } | null };
   const effectivePlan = resolvePlan(profile);
   const quota = await checkAiQuota(
     getRateLimitAdminClient(),
@@ -140,10 +141,12 @@ export async function POST(req: NextRequest) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const listBlob = (listRow?.colleges ?? {}) as any;
-  const quiz =
+  const quizAnswers =
     listBlob && typeof listBlob === "object" && !Array.isArray(listBlob)
       ? ((listBlob.quiz_answers as Record<string, unknown> | undefined) ?? {})
       : {};
+  // Merge the 3-field core profile (captured at registration) with the full quiz.
+  const quiz = resolveStudentProfile(profile?.core_profile, quizAnswers) ?? {};
 
   const systemPrompt = buildFollowUpSystemPrompt(
     college?.name ?? "this college",
