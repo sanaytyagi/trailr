@@ -149,6 +149,23 @@ export default function ListBuilderPage() {
           },
           { onConflict: "user_id" }
         );
+
+      // Backfill the 3-field core profile so it stays consistent with the full
+      // quiz. The resolver reads { ...core_profile, ...quiz_answers } (quiz wins),
+      // so this keeps profiles.core_profile fresh for anything that reads it
+      // directly (e.g. the onboarding gate, the completion nudge).
+      if (answers?.state && answers?.major != null && answers?.gpa != null) {
+        await supabase
+          .from("profiles")
+          .update({
+            core_profile: {
+              state: answers.state,
+              gpa: answers.gpa,
+              major: answers.major,
+            },
+          })
+          .eq("id", user.id);
+      }
     } catch (err) {
       setError(`Failed to generate your college list: ${err instanceof Error ? err.message : "Unknown error"}`);
       console.error(err);
