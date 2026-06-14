@@ -511,7 +511,7 @@ export default function TrackerPage() {
 
   return (
     <main className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex gap-8 items-start">
+      <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
         {/* Left column */}
         <div className="flex-1 min-w-0">
           {/* Nudge students with a core profile to finish the full quiz */}
@@ -830,7 +830,7 @@ export default function TrackerPage() {
         </div>
 
         {/* Right column — deadline calendar */}
-        <div className="w-72 shrink-0 sticky top-20 mt-36">
+        <div className="w-full lg:w-72 lg:shrink-0 lg:sticky lg:top-20 lg:mt-36">
           <DeadlineCalendar entries={deadlineEntries} />
         </div>
       </div>
