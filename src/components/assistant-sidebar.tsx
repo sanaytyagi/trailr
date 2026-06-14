@@ -248,7 +248,7 @@ export function AssistantSidebar({
   }, [digestState]);
 
   return (
-    <div className="flex h-full w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border bg-muted/30 px-4 py-5">
+    <div className="hidden lg:flex h-full w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border bg-muted/30 px-4 py-5">
       {/* Panel 1: AI Tasks */}
       <Panel
         icon={<ListChecks className="h-3.5 w-3.5" />}
