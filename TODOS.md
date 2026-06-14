@@ -31,3 +31,10 @@
 **Cons:** One more tracked item; requires actually running the analysis when the data is ready.
 **Context:** The freemium plan instruments `cost_cents` per metered AI action on `api_rate_limits` rows from day one. After ~2-4 weeks of live usage: compute median and p95 cost per plan, compare against revenue, and check conversion rate at the free-tier wall. Adjust caps and prices accordingly.
 **Depends on:** Student freemium monetization shipped + ~2-4 weeks of live student usage.
+
+## Assistant context sidebar — mobile drawer/toggle
+**What:** The AI assistant's right-hand context panel (tasks "What to do next", digest, research) is hidden below `lg` so the chat gets the full screen on mobile (`src/components/assistant-sidebar.tsx`). Add a toggle/drawer (e.g. a bottom sheet or slide-over) so mobile users can still reach that context.
+**Why:** Made the chat usable on phones during the responsive pass (2026-06-14), but mobile users currently lose access to the tasks/digest panel entirely.
+**Pros:** Restores full feature parity on mobile without cramping the chat.
+**Cons:** Needs a new toggle affordance + sheet wiring; ~30 min with CC.
+**Context:** Deferred from the mobile-responsive design pass. The PaywallSheet pattern (`src/components/paywall-sheet.tsx`) is a good reference for a mobile sheet.
