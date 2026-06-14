@@ -324,7 +324,7 @@ export default function CounselorPage() {
 
       {/* ── Change 1: Summary stat bar ──────────────────────────────────────── */}
       {dashboardStats && students.length > 0 && (
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <StatCard label="Total Students"   value={dashboardStats.totalStudents} />
           <StatCard label="Total Submitted"  value={dashboardStats.totalSubmitted} color="hsl(205,85%,50%)" />
           <StatCard label="Total Accepted"   value={dashboardStats.totalAccepted}  color="hsl(142,60%,30%)" />
@@ -332,7 +332,7 @@ export default function CounselorPage() {
         </div>
       )}
 
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         {/* Student roster */}
         <div className="flex-1 min-w-0">
           {students.length === 0 ? (
@@ -431,7 +431,7 @@ export default function CounselorPage() {
         </div>
 
         {/* Right sidebar — two stacked cards */}
-        <div className="w-72 shrink-0 flex flex-col gap-4">
+        <div className="w-full lg:w-72 lg:shrink-0 flex flex-col gap-4">
 
           {/* ── Change 4: Deadline panel ── */}
           <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
