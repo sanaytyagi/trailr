@@ -377,7 +377,8 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
             <p className="text-xs text-muted-foreground">This student hasn't added any colleges.</p>
           </div>
         ) : (
-          <table className="w-full text-sm border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm border-collapse">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="text-left pl-5 pr-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">College</th>
@@ -518,6 +519,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>}
     </div>
