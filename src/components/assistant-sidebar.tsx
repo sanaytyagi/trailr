@@ -14,6 +14,7 @@ import {
   MessageSquarePlus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import type { AssistantTask } from "@/app/api/assistant/tasks/route";
 
@@ -63,10 +64,14 @@ export function AssistantSidebar({
   userId,
   onPrefillChat,
   onQuotaExceeded,
+  mobileOpen = false,
+  onMobileOpenChange,
 }: {
   userId: string;
   onPrefillChat: (prompt: string) => void;
   onQuotaExceeded?: () => void;
+  mobileOpen?: boolean;
+  onMobileOpenChange?: (open: boolean) => void;
 }) {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
@@ -247,8 +252,8 @@ export function AssistantSidebar({
     return generated < startOfWeek(today);
   }, [digestState]);
 
-  return (
-    <div className="hidden lg:flex h-full w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border bg-muted/30 px-4 py-5">
+  const panels = (
+    <>
       {/* Panel 1: AI Tasks */}
       <Panel
         icon={<ListChecks className="h-3.5 w-3.5" />}
@@ -398,7 +403,31 @@ export function AssistantSidebar({
           )}
         </Panel>
       )}
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop: persistent right rail */}
+      <aside className="hidden lg:flex h-full w-80 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border bg-muted/30 px-4 py-5">
+        {panels}
+      </aside>
+
+      {/* Mobile: slide-over drawer toggled from the chat header */}
+      <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
+        <SheetContent
+          side="right"
+          className="w-[88%] max-w-sm gap-0 bg-muted/30 p-0 lg:hidden"
+        >
+          <SheetHeader className="border-border">
+            <SheetTitle>Assistant context</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-5">
+            {panels}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 
