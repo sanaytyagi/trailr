@@ -27,6 +27,8 @@ import {
   Underline,
   Undo2,
   Redo2,
+  ListChecks,
+  RefreshCw,
 } from "lucide-react";
 
 // ── Motion variants ───────────────────────────────────────────────────────────
@@ -642,6 +644,241 @@ function MockEssayPanel() {
   );
 }
 
+// ── Mock list panel ───────────────────────────────────────────────────────────
+
+function MockListPanel() {
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+      <div className="border-b border-border bg-card px-5 py-3 flex items-center gap-2.5">
+        <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
+        <div className="h-2.5 w-2.5 rounded-full bg-[hsl(38,85%,55%)]/60" />
+        <div className="h-2.5 w-2.5 rounded-full bg-[hsl(142,60%,45%)]/60" />
+      </div>
+      <div className="p-4 flex flex-col gap-3 bg-background">
+        {/* Page header row */}
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-bold text-foreground leading-tight">Your Personalized College List</h3>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button className="rounded-lg border border-border bg-card px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
+              Start Over
+            </button>
+            <button className="rounded-lg bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground flex items-center gap-1">
+              <Plus className="h-2.5 w-2.5" />
+              Add to Tracker
+            </button>
+          </div>
+        </div>
+        {/* Search bar */}
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground">Add a college to your list...</span>
+        </div>
+        {/* Reach Schools */}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Reach Schools</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { name: "California Institute of Technology", blurb: "Your background in quantum computing aligns with Caltech's core physics research clusters." },
+              { name: "Stanford University", blurb: "d.school's design-thinking curriculum pairs perfectly with your product and engineering goals." },
+              { name: "MIT", blurb: "CSAIL's open-research culture matches your interest in published undergraduate ML work." },
+              { name: "Brown University", blurb: "Open Curriculum lets you build a self-designed CS and cognitive science concentration." },
+            ].map((school) => (
+              <div key={school.name} className="relative rounded-xl border border-border bg-card p-3 flex flex-col gap-1.5">
+                <button className="absolute top-2 right-2 h-4 w-4 rounded-full flex items-center justify-center text-muted-foreground">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+                <p className="text-[11px] font-bold text-foreground pr-4 leading-tight">{school.name}</p>
+                <span className="inline-flex w-fit items-center rounded-md border px-1.5 py-0.5 text-[9px] font-semibold text-[hsl(0,65%,42%)] bg-[hsl(0,65%,96%)] border-[hsl(0,65%,80%)]">
+                  Reach
+                </span>
+                <p className="text-[9px] text-muted-foreground leading-relaxed">{school.blurb}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mock research brief panel ─────────────────────────────────────────────────
+
+function MockResearchPanel() {
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
+      <div className="border-b border-border bg-card px-5 py-3 flex items-center gap-2.5">
+        <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
+        <div className="h-2.5 w-2.5 rounded-full bg-[hsl(38,85%,55%)]/60" />
+        <div className="h-2.5 w-2.5 rounded-full bg-[hsl(142,60%,45%)]/60" />
+      </div>
+      <div className="p-4 flex flex-col gap-4 bg-background">
+        {/* School header */}
+        <div>
+          <h3 className="text-sm font-bold text-foreground leading-tight">Massachusetts Institute of Technology</h3>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Research brief · Cambridge, MA</p>
+          <p className="text-xs text-muted-foreground leading-relaxed mt-2">
+            Your focus on large-scale ML infrastructure maps directly to MIT&apos;s CSAIL, where undergraduates regularly co-author published research. The open lab culture means you can pitch ideas to faculty from day one.
+          </p>
+          <p className="text-[10px] text-muted-foreground/60 mt-1.5">Generated 4/26/2026</p>
+        </div>
+        {/* Programs */}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Programs that match your interests</p>
+          <div className="space-y-2.5">
+            {[
+              { name: "Course 6-3: Computer Science and Engineering", desc: "Covers systems, AI, and theory with direct pathways into CSAIL research groups." },
+              { name: "Course 6-9: Computation and Cognition", desc: "Bridges ML and cognitive science, ideal for your interest in human-AI interaction." },
+            ].map((prog) => (
+              <div key={prog.name}>
+                <a href="#" className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary underline underline-offset-2">
+                  {prog.name}
+                  <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                </a>
+                <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">{prog.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Faculty */}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Faculty to know</p>
+          <div className="space-y-1.5">
+            {[
+              { name: "Prof. Daniela Rus, CSAIL Director", desc: "Robotics and AI systems; open to undergraduate collaborators." },
+              { name: "Prof. Aleksander Madry, RML Group", desc: "Robustness in ML models; publishes with undergrads regularly." },
+            ].map((f) => (
+              <div key={f.name}>
+                <a href="#" className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary underline underline-offset-2">
+                  {f.name}
+                  <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                </a>
+                <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Ask follow-up */}
+        <div className="rounded-xl border border-border bg-muted/20 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-foreground mb-0.5">Want more research?</p>
+          <p className="text-[10px] text-muted-foreground mb-2">Ask for specific findings to add to your brief</p>
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value=""
+              placeholder="e.g. 'Find me three professors doing AI research'"
+              className="flex-1 min-w-0 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] text-muted-foreground placeholder:text-muted-foreground/50 outline-none"
+            />
+            <button className="rounded-lg bg-primary px-2.5 py-1.5 text-[10px] font-semibold text-primary-foreground flex items-center gap-1">
+              <Sparkles className="h-2.5 w-2.5" />
+              Ask
+            </button>
+          </div>
+          <p className="text-[9px] text-muted-foreground/50 mt-1">0/1000</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mock tasks panel ──────────────────────────────────────────────────────────
+
+const TASK_DOT: Record<string, string> = {
+  high: "bg-red-500",
+  medium: "bg-amber-500",
+  low: "bg-sky-500",
+};
+
+const MOCK_TASKS = [
+  { title: "Submit your MIT application",                 subtitle: "Regular Decision · Jan 1 (in 3 days)", urgency: "high"   },
+  { title: "Finish your UPenn supplement",               subtitle: "182 / 250 words · Jan 6 (in 8 days)",  urgency: "medium" },
+  { title: "Commit to USC",                              subtitle: "Enrollment deadline in 4 days",         urgency: "high"   },
+  { title: "Send a letter of continued interest to Yale", subtitle: "Deferred 8 weeks ago",                 urgency: "low"    },
+];
+
+function MockTasksPanel() {
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden w-full lg:max-w-md">
+      <div className="border-b border-border bg-card px-5 py-3 flex items-center gap-2.5">
+        <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
+        <div className="h-2.5 w-2.5 rounded-full bg-[hsl(38,85%,55%)]/60" />
+        <div className="h-2.5 w-2.5 rounded-full bg-[hsl(142,60%,45%)]/60" />
+      </div>
+      {/* Sidebar background, matching the assistant page */}
+      <div className="bg-muted/30 p-4">
+        <section className="rounded-xl border border-border bg-card px-3 py-3 shadow-sm">
+          <header className="mb-2 flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5">
+              <ListChecks className="h-3.5 w-3.5 text-muted-foreground" />
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">What to do next</h2>
+            </div>
+            <RefreshCw className="h-3 w-3 text-muted-foreground" />
+          </header>
+          <ul className="flex flex-col">
+            {MOCK_TASKS.map((task) => (
+              <li key={task.title}>
+                <div className="flex w-full items-start gap-2.5 rounded-lg border border-transparent px-2.5 py-2.5 text-left">
+                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TASK_DOT[task.urgency]}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium leading-snug text-foreground">{task.title}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug">{task.subtitle}</p>
+                  </div>
+                  <ChevronRight className="mt-1 h-3 w-3 shrink-0 text-muted-foreground/30" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+// ── How it works ──────────────────────────────────────────────────────────────
+
+const HOW_IT_WORKS = [
+  {
+    step: "1",
+    title: "Build your list",
+    body: "Tell us your state, GPA, and major, then take a short quiz. Trailr generates a personalized list of reach, match, and safety schools.",
+  },
+  {
+    step: "2",
+    title: "Track everything",
+    body: "Add schools to your tracker and manage deadlines, application rounds, decisions, and essays from one dashboard.",
+  },
+  {
+    step: "3",
+    title: "Let AI guide you",
+    body: "Get a prioritized to-do list, research briefs, essay help, and answers to any question, all personalized to your profile.",
+  },
+];
+
+function HowItWorks() {
+  return (
+    <section className="border-t border-border py-20">
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
+        <Reveal className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">How it works</h2>
+          <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            From your first search to your final decision, Trailr walks you through every step.
+          </p>
+        </Reveal>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {HOW_IT_WORKS.map((s) => (
+            <div key={s.step} className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-base font-bold text-primary-foreground mb-4">
+                {s.step}
+              </div>
+              <h3 className="text-lg font-bold text-foreground mb-2">{s.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{s.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -674,13 +911,13 @@ export default function HomePage() {
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 pt-16 pb-16 text-center">
           <Reveal delay={0}>
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-foreground mb-4 leading-[1.05] text-balance">
-              College Apps, Smarter
+              College apps, simplified
             </h1>
           </Reveal>
 
           <Reveal delay={0.14}>
             <p className="text-lg sm:text-xl max-w-2xl mx-auto mb-8 leading-relaxed text-muted-foreground">
-              Application dates, essays, and deadlines, all in one place
+              Build a personalized college list, track every deadline and essay, and get AI guidance at every step.
             </p>
           </Reveal>
 
@@ -696,30 +933,25 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Dashboard preview ── */}
-      <section id="tracker" className="border-t border-border py-12">
-        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
-          <Reveal className="pointer-events-none select-none">
-            <DashboardPreview />
-          </Reveal>
-        </div>
-      </section>
+      {/* ── How it works ── */}
+      <HowItWorks />
 
-      {/* ── List Builder section ── */}
-      <section id="list-builder" className="border-t border-border py-20">
+      {/* ── Step 1: List Builder ── */}
+      <section id="list-builder" className="border-t border-border bg-muted/30 py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             <Reveal className="flex-1 min-w-0">
               <div className="max-w-lg">
+                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Step 1 · Build your list</p>
                 <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
                   Build the right list, fast.
                 </h2>
                 <p className="text-base text-muted-foreground leading-relaxed mb-8">
-                  Answer a short quiz about your academic interests, goals, and stats. Trailr builds a curated college list around your profile, sorted by fit, with an AI-generated reason for each school.
+                  Tell us your state, GPA, and major when you sign up, then answer a short quiz about your goals and interests. Trailr builds a curated college list around your profile, sorted by fit, with an AI reason for every school.
                 </p>
                 <ul className="space-y-3">
                   {[
-                    "Quiz captures your profile in under two minutes",
+                    "Your profile is captured at sign up, so guidance is personalized from minute one",
                     "Reach, Match, and Safety schools balanced automatically",
                     "AI-written fit reason tailored to your background for every school",
                     "Add any school to your tracker with one click",
@@ -735,56 +967,94 @@ export default function HomePage() {
 
             {/* Mockup: college list view */}
             <Reveal delay={0.1} className="shrink-0 w-full lg:w-auto lg:max-w-md pointer-events-none select-none">
-              <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-                <div className="border-b border-border bg-card px-5 py-3 flex items-center gap-2.5">
-                  <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-[hsl(38,85%,55%)]/60" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-[hsl(142,60%,45%)]/60" />
-                </div>
-                <div className="p-4 flex flex-col gap-3 bg-background">
-                  {/* Page header row */}
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-bold text-foreground leading-tight">Your Personalized College List</h3>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button className="rounded-lg border border-border bg-card px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
-                        Start Over
-                      </button>
-                      <button className="rounded-lg bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground flex items-center gap-1">
-                        <Plus className="h-2.5 w-2.5" />
-                        Add to Tracker
-                      </button>
-                    </div>
-                  </div>
-                  {/* Search bar */}
-                  <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
-                    <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-xs text-muted-foreground">Add a college to your list...</span>
-                  </div>
-                  {/* Reach Schools */}
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Reach Schools</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { name: "California Institute of Technology", blurb: "Your background in quantum computing aligns with Caltech's core physics research clusters." },
-                        { name: "Stanford University", blurb: "d.school's design-thinking curriculum pairs perfectly with your product and engineering goals." },
-                        { name: "MIT", blurb: "CSAIL's open-research culture matches your interest in published undergraduate ML work." },
-                        { name: "Brown University", blurb: "Open Curriculum lets you build a self-designed CS and cognitive science concentration." },
-                      ].map((school) => (
-                        <div key={school.name} className="relative rounded-xl border border-border bg-card p-3 flex flex-col gap-1.5">
-                          <button className="absolute top-2 right-2 h-4 w-4 rounded-full flex items-center justify-center text-muted-foreground">
-                            <X className="h-2.5 w-2.5" />
-                          </button>
-                          <p className="text-[11px] font-bold text-foreground pr-4 leading-tight">{school.name}</p>
-                          <span className="inline-flex w-fit items-center rounded-md border px-1.5 py-0.5 text-[9px] font-semibold text-[hsl(0,65%,42%)] bg-[hsl(0,65%,96%)] border-[hsl(0,65%,80%)]">
-                            Reach
-                          </span>
-                          <p className="text-[9px] text-muted-foreground leading-relaxed">{school.blurb}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+              <MockListPanel />
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Step 2: Tracker ── */}
+      <section id="tracker" className="border-t border-border py-20">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
+          <Reveal className="text-center mb-10">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Step 2 · Track everything</p>
+            <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+              Track every application in one place.
+            </h2>
+            <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+              Add schools to your tracker and manage status, application rounds, decisions, and deadlines from one dashboard, with progress always in view.
+            </p>
+          </Reveal>
+          <Reveal className="pointer-events-none select-none">
+            <DashboardPreview />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── Calendar section ── */}
+      <section className="border-t border-border bg-muted/30 py-20">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row items-center gap-10">
+            <Reveal className="flex-1 min-w-0">
+              <div className="max-w-lg">
+                <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+                  Never miss a deadline
+                </h2>
+                <p className="text-base text-muted-foreground leading-relaxed mb-8">
+                  Every school gets its own deadline on a built-in calendar. Track EA, ED, and RD windows so you always know what's coming.
+                </p>
+                <ul className="space-y-3">
+                  {[
+                    "Deadlines color-coded by urgency",
+                    "Click any date to see which colleges are due",
+                    "Upcoming deadlines panel always in view",
+                  ].map((pt) => (
+                    <li key={pt} className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
               </div>
+            </Reveal>
+
+            <Reveal delay={0.1} className="shrink-0 pointer-events-none select-none">
+              <MockCalendar />
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Step 3: AI tasks ── */}
+      <section id="tasks" className="border-t border-border py-20">
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row items-center gap-12">
+            <Reveal className="flex-1 min-w-0">
+              <div className="max-w-lg">
+                <p className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Step 3 · Let AI guide you</p>
+                <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+                  Know exactly what to do next.
+                </h2>
+                <p className="text-base text-muted-foreground leading-relaxed mb-8">
+                  Trailr reads your list, deadlines, and essay progress and turns them into a short, prioritized to-do list. Open the app and you always know your next move.
+                </p>
+                <ul className="space-y-3">
+                  {[
+                    "A prioritized to-do list built from your deadlines and progress",
+                    "Urgency flags so you know what is critical right now",
+                    "Every task links straight to the right place to act",
+                  ].map((pt) => (
+                    <li key={pt} className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      {pt}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.1} className="shrink-0 w-full lg:w-auto pointer-events-none select-none">
+              <MockTasksPanel />
             </Reveal>
           </div>
         </div>
@@ -820,102 +1090,14 @@ export default function HomePage() {
 
             {/* Mockup: research brief view */}
             <Reveal delay={0.1} className="shrink-0 w-full lg:w-auto lg:max-w-md pointer-events-none select-none">
-              <div className="rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-                <div className="border-b border-border bg-card px-5 py-3 flex items-center gap-2.5">
-                  <div className="h-2.5 w-2.5 rounded-full bg-destructive/50" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-[hsl(38,85%,55%)]/60" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-[hsl(142,60%,45%)]/60" />
-                </div>
-                <div className="p-4 flex flex-col gap-4 bg-background">
-                  {/* School header */}
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground leading-tight">Massachusetts Institute of Technology</h3>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Research brief · Cambridge, MA</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed mt-2">
-                      Your focus on large-scale ML infrastructure maps directly to MIT&apos;s CSAIL, where undergraduates regularly co-author published research. The open lab culture means you can pitch ideas to faculty from day one.
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1.5">Generated 4/26/2026</p>
-                  </div>
-                  {/* Programs */}
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Programs that match your interests</p>
-                    <div className="space-y-2.5">
-                      {[
-                        { name: "Course 6-3: Computer Science and Engineering", desc: "Covers systems, AI, and theory with direct pathways into CSAIL research groups." },
-                        { name: "Course 6-9: Computation and Cognition", desc: "Bridges ML and cognitive science, ideal for your interest in human-AI interaction." },
-                      ].map((prog) => (
-                        <div key={prog.name}>
-                          <a href="#" className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary underline underline-offset-2">
-                            {prog.name}
-                            <ExternalLink className="h-2.5 w-2.5 shrink-0" />
-                          </a>
-                          <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">{prog.desc}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Faculty */}
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-2">Faculty to know</p>
-                    <div className="space-y-1.5">
-                      {[
-                        { name: "Prof. Daniela Rus, CSAIL Director", desc: "Robotics and AI systems; open to undergraduate collaborators." },
-                        { name: "Prof. Aleksander Madry, RML Group", desc: "Robustness in ML models; publishes with undergrads regularly." },
-                      ].map((f) => (
-                        <div key={f.name}>
-                          <a href="#" className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary underline underline-offset-2">
-                            {f.name}
-                            <ExternalLink className="h-2.5 w-2.5 shrink-0" />
-                          </a>
-                          <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">{f.desc}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Ask follow-up */}
-                  <div className="rounded-xl border border-border bg-muted/20 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-foreground mb-0.5">Want more research?</p>
-                    <p className="text-[10px] text-muted-foreground mb-2">Ask for specific findings to add to your brief</p>
-                    <div className="flex items-center gap-2">
-                      <input
-                        readOnly
-                        value=""
-                        placeholder="e.g. 'Find me three professors doing AI research'"
-                        className="flex-1 min-w-0 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[10px] text-muted-foreground placeholder:text-muted-foreground/50 outline-none"
-                      />
-                      <button className="rounded-lg bg-primary px-2.5 py-1.5 text-[10px] font-semibold text-primary-foreground flex items-center gap-1">
-                        <Sparkles className="h-2.5 w-2.5" />
-                        Ask
-                      </button>
-                    </div>
-                    <p className="text-[9px] text-muted-foreground/50 mt-1">0/1000</p>
-                  </div>
-                </div>
-              </div>
+              <MockResearchPanel />
             </Reveal>
           </div>
         </div>
       </section>
 
-      {/* ── Assistant section ── */}
-      <section id="assistant" className="border-t border-border py-20">
-        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
-          <Reveal className="text-center mb-10">
-            <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
-              Ask anything about your applications.
-            </h2>
-            <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-              Get answers based on your actual list and profile — which schools to prioritize, how to angle an essay, what to research before you apply.
-            </p>
-          </Reveal>
-          <Reveal delay={0.1} className="pointer-events-none select-none">
-            <MockAssistantPanel />
-          </Reveal>
-        </div>
-      </section>
-
       {/* ── Essay section ── */}
-      <section id="essays" className="border-t border-border bg-muted/30 py-20">
+      <section id="essays" className="border-t border-border py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           <Reveal className="text-center mb-10">
             <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
@@ -931,42 +1113,25 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Calendar section ── */}
-      <section className="border-t border-border py-20">
+      {/* ── Assistant section ── */}
+      <section id="assistant" className="border-t border-border bg-muted/30 py-20">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row items-center gap-10">
-            <Reveal className="flex-1 min-w-0">
-              <div className="max-w-lg">
-                <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
-                  Never miss a deadline
-                </h2>
-                <p className="text-base text-muted-foreground leading-relaxed mb-8">
-                  Every school gets its own deadline on a built-in calendar. Track EA, ED, and RD windows so you always know what's coming.
-                </p>
-                <ul className="space-y-3">
-                  {[
-                    "Deadlines color-coded by urgency",
-                    "Click any date to see which colleges are due",
-                    "Upcoming deadlines panel always in view",
-                  ].map((pt) => (
-                    <li key={pt} className="flex items-center gap-3 text-sm text-muted-foreground">
-                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                      {pt}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
-
-            <Reveal delay={0.1} className="shrink-0 pointer-events-none select-none">
-              <MockCalendar />
-            </Reveal>
-          </div>
+          <Reveal className="text-center mb-10">
+            <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
+              Ask anything about your applications.
+            </h2>
+            <p className="text-base text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+              Get answers based on your actual list and profile: which schools to prioritize, how to angle an essay, what to research before you apply.
+            </p>
+          </Reveal>
+          <Reveal delay={0.1} className="pointer-events-none select-none">
+            <MockAssistantPanel />
+          </Reveal>
         </div>
       </section>
 
       {/* ── CTA ── */}
-      <section className="border-t border-border bg-muted/30 py-24">
+      <section className="border-t border-border py-24">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 text-center">
           <Reveal>
             <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">
