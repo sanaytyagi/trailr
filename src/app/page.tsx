@@ -329,7 +329,7 @@ function DashboardPreview() {
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-5 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
           <MockStatCard label="Colleges"   value={String(collegeCount)} />
           <MockStatCard label="Submitted"  value={String(submitted)} accent="text-[hsl(205,85%,45%)]" />
           <MockStatCard label="Accepted"   value="2" accent="text-[hsl(142,60%,35%)]" />
@@ -485,7 +485,7 @@ const CAL_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function MockCalendar() {
   return (
-    <div className="flex flex-col gap-4 w-96">
+    <div className="flex flex-col gap-4 w-full sm:w-96">
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <button className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition-colors">
