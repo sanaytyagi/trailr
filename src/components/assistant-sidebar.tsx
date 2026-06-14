@@ -252,6 +252,23 @@ export function AssistantSidebar({
     return generated < startOfWeek(today);
   }, [digestState]);
 
+  // The drawer is mobile-only. If the viewport grows to lg while it's open
+  // (rotation/resize), close it so the Sheet overlay doesn't dim the desktop
+  // layout with no reachable close affordance.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    if (mq.matches) {
+      onMobileOpenChange?.(false);
+      return;
+    }
+    const handler = (e: MediaQueryListEvent) => {
+      if (e.matches) onMobileOpenChange?.(false);
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, [mobileOpen, onMobileOpenChange]);
+
   const panels = (
     <>
       {/* Panel 1: AI Tasks */}
