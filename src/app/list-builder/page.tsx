@@ -67,7 +67,7 @@ export default function ListBuilderPage() {
         .from("user_lists")
         .select("colleges")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (data?.colleges) {
         const raw = data.colleges;

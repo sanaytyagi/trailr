@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import { ArrowUp, Globe, Sparkles, RotateCcw, Square, Loader2 } from "lucide-react";
+import { ArrowUp, Globe, Sparkles, RotateCcw, Square, Loader2, PanelRight } from "lucide-react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isToolUIPart, type UIMessage } from "ai";
 import { createClient } from "@/lib/supabase/client";
@@ -116,6 +116,7 @@ export default function AssistantPage() {
   const initializingRef = useRef(false);
   const setChatInputRef = useRef<(value: string) => void>(() => {});
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
   const { data: usage, refresh: refreshUsage } = useUsage();
 
   const handlePrefill = (text: string) => {
@@ -281,11 +282,14 @@ export default function AssistantPage() {
         initError={initError}
         onReset={handleReset}
         setInputRef={setChatInputRef}
+        onOpenContext={() => setContextOpen(true)}
       />
       <AssistantSidebar
         userId={profile.id}
         onPrefillChat={handlePrefill}
         onQuotaExceeded={() => setUpgradeOpen(true)}
+        mobileOpen={contextOpen}
+        onMobileOpenChange={setContextOpen}
       />
       <PaywallSheet
         open={upgradeOpen}
@@ -309,6 +313,7 @@ function ChatView({
   initError,
   onReset,
   setInputRef,
+  onOpenContext,
 }: {
   initialMessages: UIMessage[];
   pendingOpening: UIMessage | null;
@@ -317,6 +322,7 @@ function ChatView({
   initError: string | null;
   onReset: () => void | Promise<void>;
   setInputRef: React.MutableRefObject<(value: string) => void>;
+  onOpenContext: () => void;
 }) {
   const transport = useMemo(
     () => new DefaultChatTransport<UIMessage>({ api: "/api/assistant" }),
@@ -440,14 +446,23 @@ function ChatView({
             <p className="text-xs text-muted-foreground">Personalized college guidance based on your applications</p>
           </div>
         </div>
-        <button
-          onClick={handleNewConversation}
-          disabled={streaming || fetchingOpening || messages.length === 0}
-          className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RotateCcw className="h-3 w-3" />
-          New chat
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenContext}
+            aria-label="Open assistant context"
+            className="lg:hidden inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <PanelRight className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={handleNewConversation}
+            disabled={streaming || fetchingOpening || messages.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RotateCcw className="h-3 w-3" />
+            New chat
+          </button>
+        </div>
       </div>
 
       {/* Scroll area */}
