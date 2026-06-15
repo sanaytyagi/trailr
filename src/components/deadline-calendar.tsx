@@ -167,9 +167,9 @@ export function DeadlineCalendar({ entries, onEntryClick, twoColumn }: DeadlineC
   const isRichMode = entries.some(e => !!e.studentName);
 
   return (
-    <div className={twoColumn ? "flex gap-6 items-start" : "flex flex-col gap-4"}>
+    <div className={twoColumn ? "flex flex-col gap-6 lg:flex-row lg:items-start" : "flex flex-col gap-4"}>
       {/* ── Calendar card ────────────────────────────────────────────────────── */}
-      <div className={cn("rounded-xl border border-border bg-card p-4", twoColumn && "w-72 shrink-0")}>
+      <div className={cn("rounded-xl border border-border bg-card p-4", twoColumn && "w-full lg:w-72 lg:shrink-0")}>
         {/* Month nav */}
         <div className="flex items-center justify-between mb-4">
           <button onClick={prevMonth} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">

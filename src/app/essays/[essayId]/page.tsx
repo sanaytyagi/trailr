@@ -683,7 +683,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         </div>
 
         {/* Two-column layout */}
-        <div className="flex gap-6 items-start">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           <div className="flex-1 min-w-0 rounded-xl border border-border bg-card overflow-hidden shadow-sm">
             <PromptSection />
             <div
@@ -710,7 +710,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
           </div>
 
           {/* Comment sidebar */}
-          <div className="w-72 shrink-0 flex flex-col gap-3 sticky top-20">
+          <div className="w-full lg:w-72 lg:shrink-0 flex flex-col gap-3 lg:sticky lg:top-20">
             {activeComments.length === 0 && !pendingSelection && (
               <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-border">
                 <MessageSquare className="h-7 w-7 text-muted-foreground/30 mb-2" />
@@ -826,7 +826,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         </div>
 
         {/* Two-column layout */}
-        <div className="flex gap-6 items-start">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           <div className="flex-1 min-w-0 rounded-xl border border-border bg-card overflow-hidden shadow-sm">
             <PromptSection />
             <div
@@ -853,7 +853,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
           </div>
 
           {/* Notes sidebar */}
-          <div className="w-72 shrink-0 flex flex-col gap-3 sticky top-20">
+          <div className="w-full lg:w-72 lg:shrink-0 flex flex-col gap-3 lg:sticky lg:top-20">
             {notes.length === 0 && !pendingNoteSelection && (
               <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-border">
                 <StickyNote className="h-7 w-7 text-muted-foreground/30 mb-2" />
@@ -1010,7 +1010,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         )}
 
         {/* Two-column layout */}
-        <div className="flex gap-6 items-start">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           <div className="flex-1 min-w-0 rounded-xl border border-border bg-card overflow-hidden shadow-sm">
             <PromptSection />
             <div ref={essayTextRef} className="px-6 py-5 text-sm leading-relaxed whitespace-pre-wrap min-h-[420px]">
@@ -1032,7 +1032,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
           </div>
 
           {/* Comment sidebar */}
-          <div className="w-72 shrink-0 flex flex-col gap-3 sticky top-20">
+          <div className="w-full lg:w-72 lg:shrink-0 flex flex-col gap-3 lg:sticky lg:top-20">
             {activeComments.map((c) => {
               const color = HIGHLIGHT_COLORS[c.color_index % HIGHLIGHT_COLORS.length];
               return (

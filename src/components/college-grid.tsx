@@ -243,8 +243,8 @@ export function CollegeGrid({
   const sortProps = { sortCol, sortDir, onSort: handleSort };
 
   return (
-    <div className="table-enter rounded-xl border border-border bg-card overflow-hidden shadow-sm">
-      <table className="w-full text-sm border-collapse">
+    <div className="table-enter rounded-xl border border-border bg-card overflow-x-auto shadow-sm">
+      <table className="w-full min-w-[720px] text-sm border-collapse">
         <thead>
           <tr className="border-b border-border bg-muted/40">
             <th className="w-8" />
