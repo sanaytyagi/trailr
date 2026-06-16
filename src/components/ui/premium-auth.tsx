@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -581,9 +582,25 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
               />
               <span className="text-sm text-muted-foreground">
                 I agree to the{' '}
-                <a href="#" className="text-primary hover:underline">Terms of Service</a>
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                  onClick={e => e.stopPropagation()}
+                >
+                  Terms of Service
+                </Link>
                 {' '}and{' '}
-                <a href="#" className="text-primary hover:underline">Privacy Policy</a>
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                  onClick={e => e.stopPropagation()}
+                >
+                  Privacy Policy
+                </Link>
               </span>
             </label>
           )}
