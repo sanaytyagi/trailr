@@ -9,6 +9,7 @@ import { CollegeGrid } from "@/components/college-grid";
 import { CollegeDetailDialog } from "@/components/college-detail-dialog";
 import { DeadlineCalendar } from "@/components/deadline-calendar";
 import { ProfileCompletionNudge } from "@/components/profile-completion-nudge";
+import Footer from "@/components/footer";
 import { useTrackedColleges } from "@/hooks/use-tracked-colleges";
 import { useProfile } from "@/hooks/use-profile";
 import { useCounselorNotifications, type CounselorNotification } from "@/hooks/use-counselor-notifications";
@@ -510,6 +511,7 @@ export default function TrackerPage() {
 
 
   return (
+    <>
     <main className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
         {/* Left column */}
@@ -860,5 +862,7 @@ export default function TrackerPage() {
         onNotesChange={handleNotesChange}
       />
     </main>
+    <Footer />
+    </>
   );
 }
