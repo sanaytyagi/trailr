@@ -862,7 +862,9 @@ export default function TrackerPage() {
         onNotesChange={handleNotesChange}
       />
     </main>
-    <Footer />
+    <div className="mt-48">
+      <Footer />
+    </div>
     </>
   );
 }
