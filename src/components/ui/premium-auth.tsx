@@ -24,6 +24,7 @@ interface AuthFormProps {
   className?: string;
   initialMode?: AuthMode;
   onModeChange?: (mode: AuthMode) => void;
+  initialError?: string;
 }
 
 interface FormData {
@@ -111,7 +112,7 @@ export function PasswordStrengthIndicator({ password }: { password: string }) {
   );
 }
 
-export function AuthForm({ onSuccess, className, initialMode = 'login', onModeChange }: AuthFormProps) {
+export function AuthForm({ onSuccess, className, initialMode = 'login', onModeChange, initialError }: AuthFormProps) {
   const router = useRouter();
   const [supabase] = useState(() => createClient());
   const [authMode, setAuthMode] = useState<AuthMode>(initialMode);
@@ -128,7 +129,9 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
     agreeToTerms: false,
     rememberMe: false,
   });
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [errors, setErrors] = useState<FormErrors>(
+    initialError ? { general: initialError } : {}
+  );
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const validate = useCallback((field: keyof FormData, value: string | boolean): string => {
