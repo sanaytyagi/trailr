@@ -6,10 +6,16 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { AuthForm } from "@/components/ui/premium-auth";
 
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_link: "That link has expired or was already used. Please request a new one.",
+};
+
 function AuthPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialMode = searchParams.get("mode") === "signup" ? "signup" : "login";
+  const errorParam = searchParams.get("error");
+  const initialError = errorParam ? ERROR_MESSAGES[errorParam] ?? "Something went wrong. Please try again." : undefined;
   const [supabase] = useState(() => createClient());
 
   function handleModeChange(mode: "login" | "signup" | "reset") {
@@ -60,7 +66,7 @@ function AuthPageInner() {
 
         {/* Auth card */}
         <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-          <AuthForm onSuccess={handleSuccess} initialMode={initialMode} onModeChange={handleModeChange} />
+          <AuthForm onSuccess={handleSuccess} initialMode={initialMode} onModeChange={handleModeChange} initialError={initialError} />
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
