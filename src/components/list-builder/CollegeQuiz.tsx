@@ -269,6 +269,7 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
               value={answers.major}
               onChange={(e) => updateAnswer("major", e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleNext()}
+              maxLength={200}
               className="w-full mt-8 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             />
             <NextButton onClick={handleNext} />
@@ -542,6 +543,7 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
               placeholder="Optional: describe what that culture looks like for you"
               value={answers.careerCultureDescription}
               onChange={(e) => updateAnswer("careerCultureDescription", e.target.value)}
+              maxLength={2000}
               className="w-full mt-4 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             />
             <NextButton onClick={handleNext} />
@@ -614,6 +616,7 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
               value={answers.careers}
               onChange={(e) => updateAnswer("careers", e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleNext()}
+              maxLength={2000}
               className="w-full mt-8 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             />
             <NextButton onClick={handleNext} />
@@ -713,6 +716,7 @@ export function CollegeQuiz({ onComplete, isLoading, onExit }: CollegeQuizProps)
               value={answers.otherPriorities}
               onChange={(e) => updateAnswer("otherPriorities", e.target.value)}
               rows={4}
+              maxLength={2000}
               className="w-full mt-8 rounded-xl border border-input bg-muted/50 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
             />
             <NextButton onClick={handleNext} label="Generate My List" />
