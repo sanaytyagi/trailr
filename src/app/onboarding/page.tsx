@@ -58,19 +58,19 @@ export default function OnboardingPage() {
       if (profile) {
         // Counselors never need a core profile.
         if (profile.role === "counselor") {
-          router.push("/counselor");
+          window.location.href = "/counselor";
           return;
         }
         // Student with a core profile already → done.
         if (profile.core_profile) {
-          router.push("/tracker");
+          window.location.href = "/tracker";
           return;
         }
         // Student missing the core profile, but if they already completed the
         // full List Builder quiz they have state/gpa/major — backfill and let
         // them in rather than re-asking.
         if (await backfillFromQuizIfPresent(user.id)) {
-          router.push("/tracker");
+          window.location.href = "/tracker";
           return;
         }
         // Genuinely no data → capture the core profile.
@@ -137,11 +137,11 @@ export default function OnboardingPage() {
 
     if (existing) {
       if (existing.role === "counselor") {
-        router.push("/counselor");
+        window.location.href = "/counselor";
         return false;
       }
       if (existing.core_profile) {
-        router.push("/tracker");
+        window.location.href = "/tracker";
         return false;
       }
       return true; // student, needs core profile
@@ -165,11 +165,11 @@ export default function OnboardingPage() {
           .eq("id", user.id)
           .maybeSingle();
         if (profile?.role === "counselor") {
-          router.push("/counselor");
+          window.location.href = "/counselor";
           return false;
         }
         if (profile?.core_profile) {
-          router.push("/tracker");
+          window.location.href = "/tracker";
           return false;
         }
         return true;
@@ -180,7 +180,7 @@ export default function OnboardingPage() {
     }
 
     if (role === "counselor") {
-      router.push("/counselor");
+      window.location.href = "/counselor";
       return false;
     }
     return true;
@@ -228,7 +228,11 @@ export default function OnboardingPage() {
     }
 
     // Write has landed; the proxy gate will now let the student through.
-    router.push("/tracker");
+    // Hard navigation (not router.push) — protected nav links were prefetched
+    // while core_profile was still null, caching a redirect-to-/onboarding
+    // response in the client Router Cache. A soft push reuses that stale
+    // cache; a full reload forces middleware to re-evaluate with fresh data.
+    window.location.href = "/tracker";
   }
 
   if (step === "loading") {
