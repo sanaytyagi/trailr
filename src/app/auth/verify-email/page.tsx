@@ -1,13 +1,37 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { Mail } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
+import { useCooldown } from "@/lib/use-cooldown";
 
 function VerifyEmailInner() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
+
+  const [isSending, setIsSending] = useState(false);
+  const [message, setMessage] = useState("");
+  const resend = useCooldown(60);
+
+  async function handleResend() {
+    if (!email || isSending || resend.active) return;
+    setIsSending(true);
+    setMessage("");
+    try {
+      await fetch("/api/auth/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      setMessage("Sent. Check your inbox and spam folder.");
+      resend.start();
+    } catch {
+      setMessage("Something went wrong. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
+  }
 
   return (
     <div className="h-[calc(100vh-4rem)] bg-background flex items-center justify-center px-4">
@@ -44,6 +68,25 @@ function VerifyEmailInner() {
           <p className="text-xs text-muted-foreground">
             Can&apos;t find it? Check your spam folder.
           </p>
+
+          {email && (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={isSending || resend.active}
+              className="w-full bg-primary text-primary-foreground font-medium py-2.5 px-6 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
+            >
+              {isSending ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : resend.active ? (
+                <>Resend in {resend.remaining}s</>
+              ) : (
+                <>Resend verification email</>
+              )}
+            </button>
+          )}
+
+          {message && <p className="text-xs text-muted-foreground">{message}</p>}
 
           <div className="pt-2 border-t border-border">
             <Link
