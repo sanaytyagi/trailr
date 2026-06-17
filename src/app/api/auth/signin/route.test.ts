@@ -8,7 +8,7 @@ const state = {
   count: 0,
   authResult: {
     data: { session: null as null | { access_token: string; refresh_token: string } },
-    error: null as null | { message: string },
+    error: null as null | { message: string; code?: string },
   },
   recorded: [] as unknown[],
   deleted: false,
@@ -74,12 +74,28 @@ describe("auth-signin rate limit (count only failed attempts)", () => {
     expect(state.recorded).toHaveLength(0); // no new attempt recorded
   });
 
-  it("records a hit and returns 401 when credentials are wrong", async () => {
+  it("records a hit and returns a generic 401 when credentials are wrong", async () => {
     state.authResult = { data: { session: null }, error: { message: "Invalid login credentials" } };
     const res = await POST(post(creds));
     expect(res.status).toBe(401);
+    const json = await res.json();
+    // Generic message — never reveal whether the email exists (anti-enumeration).
+    expect(json.error).toBe("The email or password you entered is incorrect.");
+    expect(json.code).toBeUndefined();
     expect(state.recorded).toHaveLength(1); // failure counted
     expect(state.deleted).toBe(false);
+  });
+
+  it("returns the email_not_confirmed code so the client can offer a resend", async () => {
+    state.authResult = {
+      data: { session: null },
+      error: { message: "Email not confirmed", code: "email_not_confirmed" },
+    };
+    const res = await POST(post(creds));
+    expect(res.status).toBe(401);
+    const json = await res.json();
+    expect(json.code).toBe("email_not_confirmed");
+    expect(state.recorded).toHaveLength(1); // still counted as a failed attempt
   });
 
   it("does NOT record a hit and clears the counter on a successful sign-in", async () => {

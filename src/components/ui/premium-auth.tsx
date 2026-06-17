@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { useCooldown } from "@/lib/use-cooldown";
 import {
   Mail,
   Lock,
@@ -121,6 +122,13 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  // When an error has a natural next step, we surface an inline action under the
+  // error banner ("Sign in instead" / "Resend confirmation email").
+  const [pendingAction, setPendingAction] = useState<null | 'switch-to-login' | 'resend-confirmation'>(null);
+  // Stop users from spamming the email-send buttons. Separate timers so a reset
+  // request doesn't lock the resend-confirmation action and vice versa.
+  const resetCooldown = useCooldown(60);
+  const resendCooldown = useCooldown(60);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -203,6 +211,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
     onModeChange?.(next);
     setErrors({});
     setSuccessMessage('');
+    setPendingAction(null);
     setTouched({});
     setFormData({
       firstName: '',
@@ -215,12 +224,41 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
     });
   }
 
+  // Switch to the sign-in tab but keep the email the user already typed.
+  function goToLoginWithEmail() {
+    const { email } = formData;
+    switchMode('login');
+    setFormData(prev => ({ ...prev, email }));
+  }
+
+  async function handleResendConfirmation() {
+    if (isLoading || resendCooldown.active) return;
+    setIsLoading(true);
+    setErrors({});
+    setSuccessMessage('');
+    try {
+      await fetch('/api/auth/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      setPendingAction(null);
+      setSuccessMessage('Confirmation email sent. Check your inbox and spam folder.');
+      resendCooldown.start();
+    } catch {
+      setErrors({ general: 'Something went wrong. Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validateAll()) return;
     setIsLoading(true);
     setErrors({});
     setSuccessMessage('');
+    setPendingAction(null);
 
     try {
       if (authMode === 'login') {
@@ -239,6 +277,8 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
           setErrors({ general: json.error ?? 'Sign-in failed. Please try again.' });
+          // Unconfirmed email: offer to resend the confirmation link.
+          if (json.code === 'email_not_confirmed') setPendingAction('resend-confirmation');
         } else {
           const { error } = await supabase.auth.setSession({
             access_token: json.access_token,
@@ -265,7 +305,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           setErrors({ general: json.error ?? 'Signup failed. Please try again.' });
         } else {
           const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-          const { error } = await supabase.auth.signUp({
+          const { data, error } = await supabase.auth.signUp({
             email: formData.email,
             password: formData.password,
             options: {
@@ -275,12 +315,19 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           });
           if (error) {
             setErrors({ general: error.message });
+          } else if (data.user?.identities?.length === 0) {
+            // Supabase returns a fake-success user with no identities when the
+            // email is already registered (anti-enumeration). No email is sent,
+            // so don't pretend one was: send them to sign in instead.
+            setErrors({ general: 'An account with this email already exists. Try signing in instead.' });
+            setPendingAction('switch-to-login');
           } else {
             router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`);
           }
         }
       } else {
         // password reset
+        if (resetCooldown.active) { setIsLoading(false); return; }
         const res = await fetch('/api/auth/reset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -294,7 +341,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           setErrors({ general: json.error ?? 'Reset failed. Please try again.' });
         } else {
           setSuccessMessage('Password reset email sent! Check your inbox and spam folder.');
-          setTimeout(() => switchMode('login'), 3000);
+          resetCooldown.start();
         }
       }
     } catch {
@@ -353,10 +400,16 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           </div>
           <button
             type="submit"
-            disabled={isLoading || !formData.email}
+            disabled={isLoading || !formData.email || resetCooldown.active}
             className="w-full bg-primary text-primary-foreground font-medium py-3 px-6 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
           >
-            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><KeyRound className="h-4 w-4" /> Send Reset Link</>}
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : resetCooldown.active ? (
+              <>Resend in {resetCooldown.remaining}s</>
+            ) : (
+              <><KeyRound className="h-4 w-4" /> Send Reset Link</>
+            )}
           </button>
         </form>
 
@@ -393,8 +446,29 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
 
       {/* Global messages */}
       {errors.general && (
-        <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-xl flex items-center gap-2 text-sm text-destructive animate-in fade-in-0 slide-in-from-top-3">
-          <AlertTriangle className="h-4 w-4 shrink-0" />{errors.general}
+        <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive animate-in fade-in-0 slide-in-from-top-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" />{errors.general}
+          </div>
+          {pendingAction === 'switch-to-login' && (
+            <button
+              type="button"
+              onClick={goToLoginWithEmail}
+              className="mt-2 font-medium underline underline-offset-2 hover:opacity-80 transition-opacity"
+            >
+              Sign in instead
+            </button>
+          )}
+          {pendingAction === 'resend-confirmation' && (
+            <button
+              type="button"
+              onClick={handleResendConfirmation}
+              disabled={isLoading || resendCooldown.active}
+              className="mt-2 font-medium underline underline-offset-2 hover:opacity-80 transition-opacity disabled:opacity-50"
+            >
+              {resendCooldown.active ? `Resend confirmation email in ${resendCooldown.remaining}s` : 'Resend confirmation email'}
+            </button>
+          )}
         </div>
       )}
       {successMessage && (
