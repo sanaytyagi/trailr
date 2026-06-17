@@ -121,6 +121,9 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  // When an error has a natural next step, we surface an inline action under the
+  // error banner ("Sign in instead" / "Resend confirmation email").
+  const [pendingAction, setPendingAction] = useState<null | 'switch-to-login' | 'resend-confirmation'>(null);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -203,6 +206,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
     onModeChange?.(next);
     setErrors({});
     setSuccessMessage('');
+    setPendingAction(null);
     setTouched({});
     setFormData({
       firstName: '',
@@ -215,12 +219,39 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
     });
   }
 
+  // Switch to the sign-in tab but keep the email the user already typed.
+  function goToLoginWithEmail() {
+    const { email } = formData;
+    switchMode('login');
+    setFormData(prev => ({ ...prev, email }));
+  }
+
+  async function handleResendConfirmation() {
+    setIsLoading(true);
+    setErrors({});
+    setSuccessMessage('');
+    try {
+      await fetch('/api/auth/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email }),
+      });
+      setPendingAction(null);
+      setSuccessMessage('Confirmation email sent. Check your inbox and spam folder.');
+    } catch {
+      setErrors({ general: 'Something went wrong. Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validateAll()) return;
     setIsLoading(true);
     setErrors({});
     setSuccessMessage('');
+    setPendingAction(null);
 
     try {
       if (authMode === 'login') {
@@ -239,6 +270,8 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
           setErrors({ general: json.error ?? 'Sign-in failed. Please try again.' });
+          // Unconfirmed email: offer to resend the confirmation link.
+          if (json.code === 'email_not_confirmed') setPendingAction('resend-confirmation');
         } else {
           const { error } = await supabase.auth.setSession({
             access_token: json.access_token,
@@ -265,7 +298,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           setErrors({ general: json.error ?? 'Signup failed. Please try again.' });
         } else {
           const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-          const { error } = await supabase.auth.signUp({
+          const { data, error } = await supabase.auth.signUp({
             email: formData.email,
             password: formData.password,
             options: {
@@ -275,6 +308,12 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           });
           if (error) {
             setErrors({ general: error.message });
+          } else if (data.user?.identities?.length === 0) {
+            // Supabase returns a fake-success user with no identities when the
+            // email is already registered (anti-enumeration). No email is sent,
+            // so don't pretend one was: send them to sign in instead.
+            setErrors({ general: 'An account with this email already exists. Try signing in instead.' });
+            setPendingAction('switch-to-login');
           } else {
             router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`);
           }
@@ -393,8 +432,29 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
 
       {/* Global messages */}
       {errors.general && (
-        <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-xl flex items-center gap-2 text-sm text-destructive animate-in fade-in-0 slide-in-from-top-3">
-          <AlertTriangle className="h-4 w-4 shrink-0" />{errors.general}
+        <div className="mb-4 p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive animate-in fade-in-0 slide-in-from-top-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" />{errors.general}
+          </div>
+          {pendingAction === 'switch-to-login' && (
+            <button
+              type="button"
+              onClick={goToLoginWithEmail}
+              className="mt-2 font-medium underline underline-offset-2 hover:opacity-80 transition-opacity"
+            >
+              Sign in instead
+            </button>
+          )}
+          {pendingAction === 'resend-confirmation' && (
+            <button
+              type="button"
+              onClick={handleResendConfirmation}
+              disabled={isLoading}
+              className="mt-2 font-medium underline underline-offset-2 hover:opacity-80 transition-opacity disabled:opacity-50"
+            >
+              Resend confirmation email
+            </button>
+          )}
         </div>
       )}
       {successMessage && (

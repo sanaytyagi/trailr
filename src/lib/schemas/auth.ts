@@ -18,6 +18,11 @@ export const resetSchema = z.object({
   redirectTo: z.string().url().max(500).optional(),
 });
 
+export const resendSchema = z.object({
+  email: emailSchema,
+});
+
 export type SigninInput = z.infer<typeof signinSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
 export type ResetInput = z.infer<typeof resetSchema>;
+export type ResendInput = z.infer<typeof resendSchema>;
