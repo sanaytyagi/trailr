@@ -66,8 +66,23 @@ export async function POST(req: NextRequest) {
   if (error || !data.session) {
     // Count ONLY failed attempts toward the lockout.
     await recordRateLimitHit(admin, { endpoint: ENDPOINT, key });
+
+    // A registered-but-unconfirmed email is a distinct, actionable case: tell
+    // the user and let the client offer to resend the confirmation link.
+    if (error?.code === "email_not_confirmed") {
+      return NextResponse.json(
+        {
+          error: "Please confirm your email before signing in.",
+          code: "email_not_confirmed",
+        },
+        { status: 401 }
+      );
+    }
+
+    // Everything else gets one generic message. Not revealing whether the email
+    // exists keeps the endpoint from being used to enumerate accounts.
     return NextResponse.json(
-      { error: error?.message ?? "Invalid email or password" },
+      { error: "The email or password you entered is incorrect." },
       { status: 401 }
     );
   }
