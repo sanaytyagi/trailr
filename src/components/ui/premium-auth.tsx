@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { useCooldown } from "@/lib/use-cooldown";
 import {
   Mail,
   Lock,
@@ -124,6 +125,10 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
   // When an error has a natural next step, we surface an inline action under the
   // error banner ("Sign in instead" / "Resend confirmation email").
   const [pendingAction, setPendingAction] = useState<null | 'switch-to-login' | 'resend-confirmation'>(null);
+  // Stop users from spamming the email-send buttons. Separate timers so a reset
+  // request doesn't lock the resend-confirmation action and vice versa.
+  const resetCooldown = useCooldown(60);
+  const resendCooldown = useCooldown(60);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
     lastName: '',
@@ -227,6 +232,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
   }
 
   async function handleResendConfirmation() {
+    if (isLoading || resendCooldown.active) return;
     setIsLoading(true);
     setErrors({});
     setSuccessMessage('');
@@ -238,6 +244,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
       });
       setPendingAction(null);
       setSuccessMessage('Confirmation email sent. Check your inbox and spam folder.');
+      resendCooldown.start();
     } catch {
       setErrors({ general: 'Something went wrong. Please try again.' });
     } finally {
@@ -320,6 +327,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
         }
       } else {
         // password reset
+        if (resetCooldown.active) { setIsLoading(false); return; }
         const res = await fetch('/api/auth/reset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -333,7 +341,7 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           setErrors({ general: json.error ?? 'Reset failed. Please try again.' });
         } else {
           setSuccessMessage('Password reset email sent! Check your inbox and spam folder.');
-          setTimeout(() => switchMode('login'), 3000);
+          resetCooldown.start();
         }
       }
     } catch {
@@ -392,10 +400,16 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
           </div>
           <button
             type="submit"
-            disabled={isLoading || !formData.email}
+            disabled={isLoading || !formData.email || resetCooldown.active}
             className="w-full bg-primary text-primary-foreground font-medium py-3 px-6 rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center justify-center gap-2"
           >
-            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <><KeyRound className="h-4 w-4" /> Send Reset Link</>}
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : resetCooldown.active ? (
+              <>Resend in {resetCooldown.remaining}s</>
+            ) : (
+              <><KeyRound className="h-4 w-4" /> Send Reset Link</>
+            )}
           </button>
         </form>
 
@@ -449,10 +463,10 @@ export function AuthForm({ onSuccess, className, initialMode = 'login', onModeCh
             <button
               type="button"
               onClick={handleResendConfirmation}
-              disabled={isLoading}
+              disabled={isLoading || resendCooldown.active}
               className="mt-2 font-medium underline underline-offset-2 hover:opacity-80 transition-opacity disabled:opacity-50"
             >
-              Resend confirmation email
+              {resendCooldown.active ? `Resend confirmation email in ${resendCooldown.remaining}s` : 'Resend confirmation email'}
             </button>
           )}
         </div>
