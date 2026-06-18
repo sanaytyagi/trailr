@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 interface StudentEssay {
   id: string;
-  college_id: string;
+  college_id: string | null;
   prompt: string;
   word_limit: number;
   body: string;
@@ -262,12 +262,13 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
             </div>
           ) : (
             (() => {
-              // Group by college_id
+              // Group by college_id (skip personal statements with no college)
               const byCollege = new Map<string, StudentEssay[]>();
               for (const e of studentEssays) {
-                const arr = byCollege.get(e.college_id) ?? [];
+                const key = e.college_id ?? "__common_app__";
+                const arr = byCollege.get(key) ?? [];
                 arr.push(e);
-                byCollege.set(e.college_id, arr);
+                byCollege.set(key, arr);
               }
               // Build college name map from colleges state
               const nameMap = new Map(colleges.map((c) => [c.college_id, c.college.name]));
@@ -275,7 +276,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ studen
               return Array.from(byCollege.entries()).map(([collegeId, essays]) => (
                 <div key={collegeId} className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                   <div className="px-5 py-3.5 border-b border-border bg-muted/30">
-                    <p className="text-sm font-semibold text-foreground">{nameMap.get(collegeId) ?? collegeId}</p>
+                    <p className="text-sm font-semibold text-foreground">{collegeId === "__common_app__" ? "Common App Personal Statement" : (nameMap.get(collegeId) ?? collegeId)}</p>
                   </div>
                   <div className="divide-y divide-border">
                     {essays.map((essay) => {

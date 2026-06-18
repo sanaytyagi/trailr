@@ -13,9 +13,12 @@ import { CollegeLogo } from "@/components/college-logo";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+const COMMON_APP_ID = "__common_app__";
+
 interface Essay {
   id: string;
-  college_id: string;
+  college_id: string | null;
+  essay_type: "supplemental" | "personal_statement";
   prompt: string;
   word_limit: number;
   body: string;
@@ -462,6 +465,129 @@ function AddEssayModal({ open, onOpenChange, colleges, essayCountsByCollege, loc
   );
 }
 
+// ── Add Personal Statement Modal ──────────────────────────────────────────────
+
+interface AddPersonalStatementModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: (essayId: string) => void;
+}
+
+function AddPersonalStatementModal({ open, onOpenChange, onCreated }: AddPersonalStatementModalProps) {
+  const [supabase] = useState(() => createClient());
+  const { profile } = useProfile();
+
+  const [prompt, setPrompt] = useState("");
+  const [wordLimit, setWordLimit] = useState(650);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) { setPrompt(""); setWordLimit(650); setError(null); }
+  }, [open]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile) return;
+    setSubmitting(true);
+    setError(null);
+
+    const { data, error: insertError } = await (supabase as any)
+      .from("essays")
+      .insert({
+        user_id: profile.id,
+        college_id: null,
+        essay_type: "personal_statement",
+        prompt: prompt.trim(),
+        word_limit: wordLimit,
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !data) {
+      setError("Failed to create essay. Please try again.");
+      setSubmitting(false);
+      return;
+    }
+
+    onCreated((data as { id: string }).id);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false} className="p-0 gap-0 max-w-lg sm:max-w-lg overflow-hidden rounded-2xl">
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
+            <BookText className="h-4 w-4 text-muted-foreground shrink-0" />
+            <p className="text-sm font-medium text-foreground">Common App Personal Statement</p>
+          </div>
+
+          <div className="flex flex-col gap-4 px-5 py-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Essay Prompt</label>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Paste the prompt you're responding to, or leave blank to fill in later…"
+                rows={4}
+                autoFocus
+                className="rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Word Limit</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWordLimit((w) => Math.max(50, w - 50))}
+                  className="h-8 w-8 rounded-lg border border-input bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <input
+                  type="number"
+                  value={wordLimit}
+                  onChange={(e) => setWordLimit(Math.max(50, Math.round(parseInt(e.target.value) / 50) * 50 || 50))}
+                  step={50}
+                  min={50}
+                  className="h-8 w-20 rounded-lg border border-input bg-background px-3 text-sm text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <button
+                  type="button"
+                  onClick={() => setWordLimit((w) => w + 50)}
+                  className="h-8 w-8 rounded-lg border border-input bg-background flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {error && <p className="text-xs text-destructive">{error}</p>}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="h-9 rounded-lg px-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="h-9 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {submitting ? "Creating…" : "Create & Open"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 function EssaysPageInner() {
@@ -479,6 +605,7 @@ function EssaysPageInner() {
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const [addPersonalStatement, setAddPersonalStatement] = useState(false);
   const [schoolPickerOpen, setSchoolPickerOpen] = useState(false);
   const [lockedCollegeId, setLockedCollegeId] = useState<string | null>(null);
   const [selectedCollegeId, setSelectedCollegeId] = useState<string | null>(null);
@@ -494,7 +621,7 @@ function EssaysPageInner() {
     if (!profile) return;
     const { data } = await supabase
       .from("essays")
-      .select("id, college_id, prompt, word_limit, body, status, created_at")
+      .select("id, college_id, essay_type, prompt, word_limit, body, status, created_at")
       .eq("user_id", profile.id)
       .order("created_at", { ascending: true });
     const essayList = (data ?? []) as Essay[];
@@ -522,9 +649,15 @@ function EssaysPageInner() {
     if (profile) fetchEssays();
   }, [profile, fetchEssays]);
 
+  const personalStatements = useMemo(
+    () => essays.filter((e) => e.essay_type === "personal_statement"),
+    [essays]
+  );
+
   const groupedByCollege = useMemo(() => {
     const map = new Map<string, Essay[]>();
     for (const e of essays) {
+      if (e.essay_type === "personal_statement" || !e.college_id) continue;
       const arr = map.get(e.college_id) ?? [];
       arr.push(e);
       map.set(e.college_id, arr);
@@ -554,12 +687,12 @@ function EssaysPageInner() {
     return counts;
   }, [groupedByCollege]);
 
-  // Auto-select first college
+  // Auto-select Common App section by default, then first college if present
   useEffect(() => {
-    if (collegesWithEssays.length > 0 && !selectedCollegeId) {
-      setSelectedCollegeId(collegesWithEssays[0].id);
+    if (!selectedCollegeId) {
+      setSelectedCollegeId(COMMON_APP_ID);
     }
-  }, [collegesWithEssays.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedCollege = useMemo(
     () => trackedColleges.find((c) => c.id === selectedCollegeId) ?? null,
@@ -582,10 +715,11 @@ function EssaysPageInner() {
     router.push(`/essays/${essayId}`);
   }
 
-  async function handleDeleteEssay(essayId: string, collegeId: string) {
+  async function handleDeleteEssay(essayId: string, collegeId: string | null) {
     await supabase.from("essays").delete().eq("id", essayId);
     setEssays((prev) => {
       const next = prev.filter((e) => e.id !== essayId);
+      if (collegeId === null) return next;
       const remainingForCollege = next.filter((e) => e.college_id === collegeId);
       if (remainingForCollege.length === 0) {
         setSelectedCollegeId((cur) => {
@@ -643,12 +777,46 @@ function EssaysPageInner() {
                   <div key={i} className="h-14 rounded-lg bg-muted animate-pulse" />
                 ))}
               </div>
-            ) : collegesWithEssays.length === 0 ? (
-              <div className="px-4 py-8 text-center">
-                <p className="text-xs text-muted-foreground">No essays yet</p>
-              </div>
             ) : (
               <div>
+                {/* Common App personal statement entry */}
+                <div className="px-4 pt-3 pb-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Common App</p>
+                  <button
+                    onClick={() => setSelectedCollegeId(COMMON_APP_ID)}
+                    className={cn(
+                      "w-full text-left px-3 py-2.5 rounded-lg border transition-colors",
+                      selectedCollegeId === COMMON_APP_ID
+                        ? "border-primary bg-primary/8"
+                        : "border-border hover:bg-muted/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={cn("text-sm font-medium", selectedCollegeId === COMMON_APP_ID ? "text-primary" : "text-foreground")}>
+                        Personal Statement
+                      </span>
+                      <span className="text-xs bg-muted rounded-full px-1.5 py-0.5 ml-2 shrink-0 tabular-nums">
+                        {personalStatements.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {personalStatements.length === 0 ? (
+                        <span className="text-[11px] text-muted-foreground">650 words · not started</span>
+                      ) : (
+                        personalStatements.map((e) => (
+                          <span key={e.id} className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDotColor(e))} />
+                        ))
+                      )}
+                    </div>
+                  </button>
+                </div>
+
+                {/* Divider + supplemental essays */}
+                {collegesWithEssays.length > 0 && (
+                  <div className="px-4 pt-3 pb-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Supplemental</p>
+                  </div>
+                )}
                 {collegesWithEssays.map((college) => {
                   const essayList = groupedByCollege.get(college.id) ?? [];
                   const isActive = selectedCollegeId === college.id;
@@ -677,6 +845,12 @@ function EssaysPageInner() {
                     </button>
                   );
                 })}
+
+                {collegesWithEssays.length === 0 && essays.length === 0 && (
+                  <div className="px-4 py-4 text-center">
+                    <p className="text-xs text-muted-foreground">No supplemental essays yet</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -697,24 +871,72 @@ function EssaysPageInner() {
           <div className="flex justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : collegesWithEssays.length === 0 ? (
-          /* Empty state — no essays at all */
-          <div className="flex flex-col items-center justify-center h-full text-center py-24">
-            <BookText className="h-10 w-10 text-muted-foreground/30 mb-3" />
-            <p className="text-sm font-medium text-foreground mb-1">No essays yet</p>
-            <p className="text-xs text-muted-foreground mb-4">
-              {collegeOptions.length === 0
-                ? "Add colleges to your tracker first, then come back to write essays."
-                : "Select a school and add your first essay."}
-            </p>
-            {collegeOptions.length > 0 && (
+        ) : selectedCollegeId === COMMON_APP_ID ? (
+          /* Common App personal statement panel */
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-foreground">Common App Personal Statement</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">650 words · shared across all Common App schools</p>
+              </div>
               <button
-                onClick={() => { setLockedCollegeId(null); setAddOpen(true); }}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                onClick={() => setAddPersonalStatement(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 h-10 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
               >
                 <Plus className="h-4 w-4" />
-                Add Essay
+                Add Draft
               </button>
+            </div>
+
+            {personalStatements.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-dashed border-border">
+                <BookText className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                <p className="text-sm font-medium text-foreground mb-1">No personal statement yet</p>
+                <p className="text-xs text-muted-foreground">Add your Common App personal statement to get started.</p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                <div className="divide-y divide-border">
+                  {personalStatements.map((essay) => {
+                    const words = countWords(essay.body);
+                    const status = deriveStatus(essay);
+                    const unresolvedCount = commentCounts[essay.id] ?? 0;
+                    return (
+                      <div key={essay.id} className="relative flex items-stretch group">
+                        <button
+                          onClick={() => router.push(`/essays/${essay.id}`)}
+                          className="flex-1 text-left px-5 py-4 hover:bg-muted/20 transition-colors"
+                        >
+                          <p className="text-sm text-foreground line-clamp-2 leading-snug mb-2.5 pr-8">
+                            {essay.prompt || <span className="text-muted-foreground italic">No prompt</span>}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className={cn("text-[11px] tabular-nums flex-1 min-w-0", wordCountClass(words, essay.word_limit))}>
+                              {words} / {essay.word_limit} words
+                            </p>
+                            {unresolvedCount > 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                                <MessageSquare className="h-3 w-3" />
+                                {unresolvedCount}
+                              </span>
+                            )}
+                            <span className={cn("shrink-0 text-[11px] font-semibold rounded-full px-2.5 py-0.5", status.className)}>
+                              {status.label}
+                            </span>
+                          </div>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteEssay(essay.id, null); }}
+                          className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                          aria-label="Delete essay"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
         ) : selectedCollege ? (
@@ -822,6 +1044,12 @@ function EssaysPageInner() {
         colleges={collegeOptions}
         essayCountsByCollege={essayCountsByCollege}
         lockedCollegeId={lockedCollegeId}
+        onCreated={handleCreated}
+      />
+
+      <AddPersonalStatementModal
+        open={addPersonalStatement}
+        onOpenChange={setAddPersonalStatement}
         onCreated={handleCreated}
       />
     </div>

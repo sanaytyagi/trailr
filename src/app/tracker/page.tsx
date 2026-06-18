@@ -343,6 +343,7 @@ export default function TrackerPage() {
       if (data) {
         const counts: Record<string, number> = {};
         for (const row of data) {
+          if (!row.college_id) continue;
           counts[row.college_id] = (counts[row.college_id] ?? 0) + 1;
         }
         setEssayCounts(counts);

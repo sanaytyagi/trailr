@@ -238,7 +238,8 @@ export interface Database {
         Row: {
           id: string;
           user_id: string;
-          college_id: string;
+          college_id: string | null;
+          essay_type: "supplemental" | "personal_statement";
           prompt: string;
           word_limit: number;
           body: string;
@@ -249,7 +250,8 @@ export interface Database {
         Insert: {
           id?: string;
           user_id: string;
-          college_id: string;
+          college_id?: string | null;
+          essay_type?: "supplemental" | "personal_statement";
           prompt?: string;
           word_limit?: number;
           body?: string;

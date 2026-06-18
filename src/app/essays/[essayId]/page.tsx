@@ -23,7 +23,7 @@ import { CollegeLogo } from "@/components/college-logo";
 interface Essay {
   id: string;
   user_id: string;
-  college_id: string;
+  college_id: string | null;
   prompt: string;
   word_limit: number;
   body: string;
@@ -165,14 +165,14 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
   const [viewMode, setViewMode] = useState<"owner" | "counselor" | null>(null);
 
   // College (tracked so back nav always points to current college)
-  const [collegeId, setCollegeId] = useState<string>("");
+  const [collegeId, setCollegeId] = useState<string | null>(null);
   const [trackedColleges, setTrackedColleges] = useState<CollegeOption[]>([]);
 
   // Settings modal
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsPrompt, setSettingsPrompt] = useState("");
   const [settingsWordLimit, setSettingsWordLimit] = useState(650);
-  const [settingsCollegeId, setSettingsCollegeId] = useState("");
+  const [settingsCollegeId, setSettingsCollegeId] = useState<string | null>(null);
   const [settingsSearch, setSettingsSearch] = useState("");
   const [settingsSaving, setSettingsSaving] = useState(false);
 
@@ -261,13 +261,17 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
       setBody(essayData.body);
       setCollegeId(essayData.college_id);
 
-      const { data: collegeData } = await (supabase as any)
-        .from("colleges")
-        .select("name, website_url")
-        .eq("id", essayData.college_id)
-        .single();
-      setCollegeName((collegeData as { name: string; website_url: string | null } | null)?.name ?? "");
-      setCollegeWebsiteUrl((collegeData as { name: string; website_url: string | null } | null)?.website_url ?? null);
+      if (essayData.college_id) {
+        const { data: collegeData } = await (supabase as any)
+          .from("colleges")
+          .select("name, website_url")
+          .eq("id", essayData.college_id)
+          .single();
+        setCollegeName((collegeData as { name: string; website_url: string | null } | null)?.name ?? "");
+        setCollegeWebsiteUrl((collegeData as { name: string; website_url: string | null } | null)?.website_url ?? null);
+      } else {
+        setCollegeName("Common App");
+      }
 
       // Fetch tracked colleges for settings
       const { data: trackedData } = await (supabase as any)
@@ -280,14 +284,24 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         );
       }
 
-      // Load sibling essays for navigation (Change 3)
-      const { data: siblingsData } = await (supabase as any)
-        .from("essays")
-        .select("id")
-        .eq("college_id", essayData.college_id)
-        .eq("user_id", essayData.user_id)
-        .order("created_at", { ascending: true });
-      if (siblingsData) setSiblingEssays(siblingsData as { id: string }[]);
+      // Load sibling essays for navigation
+      if (essayData.college_id) {
+        const { data: siblingsData } = await (supabase as any)
+          .from("essays")
+          .select("id")
+          .eq("college_id", essayData.college_id)
+          .eq("user_id", essayData.user_id)
+          .order("created_at", { ascending: true });
+        if (siblingsData) setSiblingEssays(siblingsData as { id: string }[]);
+      } else {
+        const { data: siblingsData } = await (supabase as any)
+          .from("essays")
+          .select("id")
+          .is("college_id", null)
+          .eq("user_id", essayData.user_id)
+          .order("created_at", { ascending: true });
+        if (siblingsData) setSiblingEssays(siblingsData as { id: string }[]);
+      }
 
       // Load counselor comments
       const { data: commentsData } = await (supabase as any)
@@ -949,7 +963,7 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
         {/* Top bar */}
         <div className="flex items-center gap-3 mb-5">
           <button
-            onClick={() => router.push(`/essays?college=${collegeId}`)}
+            onClick={() => router.push(collegeId ? `/essays?college=${collegeId}` : "/essays")}
             className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground shadow-sm hover:bg-muted transition-colors shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -961,13 +975,15 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
               {collegeName}
             </span>
           )}
-          <Link
-            href={`/colleges/${collegeId}/brief`}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm transition-colors shrink-0"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Research Brief
-          </Link>
+          {collegeId && (
+            <Link
+              href={`/colleges/${collegeId}/brief`}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm transition-colors shrink-0"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Research Brief
+            </Link>
+          )}
           <button
             onClick={openSettings}
             title="Edit essay settings"
@@ -1156,13 +1172,15 @@ export default function EssayEditorPage({ params }: { params: Promise<{ essayId:
           </span>
         )}
 
-        <Link
-          href={`/colleges/${collegeId}/brief`}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm transition-colors shrink-0"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Research Brief
-        </Link>
+        {collegeId && (
+          <Link
+            href={`/colleges/${collegeId}/brief`}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted shadow-sm transition-colors shrink-0"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Research Brief
+          </Link>
+        )}
 
         <button
           onClick={openSettings}
