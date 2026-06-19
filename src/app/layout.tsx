@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Header } from "@/components/header";
 import { AgentationWrapper } from "@/components/agentation-wrapper";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -42,6 +43,7 @@ export default function RootLayout({
           {children}
           <Toaster position="bottom-right" richColors />
           <AgentationWrapper />
+          <Analytics />
         </TooltipProvider>
       </body>
     </html>
