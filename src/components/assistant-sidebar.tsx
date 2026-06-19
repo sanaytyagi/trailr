@@ -25,6 +25,7 @@ type DecisionRow = {
 type EssayRow = {
   word_limit: number;
   body: string;
+  essay_type: string | null;
   college_name: string | null;
 };
 
@@ -145,7 +146,7 @@ export function AssistantSidebar({
           .eq("user_id", userId),
         db
           .from("essays")
-          .select("word_limit, body, colleges(name)")
+          .select("word_limit, body, essay_type, colleges(name)")
           .eq("user_id", userId),
       ]);
       if (cancelled) return;
@@ -155,6 +156,7 @@ export function AssistantSidebar({
       const essayRows = ((essayRes.data ?? []) as any[]).map((r) => ({
         word_limit: r.word_limit ?? 0,
         body: r.body ?? "",
+        essay_type: r.essay_type ?? null,
         college_name: r.colleges?.name ?? null,
       }));
       setDecisions(decisionRows);
@@ -220,7 +222,7 @@ export function AssistantSidebar({
       const limit = Math.max(e.word_limit, 1);
       const pct = wordCount / limit;
       return {
-        college: e.college_name ?? "Unknown",
+        college: e.college_name ?? (e.essay_type === "personal_statement" ? "Common App" : "Unknown"),
         wordCount,
         limit: e.word_limit,
         pct,
