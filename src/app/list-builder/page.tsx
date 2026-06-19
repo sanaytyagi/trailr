@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Plus, RotateCcw, Search, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CollegeQuiz } from "@/components/list-builder/CollegeQuiz";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -267,8 +268,29 @@ export default function ListBuilderPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-[calc(100vh-4rem)] bg-background">
+        <div className="sticky top-16 z-40 border-b border-border bg-card/80 backdrop-blur-sm">
+          <div className="max-w-6xl mx-auto px-6 py-4">
+            <Skeleton className="h-8 w-72" />
+          </div>
+        </div>
+        <div className="max-w-6xl mx-auto px-6 py-8 space-y-12">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="space-y-4">
+              <Skeleton className="h-7 w-40" />
+              <div className="grid gap-4 md:grid-cols-2">
+                {[...Array(2)].map((_, j) => (
+                  <div key={j} className="border border-border rounded-lg p-4 space-y-3">
+                    <Skeleton className="h-6 w-48" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

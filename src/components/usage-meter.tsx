@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export type UsageData = {
   plan: "free" | "plus" | "unlimited";
@@ -30,9 +31,13 @@ export function UsageMeter({
 }) {
   if (loading || !data) {
     return (
-      <div className={cn("flex items-center gap-2 text-sm text-muted-foreground", className)}>
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        <span>Loading usage…</span>
+      <div className={cn("space-y-2", className)}>
+        <div className="flex items-center justify-between gap-3">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <Skeleton className="h-1.5 w-full rounded-full" />
+        <Skeleton className="h-3 w-64" />
       </div>
     );
   }

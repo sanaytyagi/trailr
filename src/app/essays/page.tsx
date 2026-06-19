@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, BookText, Loader2, MessageSquare, Search, ChevronRight, ChevronLeft, ArrowLeft, Minus, Sparkles, Trash2 } from "lucide-react";
+import { Plus, BookText, MessageSquare, Search, ChevronRight, ChevronLeft, ArrowLeft, Minus, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useTrackedColleges } from "@/hooks/use-tracked-colleges";
@@ -10,6 +10,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CollegeLogo } from "@/components/college-logo";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -868,8 +869,27 @@ function EssaysPageInner() {
       {/* ── Right panel ──────────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 px-8 py-8">
         {showLoader ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-72" />
+                <Skeleton className="h-4 w-44" />
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+              <div className="divide-y divide-border">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="px-5 py-4 space-y-2.5">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <Skeleton className="h-3.5 w-24" />
+                      <Skeleton className="h-5 w-16 rounded-full ml-auto" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ) : selectedCollegeId === COMMON_APP_ID ? (
           /* Common App personal statement panel */

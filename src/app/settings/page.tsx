@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import { Calendar, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Calendar, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { UsageMeter, useUsage } from "@/components/usage-meter";
 
@@ -304,7 +304,7 @@ function SettingsPageInner() {
                   <p className="text-sm font-medium text-foreground">Google Calendar</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     {calendarStatus === "loading" ? (
-                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                      <div className="h-3.5 w-24 rounded bg-muted animate-pulse" />
                     ) : calendarStatus === "connected" ? (
                       <>
                         <CheckCircle2 className="h-3 w-3 text-emerald-500" />

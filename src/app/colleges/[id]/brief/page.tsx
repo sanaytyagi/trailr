@@ -3,6 +3,7 @@
 import { use, useEffect, useState, useCallback, useRef, useLayoutEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2, RefreshCw, ExternalLink, AlertCircle, SendHorizontal } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { createClient } from "@/lib/supabase/client";
 import type { Dossier, CitedItem } from "@/lib/research-brief/schema";
 import { PaywallSheet } from "@/components/paywall-sheet";
@@ -201,7 +202,36 @@ export default function CollegeBriefPage({
   };
 
   if (state.kind === "loading") {
-    return <Centered><Loader2 className="h-6 w-6 animate-spin" /></Centered>;
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="mb-6">
+          <Skeleton className="h-4 w-36" />
+        </div>
+        <div className="mb-6 space-y-2">
+          <Skeleton className="h-9 w-80" />
+          <Skeleton className="h-4 w-52" />
+        </div>
+        <div className="space-y-8">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="space-y-3">
+              <Skeleton className="h-6 w-56" />
+              {[...Array(2)].map((_, j) => (
+                <div key={j} className="rounded-md border border-border p-4 space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
   if (state.kind === "unauthed") {
     return (
