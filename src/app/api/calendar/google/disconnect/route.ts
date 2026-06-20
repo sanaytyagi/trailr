@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { revokeToken } from "@/lib/google-calendar";
+import { revokeToken, getValidAccessToken, deleteCalendarEvent } from "@/lib/google-calendar";
 import {
   checkRateLimit,
   recordRateLimitHit,
@@ -36,6 +36,24 @@ export async function POST() {
     .eq("user_id", user.id)
     .eq("provider", PROVIDER)
     .maybeSingle();
+
+  // Delete all Google Calendar events before revoking the token
+  const accessToken = await getValidAccessToken(user.id);
+  if (accessToken) {
+    const { data: events } = await db
+      .from("calendar_events")
+      .select("event_id")
+      .eq("user_id", user.id)
+      .eq("provider", PROVIDER);
+
+    if (events?.length) {
+      await Promise.allSettled(
+        (events as Array<{ event_id: string }>).map((e) =>
+          deleteCalendarEvent(accessToken, e.event_id)
+        )
+      );
+    }
+  }
 
   if (integration?.access_token) {
     await revokeToken(integration.access_token);

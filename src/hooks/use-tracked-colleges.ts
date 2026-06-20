@@ -182,7 +182,28 @@ export function useTrackedColleges() {
   // -------------------------------------------------------------------------
   const removeCollege = useCallback(
     async (collegeId: string) => {
+      const collegeName = trackedColleges.find((c) => c.id === collegeId)?.name ?? "";
+
       setTrackedColleges((prev) => prev.filter((c) => c.id !== collegeId));
+
+      if (calendarConnectedRef.current && collegeName) {
+        fetch("/api/calendar/google/sync-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ college_id: collegeId, college_name: collegeName, deadline: null }),
+        })
+          .then((res) => {
+            if (!res.ok) { console.error("sync-event (remove) HTTP error:", res.status); return {}; }
+            return res.json();
+          })
+          .then((data: { disconnected?: boolean }) => {
+            if (data.disconnected) {
+              setCalendarConnected(false);
+              calendarConnectedRef.current = false;
+            }
+          })
+          .catch((err) => console.error("sync-event (remove) fetch failed:", err));
+      }
 
       const { error } = await supabase
         .from("user_colleges")
@@ -225,7 +246,7 @@ export function useTrackedColleges() {
         }
       }
     },
-    [supabase]
+    [supabase, trackedColleges]
   );
 
   // -------------------------------------------------------------------------
@@ -363,7 +384,13 @@ export function useTrackedColleges() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ college_id: collegeId, college_name: collegeName, deadline }),
         })
-          .then((res) => res.json())
+          .then((res) => {
+            if (!res.ok) {
+              console.error("sync-event HTTP error:", res.status);
+              return {};
+            }
+            return res.json();
+          })
           .then((data: { disconnected?: boolean }) => {
             if (data.disconnected) {
               setCalendarConnected(false);
@@ -374,7 +401,7 @@ export function useTrackedColleges() {
               });
             }
           })
-          .catch(() => {}); // Silent fail — calendar sync is best-effort
+          .catch((err) => console.error("sync-event fetch failed:", err));
       }
     },
     [supabase, trackedColleges]
