@@ -122,6 +122,15 @@ async function fetchAll() {
   return all.slice(0, MAX_COLLEGES);
 }
 
+// Scorecard occasionally returns a staff contact address in school_url
+// instead of a domain. Drop any userinfo prefix so we never publish
+// someone's email address as a college website.
+function normalizeWebsite(raw) {
+  if (!raw) return null;
+  const withScheme = raw.startsWith("http") ? raw : `https://${raw}`;
+  return withScheme.replace(/^(https?:\/\/)[^/@]*@/, "$1");
+}
+
 function transform(raw) {
   const name = raw["school.name"];
   const city = raw["school.city"];
@@ -149,7 +158,7 @@ function transform(raw) {
     location: city && state ? `${city}, ${state}` : state ?? null,
     state: state ?? null,
     acceptance_rate: acceptanceRate,
-    website_url: website ? (website.startsWith("http") ? website : `https://${website}`) : null,
+    website_url: normalizeWebsite(website),
     logo_url: null,
     college_type: ownershipToType(ownership),
     sat_25: satMath25 != null && satRead25 != null ? satMath25 + satRead25 : null,
